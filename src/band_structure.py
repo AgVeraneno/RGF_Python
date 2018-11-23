@@ -1,4 +1,4 @@
-import copy
+import os, copy
 import numpy as np
 from matplotlib import pyplot
 
