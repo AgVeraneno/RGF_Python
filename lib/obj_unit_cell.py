@@ -3,15 +3,9 @@ import numpy as np
 
 
 class UnitCell():
-    '''
-    lattice: MLG or BLG
-    direction: armchair or zigzag
-    unitcell: 1 or 2
-    '''
     def __init__(self, inputs):
-        self.inf_bar = 100                  # eV. infinite on site energy
         ## import inputs
-        self.inputs = inputs
+        self.inputs = inputs                # user inputs
         self.mat = inputs['material']       # material object
         self.wmax = self.inputs['mesh'][0]  # number of sub unit cell. Maximum ribbon width
         self.m_size = self.wmax*8           # matrix size (BLG size)
@@ -44,8 +38,8 @@ class UnitCell():
             self.H = self.H[MLGstart:MLGstop,MLGstart:MLGstop]
             self.P_plus = self.P_plus[MLGstart:MLGstop,MLGstart:MLGstop]
             self.P_minus = self.P_minus[MLGstart:MLGstop,MLGstart:MLGstop]
-    def setKx(self, unit_idx, len_idx):
-        self.kx = 2*np.pi/(self.mat.ax*(self.inputs['Unit cell'][unit_idx]['L']-1))*len_idx
+    def setKx(self, len_idx):
+        self.kx = 2*np.pi/(self.mat.ax*(self.inputs['mesh'][1]-1))*len_idx
         self.kx_norm = self.kx*self.mat.ax/np.pi
     def __ArmchairD__(self, zone):
         Vt = zone['Vtop'] - zone['Vbot']
