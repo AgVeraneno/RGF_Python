@@ -35,8 +35,15 @@ class GreenFunction():
                 ## Calculate reflection matrix ##
                 self.R_matrix += np.dot(Gnn, unit.P_minus*P_phase)
                 self.J0 = 1j*self.mat.ax/self.mat.h_bar*\
-                          (unit.P_plus*np.exp(1j*unit.kx*self.mat.kx)-\
-                           unit.P_minus*np.exp(-1j*unit.kx*self.mat.kx))
+                          (unit.P_plus*np.exp(1j*unit.kx*self.mat.ax)-\
+                           unit.P_minus*np.exp(-1j*unit.kx*self.mat.ax))
+            elif u_ptr == len(self.mesh_grid)-1:
+                ## Calculate Gnn ##
+                G_inv = E_mat-unit.H+unit.P_plus*np.exp(1j*unit.kx*self.mat.ax) -\
+                        np.dot(unit.P_minus,np.dot(Gnn,unit.P_plus))
+                Gnn = np.linalg.inv(G_inv)
+                ## Calculate Gn0 ##
+                Gn0 = np.dot(Gnn, np.dot(unit.P_minus,Gn0))
             else:
                 ## Calculate Gnn ##
                 G_inv = E_mat-unit.H -\
@@ -46,11 +53,20 @@ class GreenFunction():
                 Gn0 = np.dot(Gnn, np.dot(unit.P_minus,Gn0))
         self.T_matrix = np.dot(Gn0,unit.P_minus*P_phase)
         self.Jn = 1j*self.mat.ax/self.mat.h_bar*\
-                  (unit.P_plus*np.exp(1j*unit.kx*self.mat.kx)-\
-                   unit.P_minus*np.exp(-1j*unit.kx*self.mat.kx))
-    def calTR(self, c0, cn, c0_minus):
-        Ji = np.dot(np.transpose(c0), np.dot(self.J0, c0))
-        Jt = np.dot(np.transpose(cn), np.dot(self.Jn, cn))
-        Jr = np.dot(np.transpose(c0_minus), np.dot(self.J0, c0_minus))
-        return Jt/Ji, Jr/Ji
-        
+                  (unit.P_plus*np.exp(1j*unit.kx*self.mat.ax)-\
+                   unit.P_minus*np.exp(-1j*unit.kx*self.mat.ax))
+    def calTR(self):
+        Ji_matrix = np.dot(np.conj(np.transpose(self.c0)), np.dot(self.J0, self.c0))
+        Jt_matrix = np.dot(np.conj(np.transpose(self.cn)), np.dot(self.Jn, self.cn))
+        Jr_matrix = np.dot(np.conj(np.transpose(self.c0_minus)), np.dot(self.J0, self.c0_minus))
+        T = 0
+        R = 0
+        for n in range(np.size(Ji_matrix,0)):
+            if round(Ji_matrix[n,n], 25) != 0:
+                T += Jt_matrix[n,n]/Ji_matrix[n,n]
+                R += Jr_matrix[n,n]/Ji_matrix[n,n]
+        return T,R
+    def calState(self, i_state, o_state):
+        self.c0 = i_state
+        self.cn = o_state
+        self.c0_minus = np.dot(self.R_matrix, i_state)

@@ -124,5 +124,6 @@ if __name__ == '__main__':
     else:
         RGF_util.calRGF()
     ## Calculate transmission/reflection current
-    
+    RGF_util.calState(i_state, o_state)
     Jt, Jr = RGF_util.calTR()
+    print(Jt, Jr)
