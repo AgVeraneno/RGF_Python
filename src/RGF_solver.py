@@ -83,47 +83,54 @@ if __name__ == '__main__':
                 unit.setKx(idx)
                 if inputs['GPU']['enable']:
                     val, vec = band_structure.calState_GPU(unit)
+                    bandgap_list['y'].append(cp.sort(val))
                 else:
                     val, vec = band_structure.calState(unit)
+                    bandgap_list['y'].append(np.sort(val))
                 bandgap_list['x'].append(unit.kx_norm)
-                bandgap_list['y'].append(np.sort(val))
                 ## record incident state
                 if unit_idx == 0 and idx == 0:
-                    En = copy.deepcopy(val)
+                    En0 = copy.deepcopy(val)
                     i_state = copy.deepcopy(vec)
             band_structure.plotBand(bandgap_list, unit_idx)
         ## record output state
         unit = unit_list[-1]
         unit.setKx(inputs['mesh'][1]-1)
         if inputs['GPU']['enable']:
-            En, o_state = band_structure.calState_GPU(unit)
+            Enn, o_state = band_structure.calState_GPU(unit)
         else:
-            En, o_state = band_structure.calState(unit)
+            Enn, o_state = band_structure.calState(unit)
     else:
         ## record incident state
         unit = unit_list[0]
         unit.setKx(0)
         if inputs['GPU']['enable']:
-            En, i_state = band_structure.calState_GPU(unit)
+            En0, i_state = band_structure.calState_GPU(unit)
         else:
-            En, i_state = band_structure.calState(unit)
+            En0, i_state = band_structure.calState(unit)
         ## record output state
         unit = unit_list[-1]
         unit.setKx(inputs['mesh'][1]-1)
         if inputs['GPU']['enable']:
-            En, o_state = band_structure.calState_GPU(unit)
+            Enn, o_state = band_structure.calState_GPU(unit)
         else:
-            En, o_state = band_structure.calState(unit)
+            Enn, o_state = band_structure.calState(unit)
     '''
     Construct Green's matrix
     '''
     ## Calculate RGF ##
     RGF_util = gf.GreenFunction(inputs, unit_list)
-    if inputs['GPU']['enable']:
-        RGF_util
-    else:
-        RGF_util.calRGF()
-    ## Calculate transmission/reflection current
-    RGF_util.calState(i_state, o_state)
-    Jt, Jr = RGF_util.calTR()
-    print(Jt, Jr)
+    for E_idx, E in enumerate(En0):
+        if inputs['GPU']['enable']:
+            if abs(E/1.6e-19) >= 1e-5:
+                RGF_util.calRGF_GPU(E)
+                ## Calculate transmission/reflection current
+                RGF_util.calState_GPU(i_state[:,E_idx], o_state[:,E_idx])
+                Jt, Jr = RGF_util.calTR_GPU()
+        else:
+            if round(E, 25) != 0:
+                RGF_util.calRGF(E)
+                ## Calculate transmission/reflection current
+                RGF_util.calState(i_state[:,E_idx], o_state[:,E_idx])
+                Jt, Jr = RGF_util.calTR()
+        print(E/1.6e-19, Jt, Jr)
