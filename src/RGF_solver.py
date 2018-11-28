@@ -118,19 +118,26 @@ if __name__ == '__main__':
     '''
     Construct Green's matrix
     '''
+    Vbias = (inputs['Vbias'][0] - inputs['Vbias'][1])*1.6e-19
     ## Calculate RGF ##
     RGF_util = gf.GreenFunction(inputs, unit_list)
     for E_idx, E in enumerate(En0):
         if inputs['GPU']['enable']:
-            if abs(E/1.6e-19) >= 1e-5:
+            if E >= 1e-25 and E <= Vbias:
                 RGF_util.calRGF_GPU(E)
                 ## Calculate transmission/reflection current
                 RGF_util.calState_GPU(i_state[:,E_idx], o_state[:,E_idx])
                 Jt, Jr = RGF_util.calTR_GPU()
+                print(E/1.6e-19, Jt, Jr)
+            else:
+                Jt = Jr = 0
         else:
-            if round(E, 25) != 0:
+            if E >= 1e-25 and E <= Vbias:
                 RGF_util.calRGF(E)
                 ## Calculate transmission/reflection current
                 RGF_util.calState(i_state[:,E_idx], o_state[:,E_idx])
                 Jt, Jr = RGF_util.calTR()
-        print(E/1.6e-19, Jt, Jr)
+                print(E/1.6e-19, Jt, Jr)
+            else:
+                Jt = Jr = 0
+        
