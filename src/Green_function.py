@@ -20,7 +20,7 @@ class GreenFunction():
             counter = 0
             while counter < unit['L']:
                 self.mesh_grid.append(u_idx)
-                counter += 1                
+                counter += 1
     def calRGF(self, E):
         E_mat = np.eye(np.size(self.unit_list[0].H,0), dtype=np.complex128)*E
         self.R_matrix = np.eye(np.size(self.unit_list[0].H,0), dtype=np.complex128)*-1

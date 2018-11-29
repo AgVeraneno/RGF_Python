@@ -72,6 +72,7 @@ if __name__ == '__main__':
         new_unitcell = obj_unit_cell.UnitCell(inputs)
         new_unitcell.genHamiltonian(inputs['Unit cell'][idx])
         unit_list.append(new_unitcell)
+        new_unitcell.saveAsXLS(inputs['Unit cell'][idx])
     '''
     calculate band structure and incident state
     '''

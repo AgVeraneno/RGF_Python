@@ -1,6 +1,7 @@
 import sys, os
 sys.path.append('../lib/')
 from openpyxl import load_workbook
+from openpyxl import Workbook
 from PyQt4 import QtGui
 
 import lib_GUI
@@ -24,11 +25,20 @@ class excel():
             self.sheet_list = self.workbook.sheetnames           # save sheets in work book to sheet_list
             return self
     def __exit__(self, type, value, traceback):
-        print('Close workbook'+self.file_path)
+        print('Close workbook: '+self.file_path)
+    def newWorkbook(self, sheet_name=''):
+        self.workbook = Workbook()
+        self.worksheet = self.workbook.active
+        if sheet_name != '':
+            self.worksheet.title = sheet_name
+    def newSheet(self, sheet_name=''):
+        self.worksheet = self.workbook.create_sheet(sheet_name)
+    def save(self):
+        self.workbook.save(self.file_path)
     def readSheet(self, sheet):
         self.worksheet = self.workbook[sheet]
         return self.worksheet.iter_rows()
-        
+    
         
         
         
@@ -61,10 +71,8 @@ class excel():
             return False
     def getSheet(self, sheet_name=''):
         self.worksheet = self.workbook.get_sheet_by_name(sheet_name)
-    def newSheet(self, sheet_name=''):
-        self.worksheet = self.workbook.create_sheet(sheet_name)
-    def save(self, filename='output'):
-        self.workbook.save('../recipe/'+filename+'.xlsx')
+
+
 '''
 debug entry
 '''

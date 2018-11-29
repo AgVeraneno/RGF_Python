@@ -1,6 +1,6 @@
-import copy
+import copy, os
 import numpy as np
-
+import lib_excel
 
 class UnitCell():
     def __init__(self, inputs):
@@ -41,6 +41,42 @@ class UnitCell():
     def setKx(self, len_idx):
         self.kx = 2*np.pi/(self.mat.ax*(self.inputs['mesh'][1]-1))*len_idx
         self.kx_norm = self.kx*self.mat.ax/np.pi
+    def saveAsXLS(self, thisUnit):
+        if self.inputs['material'].name == 'Graphene' \
+        and self.inputs['direction'] == 'Armchair':
+            filename = self.inputs['lattice']+'_AGNR_'
+        elif self.inputs['material'].name == 'Graphene' \
+        and self.inputs['direction'] == 'Zigzag':
+            filename = self.inputs['lattice']+'_ZGNR_'
+        condition = 'Z='+str(thisUnit['Region'])+\
+                    ',Type='+str(thisUnit['Type'])+\
+                    ',S='+str(thisUnit['Shift'])+\
+                    ',W='+str(thisUnit['W'])+\
+                    ',L='+str(thisUnit['L'])+\
+                    ',Vtop='+str(thisUnit['Vtop'])+\
+                    ',Vbot='+str(thisUnit['Vbot'])+\
+                    ',d='+str(thisUnit['delta'])
+        excel_parser = lib_excel.excel('matrix/'+filename+condition+'.xlsx')
+        ## create H sheet ##
+        excel_parser.newWorkbook('H')
+        for i in range(np.size(self.H, 0)):
+            for j in range(np.size(self.H, 1)):
+                _ = excel_parser.worksheet.cell(column=j+1, row=i+1,\
+                                                value="=COMPLEX("+str(np.real(self.H[i,j]))\
+                                                +","+str(np.imag(self.H[i,j]))+")")
+        ## create P+ sheet ##
+        excel_parser.newSheet('P')
+        P = self.P_plus+self.P_minus
+        for i in range(np.size(self.H, 0)):
+            for j in range(np.size(self.H, 1)):
+                _ = excel_parser.worksheet.cell(column=j+1, row=i+1,\
+                                                value="=COMPLEX("+str(np.real(P[i,j]))\
+                                                +","+str(np.imag(P[i,j]))+")")
+        try:
+            excel_parser.save()
+        except:
+            os.mkdir('matrix')
+            excel_parser.save()
     def __ArmchairD__(self, zone):
         Vt = zone['Vtop'] - zone['Vbot']
         dVt = Vt/(self.unit_mesh*2)
@@ -56,7 +92,9 @@ class UnitCell():
             site_delta = m%2*B_inv*delta + (1-m%2)*delta
             if block < self.AB_start:       # shift area
                 self.H[m,m] = 0
-            elif self.incTop:               # top edge
+            elif self.incTop and \
+            (block == self.AB_stop or \
+             block == self.ab_stop):               # top edge
                 if block == self.AB_stop:
                     if m % 4 == 0 or m % 4 == 3:# empty atoms
                         self.H[m,m] = 0
@@ -93,89 +131,117 @@ class UnitCell():
         '''
         ## unit cell H
         np_matrix = []
+        np_matrixP = []
         for r in range(int(self.wmax*2)):
             row = []
+            rowP = []
             for c in range(int(self.wmax*2)):
-                if r == self.AB_start or r == self.ab_start:      # bottom edge
-                    if r == c and c == self.AB_start:           # on site energy AB layer 
-                        row.append(self.__AB2AB_bot__)
-                    elif r == c-1 and r == self.AB_start:       # inter cell hopping AB
-                        row.append(self.__AB2ABnext_bot__)
-                    elif r == c-1 and r == self.ab_start:       # inter cell hopping ab
-                        row.append(self.__ab2abnext_bot__)
-                    elif r == c-self.ab_start:           # inter layer hopping
-                        row.append(self.__AB2ab_bot__)
-                    elif r == c-self.ab_start-1:         # inter layer hopping +
-                        row.append(self.__AB2abnext_bot__)
+                if r == self.AB_start or r == self.ab_start:
+                    ## Bottom edge ##
+                    if r == self.AB_start:
+                        ## AB layer bottom ##
+                        if r == c:                  # on site energy
+                            row.append(self.__AB2AB_bot__)
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
+                        elif r == c-1:              # inter cell hopping AB
+                            row.append(self.__AB2ABnext_bot__)
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
+                        elif r == c-self.wmax:  # inter layer hopping
+                            row.append(self.__AB2ab_bot__)
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
+                        elif r == c-self.wmax-1:# inter layer AB to next ab
+                            row.append(self.__AB2abnext_bot__)
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
+                        else:
+                            row.append(np.zeros((4,4), dtype=np.complex128))
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
+                    elif r == self.ab_start:
+                        ## ab layer bottom ##
+                        if r == c:                  # on site energy
+                            row.append(self.__ab2ab_bot__)
+                            rowP.append(self.__ab2ab_P__)
+                        elif r == c-1:              # inter cell hopping ab
+                            row.append(self.__ab2abnext_bot__)
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
+                        else:
+                            row.append(np.zeros((4,4), dtype=np.complex128))
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
                     else:
                         row.append(np.zeros((4,4), dtype=np.complex128))
-                elif (r == self.AB_stop or r == self.ab_stop) and self.incTop:        # top edge
-                    if r == c and c == self.ab_stop:       # on site energy ab layer
-                        row.append(self.__ab2ab_top__)
-                    elif r == c-self.ab_stop:           # inter layer hopping
-                        row.append(self.__AB2ab_top__)
+                        rowP.append(np.zeros((4,4), dtype=np.complex128))
+                elif (r == self.AB_stop or r == self.ab_stop) and self.incTop:
+                    ## Top edge ##
+                    if r == self.AB_stop:
+                        ## AB layer top ##
+                        if r == c:                  # on site energy
+                            row.append(self.__AB2AB_top__)
+                            rowP.append(self.__AB2AB_P_top__)
+                        elif r == c-self.wmax:      # inter layer hopping
+                            row.append(self.__AB2ab_top__)
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
+                        elif r == c-self.wmax+1:    # inter layer AB to ab pre
+                            row.append(np.zeros((4,4), dtype=np.complex128))
+                            rowP.append(self.__AB2abpre_P__)
+                        else:
+                            row.append(np.zeros((4,4), dtype=np.complex128))
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
+                    elif r == self.ab_stop:
+                        if r == c:                  # on site energy
+                            row.append(self.__ab2ab_top__)
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
+                        else:
+                            row.append(np.zeros((4,4), dtype=np.complex128))
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
                     else:
                         row.append(np.zeros((4,4), dtype=np.complex128))
+                        rowP.append(np.zeros((4,4), dtype=np.complex128))
                 elif r > self.AB_start and r <= self.AB_stop:
-                    if r == c:     # on site energy AB layer
+                    ## AB layer cell ##
+                    if r == c:                      # on site energy AB layer
                         row.append(self.__AB2AB__)
-                    elif r == c-1 and r != self.AB_stop:# AB inter sub unit cell hopping
-                        row.append(self.__AB2ABnext__)
-                    else:
-                        row.append(np.zeros((4,4), dtype=np.complex128))
-                elif r > self.ab_start and r <= self.ab_stop:
-                    if r == c:
-                        row.append(self.__ab2ab__)
-                    elif r == c-1:
-                        row.append(self.__ab2abnext__)
-                    elif r == c-self.ab_start:
+                        rowP.append(self.__AB2AB_P__)
+                    elif r == c-self.wmax:          # inter layer hopping
                         row.append(self.__AB2ab__)
-                    elif r == c-self.ab_start-1 and r != self.ab_stop:
-                        row.append(self.__AB2abnext__)
-                    elif r == c-self.ab_start+1 and r != self.ab_stop:
-                        row.append(self.__AB2abpre__)
+                        rowP.append(self.__AB2ab_P__)
+                    elif not r == self.AB_stop:
+                        if r == c-1:                # AB inter sub unit cell hopping
+                            row.append(self.__AB2ABnext__)
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
+                        elif r == c-self.wmax-1:    # inter layer AB to next ab
+                            row.append(self.__AB2abnext__)
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
+                        elif r == c-self.wmax+1:
+                            row.append(np.zeros((4,4), dtype=np.complex128))
+                            rowP.append(self.__AB2abpre_P__)
+                        else:
+                            row.append(np.zeros((4,4), dtype=np.complex128))
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
                     else:
                         row.append(np.zeros((4,4), dtype=np.complex128))
+                        rowP.append(np.zeros((4,4), dtype=np.complex128))
+                elif r > self.ab_start and r <= self.ab_stop:
+                    ## ab layer cell ##
+                    if r == c:                      # on site energy ab layer
+                        row.append(self.__ab2ab__)
+                        rowP.append(self.__ab2ab_P__)
+                    elif not r == self.ab_stop:
+                        if r == c-1:
+                            row.append(self.__ab2abnext__)
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
+                        else:
+                            row.append(np.zeros((4,4), dtype=np.complex128))
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
+                    else:
+                        row.append(np.zeros((4,4), dtype=np.complex128))
+                        rowP.append(np.zeros((4,4), dtype=np.complex128))
                 else:
                     row.append(np.zeros((4,4), dtype=np.complex128))
+                    rowP.append(np.zeros((4,4), dtype=np.complex128))
             np_matrix.append(row)
+            np_matrixP.append(rowP)
         self.H = np.block(np_matrix)
         self.H = self.H + np.transpose(np.conj(self.H))
-        ## P plus
-        np_matrix = []
-        for r in range(int(self.wmax*2)):
-            row = []
-            for c in range(int(self.wmax*2)):
-                if r == self.AB_start or r == self.ab_start:      # bottom edge
-                    if r == c and c == self.ab_start:          # on site energy AB layer 
-                        row.append(self.__ab2ab_P_bot__)
-                    elif r == int(c-self.ab_start):         # inter layer hopping
-                        row.append(self.__AB2ab_P_bot__)
-                    else:
-                        row.append(np.zeros((4,4), dtype=np.complex128))
-                elif (r == self.AB_stop or r == self.ab_stop) and self.incTop:        # top edge
-                    if r == c and r == self.AB_stop:          # on site energy AB layer 
-                        row.append(self.__AB2AB_P_top__)
-                    elif r == int(c-self.ab_stop)-1:         # inter layer hopping -
-                        row.append(self.__AB2abpre_P_top__)
-                    else:
-                        row.append(np.zeros((4,4), dtype=np.complex128))
-                elif r > self.AB_start and r < self.ab_stop:
-                    if r == c and c <= self.AB_stop:     # on site energy AB layer
-                        row.append(self.__AB2AB_P__)
-                    elif r == c and c >= self.ab_start:  # on site energy ab layer
-                        row.append(self.__ab2ab_P__)
-                    elif r == c-self.ab_start:# inter layer sub unit cell hopping
-                        row.append(self.__AB2ab_P__)
-                    elif r == int(c-self.ab_start)-1:
-                        row.append(self.__AB2abpre_P__)
-                    else:
-                        row.append(np.zeros((4,4), dtype=np.complex128))
-                else:
-                    row.append(np.zeros((4,4), dtype=np.complex128))
-            np_matrix.append(row)
-        self.P_plus = np.block(np_matrix)
-        ## P minus
+        self.P_plus = np.block(np_matrixP)
         self.P_minus = np.transpose(np.conj(self.P_plus))
     def __armchair_matrix_unit__(self, unit):
         '''
@@ -254,8 +320,8 @@ class UnitCell():
         self.__AB2ABnext_bot__[3,2] = -self.mat.r0
         self.__ab2abnext__[1,0] = -self.mat.r0
         self.__ab2abnext__[2,3] = -self.mat.r0
-        self.__ab2abnext_bot__[0,1] = -self.mat.r0
-        self.__ab2abnext_bot__[3,2] = -self.mat.r0
+        self.__ab2abnext_bot__[1,0] = -self.mat.r0
+        self.__ab2abnext_bot__[2,3] = -self.mat.r0
         '''
         Intra layer hopping
         '''
