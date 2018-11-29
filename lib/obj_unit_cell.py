@@ -17,10 +17,10 @@ class UnitCell():
         ## create pointers
         if unit['Type'] == 1:           # MLG Hamiltonian matrix size. 2-1-2-1 type
             self.incTop = False
-            self.unit_mesh = unit['W']+1
+            self.unit_mesh = unit['W']+unit['Barrier']['top width']+unit['Barrier']['bot width']+1
         elif unit['Type'] == 2:         # MLG Hamiltonian matrix size. 2-2-2-2 type
             self.incTop = True
-            self.unit_mesh = unit['W']+2
+            self.unit_mesh = unit['W']+unit['Barrier']['top width']+unit['Barrier']['bot width']+2
         self.unit_w = self.unit_mesh*4
         self.AB_start = unit['Shift']
         self.AB_stop = self.AB_start+self.unit_mesh - 1
@@ -78,9 +78,14 @@ class UnitCell():
             os.mkdir('matrix')
             excel_parser.save()
     def __ArmchairD__(self, zone):
+        ## get on site energy components ##
         Vt = zone['Vtop'] - zone['Vbot']
         dVt = Vt/(self.unit_mesh*2)
-        delta = zone['delta']*1.6e-19
+        delta_ch = zone['delta']*1.6e-19        # channel gap
+        delta_bt = zone['Barrier']['top gap']*1.6e-19   # top barrier gap
+        delta_bb = zone['Barrier']['bot gap']*1.6e-19   # bottom barrier gap
+        w_bt = zone['Barrier']['top width']     # top barrier gap
+        w_bb = zone['Barrier']['bot width']     # top barrier gap
         if self.inputs['lattice'] == 'MLG':
             B_inv = -1
         else:
@@ -89,7 +94,14 @@ class UnitCell():
             block = int(m/4)
             site_V1 = (zone['Vbot']+block*dVt)*1.6e-19
             site_V2 = (zone['Vbot']+(block+1)*dVt)*1.6e-19
-            site_delta = m%2*B_inv*delta + (1-m%2)*delta
+            ##
+            if block < self.AB_start + w_bt:
+                site_delta = m%2*B_inv*delta_bt + (1-m%2)*delta_bt
+            elif block > self.ab_stop - w_bb:
+                site_delta = m%2*B_inv*delta_bb + (1-m%2)*delta_bb
+            else:
+                site_delta = m%2*B_inv*delta_ch + (1-m%2)*delta_ch
+            ##
             if block < self.AB_start:       # shift area
                 self.H[m,m] = 0
             elif self.incTop and \

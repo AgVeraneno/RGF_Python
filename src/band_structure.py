@@ -29,6 +29,8 @@ class BandStructure():
         for y_idx in range(np.size(eig_mat,1)):
             pyplot.plot(kx_sweep,eig_mat[:,y_idx]/1.6e-19)
             pyplot.xlim([0,1])
+            pyplot.xlabel("kx*ax/pi")
+            pyplot.ylabel("E (eV)")
         ## output to figures
         thisUnit = self.inputs['Unit cell'][unit_idx]
         if self.inputs['material'].name == 'Graphene' \
@@ -50,6 +52,21 @@ class BandStructure():
         except:
             os.mkdir('figures')
             pyplot.savefig('figures/'+filename+condition+'.png')
+        pyplot.close()
+        ## plot zoom in figure if enabled
+        if self.inputs['function']['isPlotZoom']:
+            for y_idx in range(np.size(eig_mat,1)):
+                pyplot.plot(kx_sweep,eig_mat[:,y_idx]/1.6e-19)
+                pyplot.xlim([0,1])
+                pyplot.ylim([-1,1])
+                pyplot.xlabel("kx*ax/pi")
+                pyplot.ylabel("E (eV)")
+            try:
+                pyplot.savefig('figures/'+filename+condition+'_zoom.png')
+            except:
+                os.mkdir('figures')
+                pyplot.savefig('figures/'+filename+condition+'_zoom.png')
+            pyplot.close()
     def __sort__(self, val, vec, caltype='CPU'):
         """
         What: Sort eigenstate with small to large sequence

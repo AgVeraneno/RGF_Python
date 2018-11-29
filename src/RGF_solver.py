@@ -12,7 +12,8 @@ def importSetting(filename=None):
               'mesh': [0, 0],
               'Vbias': [0.0, 0.0],
               'Unit cell': [],
-              'function':{'band structure':False},
+              'function':{'isPlotBand':False,
+                          'isPlotZoom':False},
               'CPU Max matrix':0,
               'GPU':{'enable': False,
                      'Max matrix':0}}
@@ -38,7 +39,8 @@ def importSetting(filename=None):
                 inputs['Vbias'][0] = float(row[1].value)
                 inputs['Vbias'][1] = float(row[2].value)
             elif row[0].value == 'Plot band structure':
-                inputs['function']['band structure'] = bool(row[1].value)
+                inputs['function']['isPlotBand'] = bool(row[1].value)
+                inputs['function']['isPlotZoom'] = bool(row[2].value)
             elif row[0].value == 'o':
                 new_unit = {'Region': int(row[1].value),
                             'Type': int(row[2].value),
@@ -47,7 +49,11 @@ def importSetting(filename=None):
                             'L': int(row[5].value),
                             'Vtop': float(row[6].value),
                             'Vbot': float(row[7].value),
-                            'delta': float(row[8].value)}
+                            'delta': float(row[8].value),
+                            'Barrier':{'top width':int(row[9].value),
+                                       'top gap':float(row[10].value),
+                                       'bot width':int(row[11].value),
+                                       'bot gap':float(row[12].value)}}
                 inputs['Unit cell'].append(new_unit)
         if inputs['GPU']['enable']:
             global cp
@@ -55,6 +61,7 @@ def importSetting(filename=None):
     return inputs
 
 if __name__ == '__main__':
+    t_start = time.time()       # record start time
     try:
         from PyQt4 import QtGui
         app = QtGui.QApplication(sys.argv)
@@ -64,20 +71,25 @@ if __name__ == '__main__':
     This program simulates ballistic transpotation along x-axis.
     '''
     inputs = importSetting('RGF_input_file.xlsx')
+    t_import = time.time() - t_start
+    t_start = time.time()
     '''
     Generate RGF unit cell
     '''
+    print("Gernerating unit cell...")
     unit_list = []
     for idx in range(len(inputs['Unit cell'])):
         new_unitcell = obj_unit_cell.UnitCell(inputs)
         new_unitcell.genHamiltonian(inputs['Unit cell'][idx])
         unit_list.append(new_unitcell)
         new_unitcell.saveAsXLS(inputs['Unit cell'][idx])
+    t_unitGen = time.time() - t_start
+    t_start = time.time()
     '''
     calculate band structure and incident state
     '''
     band_structure = bs.BandStructure(inputs)
-    if inputs['function']['band structure']:
+    if inputs['function']['isPlotBand']:
         for unit_idx, unit in enumerate(unit_list):
             bandgap_list = {'x':[],'y':[]}
             for idx in range(int(inputs['Unit cell'][unit_idx]['L']-1)):
@@ -116,6 +128,8 @@ if __name__ == '__main__':
             Enn, o_state = band_structure.calState_GPU(unit)
         else:
             Enn, o_state = band_structure.calState(unit)
+    t_band = time.time() - t_start
+    t_start = time.time()
     '''
     Construct Green's matrix
     '''
