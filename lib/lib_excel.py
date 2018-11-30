@@ -6,6 +6,7 @@ updated: 2018/11/30
 ## exterior library
 import os
 from openpyxl import load_workbook
+from openpyxl import Workbook
 
 class excel():
     def __init__(self, file=None, readfile=True, sheet_name=''):
@@ -18,7 +19,7 @@ class excel():
             import lib_GUI as gui
             gui_obj = gui.dialog()
             self.file_path = gui_obj.fileDialog('Select excel file', dir_path='../')
-        else:
+        elif self.read_mode == False:
             self.newWorkbook(self.ini_sheet)
             return self
         ## open excel file with valid file path
