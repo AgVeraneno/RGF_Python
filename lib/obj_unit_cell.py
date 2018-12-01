@@ -3,9 +3,10 @@ import numpy as np
 import lib_excel
 
 class UnitCell():
-    def __init__(self, inputs):
+    def __init__(self, inputs, u_idx):
         ## import inputs
         self.inputs = inputs                # user inputs
+        self.info = inputs['Unit cell'][u_idx] # unit cell information
         self.mat = inputs['material']       # material object
         self.wmax = self.inputs['mesh'][0]  # number of sub unit cell. Maximum ribbon width
         self.m_size = self.wmax*8           # matrix size (BLG size)
@@ -13,7 +14,8 @@ class UnitCell():
         self.H = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
         self.P_plus = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
         self.P_minus = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
-    def genHamiltonian(self, unit):
+    def genHamiltonian(self):
+        unit = self.info
         ## create pointers
         if unit['Type'] == 1:           # MLG Hamiltonian matrix size. 2-1-2-1 type
             self.incTop = False
@@ -41,7 +43,8 @@ class UnitCell():
     def setKx(self, len_idx):
         self.kx = 2*np.pi/(self.mat.ax*(self.inputs['mesh'][1]-1))*len_idx
         self.kx_norm = self.kx*self.mat.ax/np.pi
-    def saveAsXLS(self, thisUnit):
+    def saveAsXLS(self):
+        thisUnit = self.info
         if self.inputs['material'].name == 'Graphene' \
         and self.inputs['direction'] == 'Armchair':
             filename = self.inputs['lattice']+'_AGNR_'

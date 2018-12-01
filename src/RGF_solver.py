@@ -31,10 +31,9 @@ def importSetting(filename=None):
                 inputs['lattice'] = str(row[1].value)
             elif row[0].value == 'Direction':
                 inputs['direction'] = str(row[1].value)
-            elif row[0].value == 'Max ribbon width':
+            elif row[0].value == 'mesh':
                 inputs['mesh'][0] = int(row[1].value)
-            elif row[0].value == 'Max ribbon length':
-                inputs['mesh'][1] = int(row[1].value)
+                inputs['mesh'][1] = int(row[2].value)
             elif row[0].value == 'Bias(V)':
                 inputs['Vbias'][0] = float(row[1].value)
                 inputs['Vbias'][1] = float(row[2].value)
@@ -61,74 +60,68 @@ def importSetting(filename=None):
     return inputs
 
 if __name__ == '__main__':
-    t_start = time.time()       # record start time
     try:
         from PyQt4 import QtGui
         app = QtGui.QApplication(sys.argv)
     except:
-        warnings.warn('No PyQt4 installed. This may cause error!')
+        warnings.warn('No valid PyQt4 installed. This may cause error!')
     '''
     This program simulates ballistic transpotation along x-axis.
     '''
+    t_start = time.time()       # record import time
     inputs = importSetting('RGF_input_file.xlsx')
     t_import = time.time() - t_start
-    t_start = time.time()
+    print('Import time:', t_import, '(sec)')
     '''
     Generate RGF unit cell
     '''
-    print("Gernerating unit cell...")
+    t_start = time.time()       # record unit cell generation time
     unit_list = []
     for idx in range(len(inputs['Unit cell'])):
-        new_unitcell = obj_unit_cell.UnitCell(inputs)
-        new_unitcell.genHamiltonian(inputs['Unit cell'][idx])
+        new_unitcell = obj_unit_cell.UnitCell(inputs, idx)
+        new_unitcell.genHamiltonian()
         unit_list.append(new_unitcell)
-        new_unitcell.saveAsXLS(inputs['Unit cell'][idx])
+        new_unitcell.saveAsXLS()
     t_unitGen = time.time() - t_start
-    t_start = time.time()
+    print('Generate unit cell time:',t_unitGen,'(sec)')
     '''
     calculate band structure and incident state
+    use CPU only!!
     '''
+    t_start = time.time()       # record band structure time
     band_structure = bs.BandStructure(inputs)
     if inputs['function']['isPlotBand']:
         for unit_idx, unit in enumerate(unit_list):
             bandgap_list = {'x':[],'y':[]}
-            for idx in range(int(inputs['Unit cell'][unit_idx]['L']-1)):
-                unit.setKx(idx)
-                if inputs['GPU']['enable']:
-                    val, vec = band_structure.calState_GPU(unit)
-                    bandgap_list['y'].append(cp.sort(val))
-                else:
-                    val, vec = band_structure.calState(unit)
-                    bandgap_list['y'].append(np.sort(val))
+            for idx in range(inputs['mesh'][1]-1):
+                val, vec = band_structure.calState(unit, idx)
+                bandgap_list['y'].append(val)
                 bandgap_list['x'].append(unit.kx_norm)
                 ## record incident state
                 if unit_idx == 0 and idx == 0:
+                    ## find 1st conduction band ##
+                    for v_idx, v in enumerate(val):
+                        if round(v-unit.info['delta'],5) == 0:
+                            band_idx = v_idx
+                            break
+                        else:
+                            pass
                     En0 = copy.deepcopy(val)
-                    i_state = copy.deepcopy(vec)
+                    i_state = copy.deepcopy(vec[:,v_idx])
             band_structure.plotBand(bandgap_list, unit_idx)
-        ## record output state
-        unit = unit_list[-1]
-        unit.setKx(inputs['mesh'][1]-1)
-        if inputs['GPU']['enable']:
-            Enn, o_state = band_structure.calState_GPU(unit)
-        else:
-            Enn, o_state = band_structure.calState(unit)
     else:
         ## record incident state
         unit = unit_list[0]
-        unit.setKx(0)
-        if inputs['GPU']['enable']:
-            En0, i_state = band_structure.calState_GPU(unit)
-        else:
-            En0, i_state = band_structure.calState(unit)
-        ## record output state
-        unit = unit_list[-1]
-        unit.setKx(inputs['mesh'][1]-1)
-        if inputs['GPU']['enable']:
-            Enn, o_state = band_structure.calState_GPU(unit)
-        else:
-            Enn, o_state = band_structure.calState(unit)
+        val, vec = band_structure.calState(unit, idx)
+        ## find 1st conduction band ##
+        for v, v_idx in enumerate(val):
+            if round(v-unit.info['delta'],5) == 0:
+                band_idx = v_idx
+                break
+        En0 = copy.deepcopy(val[v_idx])
+        i_state = copy.deepcopy(vec[:,v_idx])
     t_band = time.time() - t_start
+    print('Calculate band structure:',t_band,'(sec)')
     t_start = time.time()
     '''
     Construct Green's matrix
