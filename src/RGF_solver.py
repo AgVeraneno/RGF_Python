@@ -55,8 +55,11 @@ def importSetting(filename=None):
                                        'bot gap':float(row[12].value)}}
                 inputs['Unit cell'].append(new_unit)
         if inputs['GPU']['enable']:
+            #global cp
+            #from skcuda import linalg as cp
             global cp
             import cupy as cp
+            pass
     return inputs
 
 if __name__ == '__main__':
@@ -73,10 +76,10 @@ if __name__ == '__main__':
     t_import = time.time() - t_start
     print('Import time:', t_import, '(sec)')
     '''
-    Generate RGF unit cell
+    Create unit cell
     '''
     t_start = time.time()       # record unit cell generation time
-    unit_list = []
+    unit_list = []              # unit cell object list
     for idx in range(len(inputs['Unit cell'])):
         new_unitcell = obj_unit_cell.UnitCell(inputs, idx)
         new_unitcell.genHamiltonian()
@@ -85,67 +88,43 @@ if __name__ == '__main__':
     t_unitGen = time.time() - t_start
     print('Generate unit cell time:',t_unitGen,'(sec)')
     '''
-    calculate band structure and incident state
-    use CPU only!!
+    Calculate band structure
     '''
     t_start = time.time()       # record band structure time
-    band_structure = bs.BandStructure(inputs)
-    if inputs['function']['isPlotBand']:
-        for unit_idx, unit in enumerate(unit_list):
-            bandgap_list = {'x':[],'y':[]}
-            for idx in range(inputs['mesh'][1]-1):
-                val, vec = band_structure.calState(unit, idx)
-                bandgap_list['y'].append(val)
-                bandgap_list['x'].append(unit.kx_norm)
-                ## record incident state
-                if unit_idx == 0 and idx == 0:
-                    ## find 1st conduction band ##
-                    for v_idx, v in enumerate(val):
-                        if round(v-unit.info['delta'],5) == 0:
-                            band_idx = v_idx
-                            break
-                        else:
-                            pass
-                    En0 = copy.deepcopy(val)
-                    i_state = copy.deepcopy(vec[:,v_idx])
-            band_structure.plotBand(bandgap_list, unit_idx)
-    else:
-        ## record incident state
-        unit = unit_list[0]
-        val, vec = band_structure.calState(unit, idx)
-        ## find 1st conduction band ##
-        for v, v_idx in enumerate(val):
-            if round(v-unit.info['delta'],5) == 0:
-                band_idx = v_idx
-                break
-        En0 = copy.deepcopy(val[v_idx])
-        i_state = copy.deepcopy(vec[:,v_idx])
+    band_parser = bs.BandStructure(inputs)
+    for unit_idx, unit in enumerate(unit_list):
+        bandgap_list = {'x':[],'y':[]}
+        # construct each unit cell
+        for idx in range(inputs['mesh'][1]):
+            val, vec = band_parser.calState(unit, idx)
+            bandgap_list['y'].append(val)
+            bandgap_list['x'].append(unit.kx_norm)
+            ## record incident state
+            if unit_idx == 0 and idx == 0:
+                ## find 1st conduction band ##
+                CB_idx = band_parser.getCBidx(unit.info['delta'], val)
+                En0 = copy.deepcopy(val[CB_idx])
+                i_state = copy.deepcopy(vec[:,CB_idx])
+        if inputs['function']['isPlotBand']:
+            band_parser.plotBand(bandgap_list, unit_idx)
+        unit.eig_state = copy.deepcopy(bandgap_list)
     t_band = time.time() - t_start
     print('Calculate band structure:',t_band,'(sec)')
-    t_start = time.time()
     '''
     Construct Green's matrix
     '''
-    Vbias = (inputs['Vbias'][0] - inputs['Vbias'][1])*1.6e-19
-    ## Calculate RGF ##
+    t_start = time.time()
     RGF_util = gf.GreenFunction(inputs, unit_list)
-    for E_idx, E in enumerate(En0):
+    for kx_idx in range(inputs['mesh'][1]):        # sweep kx meshing
         if inputs['GPU']['enable']:
-            if E >= 1e-25 and E <= Vbias:
-                RGF_util.calRGF_GPU(E)
-                ## Calculate transmission/reflection current
-                RGF_util.calState_GPU(i_state[:,E_idx], o_state[:,E_idx])
-                Jt, Jr = RGF_util.calTR_GPU()
-                print(E/1.6e-19, Jt, Jr)
-            else:
-                Jt = Jr = 0
+            ## RGF
+            RGF_util.calRGF_GPU(En)
+            ## Jt/JR
+            Jt, Jr = RGF_util.calTR_GPU(i_state)
         else:
-            if E >= 1e-25 and E <= Vbias:
-                RGF_util.calRGF(E)
-                ## Calculate transmission/reflection current
-                RGF_util.calState(i_state[:,E_idx], o_state[:,E_idx])
-                Jt, Jr = RGF_util.calTR()
-                print(E/1.6e-19, Jt, Jr)
-            else:
-                Jt = Jr = 0
+            ## RGF
+            RGF_util.calRGF(kx_idx)
+            ## Jt/JR
+            Jt, Jr = RGF_util.calTR(i_state)
+        print(Jt, Jr)
         

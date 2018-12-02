@@ -26,7 +26,7 @@ class excel():
         if os.path.isfile(self.file_path):
             print('Open: ', self.file_path)
             self.workbook = load_workbook(self.file_path,data_only=True)
-            self.sheet_list = self.workbook.get_sheet_names()
+            self.sheet_list = self.workbook.sheetnames
             return self
         else:
             raise ValueError("Invalid file: "+self.file_path)
@@ -41,5 +41,5 @@ class excel():
     def save(self):
         self.workbook.save(self.file_path)
     def readSheet(self, sheet):
-        self.worksheet = self.workbook.get_sheet_by_name(sheet)
+        self.worksheet = self.workbook[sheet]
         return self.worksheet.iter_rows()

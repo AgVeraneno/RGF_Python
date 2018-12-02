@@ -5,11 +5,11 @@ import lib_excel
 class UnitCell():
     def __init__(self, inputs, u_idx):
         ## import inputs
-        self.inputs = inputs                # user inputs
-        self.info = inputs['Unit cell'][u_idx] # unit cell information
-        self.mat = inputs['material']       # material object
-        self.wmax = self.inputs['mesh'][0]  # number of sub unit cell. Maximum ribbon width
-        self.m_size = self.wmax*8           # matrix size (BLG size)
+        self.inputs = inputs                        # user inputs
+        self.info = inputs['Unit cell'][u_idx]      # unit cell information
+        self.mat = inputs['material']               # material object
+        self.wmax = self.inputs['mesh'][0]          # number of sub unit cell. Maximum ribbon width
+        self.m_size = self.wmax*8                   # matrix size (BLG size)
         ## create default matrix
         self.H = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
         self.P_plus = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
@@ -112,22 +112,22 @@ class UnitCell():
              block == self.ab_stop):               # top edge
                 if block == self.AB_stop:
                     if m % 4 == 0 or m % 4 == 3:# empty atoms
-                        self.H[m,m] = 0
+                        self.H[m,m] = 1.6e-16
                     else:                   # AB top edge
                         self.H[m,m] = site_delta+site_V1
                 elif block == self.ab_stop:
                     if m % 4 == 1 or m % 4 == 2:# empty atoms
-                        self.H[m,m] = 0
+                        self.H[m,m] = 1.6e-16
                     else:                   # ab top edge
                         self.H[m,m] = -site_delta+site_V1
             elif block == self.AB_start:    # AB bottom edge
                 if m % 4 == 1 or m % 4 == 2:
-                    self.H[m,m] = 0
+                    self.H[m,m] = 1.6e-16
                 else:
                     self.H[m,m] = site_delta+site_V2
             elif block == self.ab_start:    # ab bottom edge
                 if m % 4 == 0 or m % 4 == 3:
-                    self.H[m,m] = 0
+                    self.H[m,m] = 1.6e-16
                 else:
                     self.H[m,m] = -site_delta+site_V2
             elif block >= self.AB_start and block < (self.AB_stop+1):
