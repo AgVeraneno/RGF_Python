@@ -126,5 +126,8 @@ if __name__ == '__main__':
             RGF_util.calRGF(kx_idx)
             ## Jt/JR
             Jt, Jr = RGF_util.calTR(i_state)
-        print(Jt, Jr)
-        
+    ## plot transmission ##
+    RGF_util.plotTR()
+    RGF_util.saveAsXLS()
+    t_RGF = time.time() - t_start
+    print('Calculate RGF:',t_RGF,'(sec)')

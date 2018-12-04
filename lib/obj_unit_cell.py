@@ -67,7 +67,7 @@ class UnitCell():
                 _ = excel_parser.worksheet.cell(column=j+1, row=i+1,\
                                                 value="=COMPLEX("+str(np.real(self.H[i,j]))\
                                                 +","+str(np.imag(self.H[i,j]))+")")
-        ## create P+ sheet ##
+        ## create P sheet ##
         excel_parser.newSheet('P')
         P = self.P_plus+self.P_minus
         for i in range(np.size(self.H, 0)):

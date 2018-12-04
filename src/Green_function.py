@@ -1,6 +1,8 @@
-import copy
+import copy, os
 import numpy as np
 import band_structure as bs
+from matplotlib import pyplot
+import lib_excel
 
 class GreenFunction():
     def __init__(self, inputs, unit_list):
@@ -9,6 +11,9 @@ class GreenFunction():
         self.mat = inputs['material']
         self.unit_info = inputs['Unit cell']
         self.unit_list = unit_list
+        self.E = []
+        self.T = []
+        self.R = []
         self.__meshing__()
     def __meshing__(self):
         """
@@ -20,6 +25,74 @@ class GreenFunction():
             while counter < unit['L']:
                 self.mesh_grid.append(u_idx)
                 counter += 1
+    def plotTR(self):
+        ## construct vectors
+        pyplot.plot(np.array(self.E)/1.6e-19,np.array(self.T))
+        pyplot.ylim([0,1])
+        pyplot.xlabel("E (eV)")
+        pyplot.ylabel("T")
+        ## output to figures
+        thisUnit = self.inputs['Unit cell'][0]
+        if self.inputs['material'].name == 'Graphene' \
+        and self.inputs['direction'] == 'Armchair':
+            filename = 'T_'+self.inputs['lattice']+'_AGNR_'
+        elif self.inputs['material'].name == 'Graphene' \
+        and self.inputs['direction'] == 'Zigzag':
+            filename = 'T_'+self.inputs['lattice']+'_ZGNR_'
+        condition = 'Z='+str(thisUnit['Region'])+\
+                    ',Type='+str(thisUnit['Type'])+\
+                    ',S='+str(thisUnit['Shift'])+\
+                    ',W='+str(thisUnit['W'])+\
+                    ',L='+str(thisUnit['L'])+\
+                    ',Vtop='+str(thisUnit['Vtop'])+\
+                    ',Vbot='+str(thisUnit['Vbot'])+\
+                    ',d='+str(thisUnit['delta'])
+        try:
+            pyplot.savefig('figures/'+filename+condition+'.png')
+        except:
+            os.mkdir('figures')
+            pyplot.savefig('figures/'+filename+condition+'.png')
+        pyplot.close()
+    def saveAsXLS(self):
+        thisUnit = self.inputs['Unit cell'][0]
+        if self.inputs['material'].name == 'Graphene' \
+        and self.inputs['direction'] == 'Armchair':
+            filename = 'TR_'+self.inputs['lattice']+'_AGNR_'
+        elif self.inputs['material'].name == 'Graphene' \
+        and self.inputs['direction'] == 'Zigzag':
+            filename = 'TR_'+self.inputs['lattice']+'_ZGNR_'
+        condition = 'Z='+str(thisUnit['Region'])+\
+                    ',Type='+str(thisUnit['Type'])+\
+                    ',S='+str(thisUnit['Shift'])+\
+                    ',W='+str(thisUnit['W'])+\
+                    ',L='+str(thisUnit['L'])+\
+                    ',Vtop='+str(thisUnit['Vtop'])+\
+                    ',Vbot='+str(thisUnit['Vbot'])+\
+                    ',d='+str(thisUnit['delta'])
+        excel_parser = lib_excel.excel('T&R/'+filename+condition+'.xlsx')
+        ## create T sheet ##
+        excel_parser.newWorkbook('T')
+        for i in range(len(self.T)):
+            _ = excel_parser.worksheet.cell(column=1, row=i+1,\
+                                            value="=COMPLEX("+str(np.real(self.E[i]))\
+                                                +","+str(np.imag(self.E[i]))+")")
+            _ = excel_parser.worksheet.cell(column=2, row=i+1,\
+                                            value="=COMPLEX("+str(np.real(self.T[i]))\
+                                                +","+str(np.imag(self.T[i]))+")")
+        ## create R sheet ##
+        excel_parser.newSheet('R')
+        for i in range(len(self.R)):
+            _ = excel_parser.worksheet.cell(column=1, row=i+1,\
+                                            value="=COMPLEX("+str(np.real(self.E[i]))\
+                                                +","+str(np.imag(self.E[i]))+")")
+            _ = excel_parser.worksheet.cell(column=2, row=i+1,\
+                                            value="=COMPLEX("+str(np.real(self.R[i]))\
+                                                +","+str(np.imag(self.R[i]))+")")
+        try:
+            excel_parser.save()
+        except:
+            os.mkdir('T&R')
+            excel_parser.save()
     def calRGF(self, kx_idx):
         for mesh_idx, u_ptr in enumerate(self.mesh_grid):
             ## identify unit cell ##
@@ -31,12 +104,13 @@ class GreenFunction():
                 E = copy.deepcopy(val[CB_idx])
                 i_state = copy.deepcopy(vec[:,CB_idx])
                 self.R_matrix = np.eye(np.size(self.unit_list[0].H,0), dtype=np.complex128)*-1
+                self.E.append(E)
             else:
                 E = copy.deepcopy(val[CB_idx])
             ## Initialize E matrix ##
             E_mat = np.eye(np.size(self.unit_list[0].H,0), dtype=np.complex128)*E
             P_phase = np.exp(-1j*unit.kx*self.mat.ax)-np.exp(1j*unit.kx*self.mat.ax)
-            if u_ptr == 0:
+            if mesh_idx == 0:
                 ## Generate first Green matrix: G00 ##
                 Gnn = np.linalg.inv(E_mat-unit.H-unit.P_minus*np.exp(1j*unit.kx*self.mat.ax))
                 Gn0 = copy.deepcopy(Gnn)
@@ -45,7 +119,7 @@ class GreenFunction():
                 self.J0 = 1j*self.mat.ax/self.mat.h_bar*\
                           (unit.P_plus*np.exp(1j*unit.kx*self.mat.ax)-\
                            unit.P_minus*np.exp(-1j*unit.kx*self.mat.ax))
-            elif u_ptr == len(self.mesh_grid)-1:
+            elif mesh_idx == len(self.mesh_grid)-1:
                 ## Calculate last Gnn ##
                 G_inv = E_mat - unit.H\
                         -unit.P_plus*np.exp(1j*unit.kx*self.mat.ax)\
@@ -55,8 +129,7 @@ class GreenFunction():
                 Gn0 = np.dot(Gnn, np.dot(unit.P_minus,Gn0))
             else:
                 ## Calculate Gnn ##
-                G_inv = E_mat - unit.H\
-                        -np.dot(unit.P_minus,np.dot(Gnn,unit.P_plus))
+                G_inv = E_mat - unit.H-np.dot(unit.P_minus,np.dot(Gnn,unit.P_plus))
                 Gnn = np.linalg.inv(G_inv)
                 ## Calculate Gn0 ##
                 Gn0 = np.dot(Gnn, np.dot(unit.P_minus,Gn0))
@@ -80,6 +153,8 @@ class GreenFunction():
             R = Jr/Ji
         else:
             T = R = 0
+        self.T.append(T)
+        self.R.append(R)
         return T,R
     def calRGF_GPU(self, E):
         ## Initialize E matrix and R matrix ##
