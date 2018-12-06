@@ -132,7 +132,7 @@ class GreenFunction():
                 Gn0 = np.dot(Gnn, np.dot(unit.P_minus,Gn0))
             else:
                 ## Calculate Gnn ##
-                G_inv = E_mat - unit.H-blas.mdot_CPU(unit.P_minus,Gnn,unit.P_plus)
+                G_inv = E_mat - unit.H-np.dot(unit.P_minus, np.dot(Gnn,unit.P_plus))
                 Gnn = np.linalg.inv(G_inv)
                 ## Calculate Gn0 ##
                 Gn0 = np.dot(Gnn, np.dot(unit.P_minus,Gn0))
@@ -180,9 +180,8 @@ class GreenFunction():
             P_phase = cp.exp(-1j*unit.kx*self.mat.ax)-cp.exp(1j*unit.kx*self.mat.ax)
             if mesh_idx == 0:
                 ## Generate first Green matrix: G00 ##
-                G_inv = cp.asnumpy(E_mat-H-P_minus*cp.exp(1j*unit.kx*self.mat.ax))
-                Gnn = np.linalg.inv(G_inv)
-                Gnn = cp.asarray(Gnn)
+                G_inv = E_mat-H-P_minus*cp.exp(1j*unit.kx*self.mat.ax)
+                Gnn = blas.inv(G_inv)
                 Gn0 = copy.deepcopy(Gnn)
                 ## Calculate reflection matrix ##
                 self.R_matrix += cp.dot(Gnn, P_minus*P_phase)
@@ -191,18 +190,16 @@ class GreenFunction():
                            P_minus*cp.exp(-1j*unit.kx*self.mat.ax))
             elif mesh_idx == len(self.mesh_grid)-1:
                 ## Calculate last Gnn ##
-                G_inv = cp.asnumpy(E_mat - H\
+                G_inv = E_mat - H\
                         -P_plus*cp.exp(1j*unit.kx*self.mat.ax)\
-                        -cp.dot(P_minus,cp.dot(Gnn,P_plus)))
-                Gnn = np.linalg.inv(G_inv)
-                Gnn = cp.asarray(Gnn)
+                        -cp.dot(P_minus,cp.dot(Gnn,P_plus))
+                Gnn = blas.inv(G_inv)
                 ## Calculate Gn0 ##
                 Gn0 = cp.dot(Gnn, cp.dot(P_minus,Gn0))
             else:
                 ## Calculate Gnn ##
-                G_inv = cp.asnumpy(E_mat - H-cp.dot(P_minus,cp.dot(Gnn,P_plus)))
-                Gnn = np.linalg.inv(G_inv)
-                Gnn = cp.asarray(Gnn)
+                G_inv = E_mat - H-cp.dot(P_minus,cp.dot(Gnn,P_plus))
+                Gnn = blas.inv(G_inv)
                 ## Calculate Gn0 ##
                 Gn0 = cp.dot(Gnn, cp.dot(P_minus,Gn0))
         self.T_matrix = cp.dot(Gn0,P_minus*P_phase)
