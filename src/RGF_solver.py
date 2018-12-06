@@ -116,9 +116,10 @@ if __name__ == '__main__':
     t_start = time.time()
     RGF_util = gf.GreenFunction(inputs, unit_list)
     for kx_idx in range(inputs['mesh'][1]):        # sweep kx meshing
+        t_mesh_start = time.time()
         if inputs['GPU']['enable']:
             ## RGF
-            RGF_util.calRGF_GPU(En)
+            RGF_util.calRGF_GPU(kx_idx)
             ## Jt/JR
             Jt, Jr = RGF_util.calTR_GPU(i_state)
         else:
@@ -126,6 +127,8 @@ if __name__ == '__main__':
             RGF_util.calRGF(kx_idx)
             ## Jt/JR
             Jt, Jr = RGF_util.calTR(i_state)
+        t_mesh_stop = time.time() - t_mesh_start
+        print('Mesh point @',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
     ## plot transmission ##
     RGF_util.plotTR()
     RGF_util.saveAsXLS()
