@@ -125,8 +125,7 @@ class GreenFunction():
             elif mesh_idx == len(self.mesh_grid)-1:
                 ## Calculate last Gnn ##
                 G_inv = E_mat - unit.H\
-                        -unit.P_plus*np.exp(1j*unit.kx*self.mat.ax)\
-                        -np.dot(unit.P_minus,np.dot(Gnn,unit.P_plus))
+                        -unit.P_plus*np.exp(1j*unit.kx*self.mat.ax)
                 Gnn = np.linalg.inv(G_inv)
                 ## Calculate Gn0 ##
                 Gn0 = np.dot(Gnn, np.dot(unit.P_minus,Gn0))
@@ -156,43 +155,43 @@ class GreenFunction():
         self.T.append(T)
         self.R.append(R)
         return T,R
-    def calRGF_GPU(self, kx_idx):
+    def calRGFT_GPU(self, kx_idx, CB_idx):
         global cp
         import cupy as cp
         for mesh_idx, u_ptr in enumerate(self.mesh_grid):
             ## identify unit cell ##
-            unit = self.unit_list[u_ptr]
-            H = cp.asarray(unit.H)
-            P_plus = cp.asarray(unit.P_plus)
-            P_minus = cp.asarray(unit.P_minus)
+            if mesh_idx > 0 and self.mesh_grid[mesh_idx-1] == u_ptr:
+                pass
+            else:
+                unit = self.unit_list[u_ptr]
+                H = cp.asarray(unit.H)
+                P_plus = cp.asarray(unit.P_plus)
+                P_minus = cp.asarray(unit.P_minus)
             ## calculate eigenstate ##
             val, vec = self.band_parser.calState(unit, kx_idx)
             if mesh_idx == 0:
-                CB_idx = self.band_parser.getCBidx(unit.info['delta'], val)
                 E = copy.deepcopy(val[CB_idx])
-                i_state = copy.deepcopy(vec[:,CB_idx])
+                self.i_state = copy.deepcopy(vec[:,CB_idx])      # Cn0
                 self.R_matrix = cp.eye(np.size(self.unit_list[0].H,0), dtype=cp.complex128)*-1
                 self.E.append(E)
             else:
                 E = copy.deepcopy(val[CB_idx])
             ## Initialize E matrix ##
             E_mat = cp.eye(np.size(self.unit_list[0].H,0), dtype=cp.complex128)*E
-            P_phase = cp.exp(-1j*unit.kx*self.mat.ax)-cp.exp(1j*unit.kx*self.mat.ax)
+            P_phase = P_minus*(cp.exp(-1j*unit.kx*self.mat.ax)-cp.exp(1j*unit.kx*self.mat.ax))
             if mesh_idx == 0:
                 ## Generate first Green matrix: G00 ##
                 G_inv = E_mat-H-P_minus*cp.exp(1j*unit.kx*self.mat.ax)
                 Gnn = blas.inv(G_inv)
                 Gn0 = copy.deepcopy(Gnn)
                 ## Calculate reflection matrix ##
-                self.R_matrix += cp.dot(Gnn, P_minus*P_phase)
+                self.R_matrix += cp.dot(Gnn, P_phase)
                 self.J0 = 1j*self.mat.ax/self.mat.h_bar*\
                           (P_plus*cp.exp(1j*unit.kx*self.mat.ax)-\
                            P_minus*cp.exp(-1j*unit.kx*self.mat.ax))
             elif mesh_idx == len(self.mesh_grid)-1:
                 ## Calculate last Gnn ##
-                G_inv = E_mat - H\
-                        -P_plus*cp.exp(1j*unit.kx*self.mat.ax)\
-                        -cp.dot(P_minus,cp.dot(Gnn,P_plus))
+                G_inv = E_mat - H -P_plus*cp.exp(1j*unit.kx*self.mat.ax)
                 Gnn = blas.inv(G_inv)
                 ## Calculate Gn0 ##
                 Gn0 = cp.dot(Gnn, cp.dot(P_minus,Gn0))
@@ -202,11 +201,49 @@ class GreenFunction():
                 Gnn = blas.inv(G_inv)
                 ## Calculate Gn0 ##
                 Gn0 = cp.dot(Gnn, cp.dot(P_minus,Gn0))
-        self.T_matrix = cp.dot(Gn0,P_minus*P_phase)
-    def calTR_GPU(self, i_state):
+        self.T_matrix = cp.dot(Gn0,P_phase)
+    def calRGFR_GPU(self, kx_idx, CB_idx):
+        global cp
         import cupy as cp
+        for mesh_idx_inv in range(len(self.mesh_grid)):
+            mesh_idx = len(self.mesh_grid)-mesh_idx_inv-1
+            u_ptr = self.mesh_grid[mesh_idx]
+            ## identify unit cell ##
+            if mesh_idx_inv > 0 and self.mesh_grid[mesh_idx+1] == u_ptr:
+                pass
+            else:
+                unit = self.unit_list[u_ptr]
+                H = cp.asarray(unit.H)
+                P_plus = cp.asarray(unit.P_plus)
+                P_minus = cp.asarray(unit.P_minus)
+            ## calculate eigenstate ##
+            val, vec = self.band_parser.calState(unit, kx_idx)
+            if mesh_idx == 0:
+                E = copy.deepcopy(val[CB_idx])
+                self.i_state = copy.deepcopy(vec[:,CB_idx])      # Cn0
+                self.R_matrix = cp.eye(np.size(self.unit_list[0].H,0), dtype=cp.complex128)*-1
+            else:
+                E = copy.deepcopy(val[CB_idx])
+            ## Initialize E matrix ##
+            E_mat = cp.eye(np.size(self.unit_list[0].H,0), dtype=cp.complex128)*E
+            P_phase = P_minus*(cp.exp(-1j*unit.kx*self.mat.ax)-cp.exp(1j*unit.kx*self.mat.ax))
+            if mesh_idx == 0:
+                ## Generate first Green matrix: G00 ##
+                G_inv = E_mat-H-P_minus*cp.exp(1j*unit.kx*self.mat.ax)
+                Gnn = blas.inv(G_inv)
+                ## Calculate reflection matrix ##
+                self.R_matrix += cp.dot(Gnn, P_phase)
+            elif mesh_idx == len(self.mesh_grid)-1:
+                ## Calculate last Gnn ##
+                G_inv = E_mat - H -P_plus*cp.exp(1j*unit.kx*self.mat.ax)
+                Gnn = blas.inv(G_inv)
+            else:
+                ## Calculate Gnn ##
+                G_inv = E_mat - H-cp.dot(P_minus,cp.dot(Gnn,P_plus))
+                Gnn = blas.inv(G_inv)
+    def calTR_GPU(self):
         ## change format to cupy ##
-        i_state = cp.asarray(i_state)
+        i_state = cp.asarray(self.i_state)
         ## calculate states ##
         c0 = i_state
         cn = cp.dot(self.T_matrix, i_state)

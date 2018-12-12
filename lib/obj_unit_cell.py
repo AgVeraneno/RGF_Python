@@ -8,7 +8,8 @@ class UnitCell():
         self.inputs = inputs                        # user inputs
         self.info = inputs['Unit cell'][u_idx]      # unit cell information
         self.mat = inputs['material']               # material object
-        self.wmax = self.inputs['mesh'][0]          # number of sub unit cell. Maximum ribbon width
+        # number of sub unit cell. Maximum ribbon width
+        self.wmax = self.info['W']+self.info['Barrier']['top width']+self.info['Barrier']['bot width']+self.info['Type']
         self.m_size = self.wmax*8                   # matrix size (BLG size)
         ## create default matrix
         self.H = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
@@ -41,7 +42,7 @@ class UnitCell():
             self.P_plus = self.P_plus[MLGstart:MLGstop,MLGstart:MLGstop]
             self.P_minus = self.P_minus[MLGstart:MLGstop,MLGstart:MLGstop]
     def setKx(self, len_idx):
-        self.kx = 2*np.pi/(self.mat.ax*(self.inputs['mesh'][1]-1))*len_idx
+        self.kx = 2*np.pi/(self.mat.ax*(self.inputs['kx_mesh']-1))*len_idx
         self.kx_norm = self.kx*self.mat.ax/np.pi
     def saveAsXLS(self):
         thisUnit = self.info

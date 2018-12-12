@@ -10,6 +10,7 @@ def importSetting(filename=None):
               'lattice': None,
               'direction': None,
               'mesh': [0, 0],
+              'kx_mesh': 5001,
               'Vbias': [0.0, 0.0],
               'Unit cell': [],
               'function':{'isPlotBand':False,
@@ -95,7 +96,7 @@ if __name__ == '__main__':
     for unit_idx, unit in enumerate(unit_list):
         bandgap_list = {'x':[],'y':[]}
         # construct each unit cell
-        for idx in range(inputs['mesh'][1]):
+        for idx in range(inputs['kx_mesh']):
             val, vec = band_parser.calState(unit, idx)
             bandgap_list['y'].append(val)
             bandgap_list['x'].append(unit.kx_norm)
@@ -103,8 +104,6 @@ if __name__ == '__main__':
             if unit_idx == 0 and idx == 0:
                 ## find 1st conduction band ##
                 CB_idx = band_parser.getCBidx(unit.info['delta'], val)
-                En0 = copy.deepcopy(val[CB_idx])
-                i_state = copy.deepcopy(vec[:,CB_idx])
         if inputs['function']['isPlotBand']:
             band_parser.plotBand(bandgap_list, unit_idx)
         unit.eig_state = copy.deepcopy(bandgap_list)
@@ -115,13 +114,14 @@ if __name__ == '__main__':
     '''
     t_start = time.time()
     RGF_util = gf.GreenFunction(inputs, unit_list)
-    for kx_idx in range(inputs['mesh'][1]):        # sweep kx meshing
+    for kx_idx in range(inputs['mesh'][0],inputs['mesh'][1]):        # sweep kx meshing
         t_mesh_start = time.time()
         if inputs['GPU']['enable']:
             ## RGF
-            RGF_util.calRGF_GPU(kx_idx)
+            RGF_util.calRGFT_GPU(kx_idx, CB_idx)
+            RGF_util.calRGFR_GPU(kx_idx, CB_idx)
             ## Jt/JR
-            Jt, Jr = RGF_util.calTR_GPU(i_state)
+            Jt, Jr = RGF_util.calTR_GPU()
         else:
             ## RGF
             RGF_util.calRGF(kx_idx)
