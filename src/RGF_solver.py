@@ -75,6 +75,7 @@ if __name__ == '__main__':
     RGF_result = {'E':RGF_util.E,
                   'T':RGF_util.T,
                   'R':RGF_util.R}
+    unit = unit_list[0]
     IO_util.saveAsFigure(inputs, -1, unit, RGF_result, save_type='TR')
     IO_util.saveAsExcel(inputs, -1, unit, RGF_result, save_type='TR')
     t_RGF = time.time() - t_start
