@@ -23,6 +23,6 @@ class Graphene():
         self.K_norm = 4/3*np.pi/self.acc      # m-1. normalized K vector
         self.vF = 8e5                         # m/s. Fermi velocity for graphene
         ### BLG const.
-        self.r0 = 2.8*self.q                  # J. A1-B1 hopping energy
-        self.r1 = 0.39*self.q                 # J. A2-B1 hopping energy
-        self.r3 = 0.315*self.q                # J. A1-B2 hopping energy
+        self.r0 = 2.8                         # J. A1-B1 hopping energy
+        self.r1 = 0.39                        # J. A2-B1 hopping energy
+        self.r3 = 0.315                       # J. A1-B2 hopping energy

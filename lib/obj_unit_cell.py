@@ -41,53 +41,16 @@ class UnitCell():
             self.H = self.H[MLGstart:MLGstop,MLGstart:MLGstop]
             self.P_plus = self.P_plus[MLGstart:MLGstop,MLGstart:MLGstop]
             self.P_minus = self.P_minus[MLGstart:MLGstop,MLGstart:MLGstop]
-    def setKx(self, len_idx):
-        self.kx = 2*np.pi/(self.mat.ax*(self.inputs['kx_mesh']-1))*len_idx
+    def setKx(self, l_idx):
+        self.kx = 2*np.pi/(self.mat.ax*(self.inputs['kx_mesh']-1))*l_idx
         self.kx_norm = self.kx*self.mat.ax/np.pi
-    def saveAsXLS(self):
-        thisUnit = self.info
-        if self.inputs['material'].name == 'Graphene' \
-        and self.inputs['direction'] == 'Armchair':
-            filename = self.inputs['lattice']+'_AGNR_'
-        elif self.inputs['material'].name == 'Graphene' \
-        and self.inputs['direction'] == 'Zigzag':
-            filename = self.inputs['lattice']+'_ZGNR_'
-        condition = 'Z='+str(thisUnit['Region'])+\
-                    ',Type='+str(thisUnit['Type'])+\
-                    ',S='+str(thisUnit['Shift'])+\
-                    ',W='+str(thisUnit['W'])+\
-                    ',L='+str(thisUnit['L'])+\
-                    ',Vtop='+str(thisUnit['Vtop'])+\
-                    ',Vbot='+str(thisUnit['Vbot'])+\
-                    ',d='+str(thisUnit['delta'])
-        excel_parser = lib_excel.excel('matrix/'+filename+condition+'.xlsx')
-        ## create H sheet ##
-        excel_parser.newWorkbook('H')
-        for i in range(np.size(self.H, 0)):
-            for j in range(np.size(self.H, 1)):
-                _ = excel_parser.worksheet.cell(column=j+1, row=i+1,\
-                                                value="=COMPLEX("+str(np.real(self.H[i,j]))\
-                                                +","+str(np.imag(self.H[i,j]))+")")
-        ## create P sheet ##
-        excel_parser.newSheet('P')
-        P = self.P_plus+self.P_minus
-        for i in range(np.size(self.H, 0)):
-            for j in range(np.size(self.H, 1)):
-                _ = excel_parser.worksheet.cell(column=j+1, row=i+1,\
-                                                value="=COMPLEX("+str(np.real(P[i,j]))\
-                                                +","+str(np.imag(P[i,j]))+")")
-        try:
-            excel_parser.save()
-        except:
-            os.mkdir('matrix')
-            excel_parser.save()
     def __ArmchairD__(self, zone):
         ## get on site energy components ##
         Vt = zone['Vtop'] - zone['Vbot']
         dVt = Vt/(self.unit_mesh*2)
-        delta_ch = zone['delta']*1.6e-19        # channel gap
-        delta_bt = zone['Barrier']['top gap']*1.6e-19   # top barrier gap
-        delta_bb = zone['Barrier']['bot gap']*1.6e-19   # bottom barrier gap
+        delta_ch = zone['delta']                # channel gap
+        delta_bt = zone['Barrier']['top gap']   # top barrier gap
+        delta_bb = zone['Barrier']['bot gap']   # bottom barrier gap
         w_bt = zone['Barrier']['top width']     # top barrier gap
         w_bb = zone['Barrier']['bot width']     # top barrier gap
         if self.inputs['lattice'] == 'MLG':
@@ -96,8 +59,8 @@ class UnitCell():
             B_inv = 1
         for m in range(self.m_size):
             block = int(m/4)
-            site_V1 = (zone['Vbot']+block*dVt)*1.6e-19
-            site_V2 = (zone['Vbot']+(block+1)*dVt)*1.6e-19
+            site_V1 = (zone['Vbot']+block*dVt)
+            site_V2 = (zone['Vbot']+(block+1)*dVt)
             ##
             if block < self.AB_start + w_bt:
                 site_delta = m%2*B_inv*delta_bt + (1-m%2)*delta_bt
@@ -113,22 +76,22 @@ class UnitCell():
              block == self.ab_stop):               # top edge
                 if block == self.AB_stop:
                     if m % 4 == 0 or m % 4 == 3:# empty atoms
-                        self.H[m,m] = 1.6e-16
+                        self.H[m,m] = 1000
                     else:                   # AB top edge
                         self.H[m,m] = site_delta+site_V1
                 elif block == self.ab_stop:
                     if m % 4 == 1 or m % 4 == 2:# empty atoms
-                        self.H[m,m] = 1.6e-16
+                        self.H[m,m] = 1000
                     else:                   # ab top edge
                         self.H[m,m] = -site_delta+site_V1
             elif block == self.AB_start:    # AB bottom edge
                 if m % 4 == 1 or m % 4 == 2:
-                    self.H[m,m] = 1.6e-16
+                    self.H[m,m] = 1000
                 else:
                     self.H[m,m] = site_delta+site_V2
             elif block == self.ab_start:    # ab bottom edge
                 if m % 4 == 0 or m % 4 == 3:
-                    self.H[m,m] = 1.6e-16
+                    self.H[m,m] = 1000
                 else:
                     self.H[m,m] = -site_delta+site_V2
             elif block >= self.AB_start and block < (self.AB_stop+1):
@@ -268,6 +231,7 @@ class UnitCell():
            0    X    O       X    O-----0        0    X    O
           a,B   b'   A'      b    A  a',B'      a,B   b'   A'
         H sequence: A1, B1, A1', B1', A2, B2, ..., Am', Bm', a1, b1, a1', b1', a2, b2, ..., am, bm
+        
         '''
         # within sub unit cell hopping
         self.__AB2AB__ = np.zeros((4,4), dtype=np.complex128)

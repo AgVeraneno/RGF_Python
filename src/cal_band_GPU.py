@@ -2,6 +2,13 @@ import os, copy
 import numpy as np
 from matplotlib import pyplot
 
+#import skcuda.linalg as cuLA
+import pycuda.gpuarray as gpuarray
+import pycuda.driver as cuda
+import pycuda.autoinit
+import pycuda.cumath as cumath
+import cupy as cp
+
 class BandStructure():
     def __init__(self, inputs):
         self.inputs = inputs        # user input
@@ -15,29 +22,23 @@ class BandStructure():
         val, vec = np.linalg.eig(H)
         return self.__sort__(val, vec)
     def calState_GPU(self, unit, idx):
-        ## import cupy ##
-        global cp
-        import cupy as cp
         unit.setKx(idx)
-        H = cp.array(unit.H)
-        P_plus = cp.array(unit.P_plus)
-        P_minus = cp.array(unit.P_minus)
-        mat = self.inputs['material']
-        H = H+\
-            cp.exp(1j*unit.kx*mat.ax)*P_plus+\
-            cp.exp(-1j*unit.kx*mat.ax)*P_minus
-        val, vec = cp.linalg.eigh(H)
+        H = unit.H+\
+            np.exp(1j*unit.kx*self.ax)*unit.P_plus+\
+            np.exp(-1j*unit.kx*self.ax)*unit.P_minus
+        H_GPU = cp.array(H.astype(np.complex128))
+        val, vec = cp.linalg.eigh(H_GPU)
         return self.__sort__(val, vec, 'GPU')
     def getCBidx(self, gap, eig_val):
         for v_idx, v in enumerate(eig_val):
-            if v > 0 and gap - v/1.6-19 <= 1e-4:
+            if v > 0 and gap - v <= 1e-4:
                 return v_idx
     def plotBand(self, bandgap_list, unit_idx):
         ## construct vectors
         eig_mat = np.real(np.array(bandgap_list['y']))
         kx_sweep = np.real(np.array(bandgap_list['x']))
         for y_idx in range(np.size(eig_mat,1)):
-            pyplot.plot(kx_sweep,eig_mat[:,y_idx]/1.6e-19)
+            pyplot.plot(kx_sweep,eig_mat[:,y_idx])
             pyplot.xlim([0,1])
             pyplot.ylim([-10,10])
             pyplot.xlabel("kx*ax/pi")
@@ -67,7 +68,7 @@ class BandStructure():
         ## plot zoom in figure if enabled
         if self.inputs['function']['isPlotZoom']:
             for y_idx in range(np.size(eig_mat,1)):
-                pyplot.plot(kx_sweep,eig_mat[:,y_idx]/1.6e-19)
+                pyplot.plot(kx_sweep,eig_mat[:,y_idx])
                 pyplot.xlim([0,1])
                 pyplot.ylim([-1,1])
                 pyplot.xlabel("kx*ax/pi")
@@ -87,23 +88,13 @@ class BandStructure():
         val: eigenvalue [n*n]
         vec: eigenstate [n*n]
         """
-        if mode == 'GPU':
-            vec_size = cp.size(vec,0)
-            output_vec = cp.zeros((vec_size,vec_size), dtype=cp.complex128)
-            ## first kx point ##
-            sorted_val = cp.sort(val)
-            for v1_idx, v1 in enumerate(val):
-                for v2_idx, v2 in enumerate(sorted_val):
-                    if v1 == v2:
-                        output_vec[:,v2_idx] = copy.deepcopy(vec[:, v1_idx])
-                        break
-        else:
-            vec_size = np.size(vec,0)
-            output_vec = np.zeros((vec_size,vec_size), dtype=np.complex128)
-            sorted_val = np.sort(val)
-            for v1_idx, v1 in enumerate(val):
-                for v2_idx, v2 in enumerate(sorted_val):
-                    if v1 == v2:
-                        output_vec[:,v2_idx] = copy.deepcopy(vec[:, v1_idx])
-                        break
+        vec_size = cp.size(vec,0)
+        output_vec = cp.zeros((vec_size,vec_size), dtype=cp.complex128)
+        ## first kx point ##
+        sorted_val = cp.sort(val)
+        for v1_idx, v1 in enumerate(val):
+            for v2_idx, v2 in enumerate(sorted_val):
+                if v1 == v2:
+                    output_vec[:,v2_idx] = copy.deepcopy(vec[:, v1_idx])
+                    break
         return sorted_val, output_vec
