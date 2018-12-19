@@ -4,9 +4,6 @@ import numpy as np
 import lib_material, lib_excel, obj_unit_cell, IO_util
 import cal_band
 import Green_function as gf
-import cal_band_GPU as bs_GPU
-
-
 
 if __name__ == '__main__':
     try:
