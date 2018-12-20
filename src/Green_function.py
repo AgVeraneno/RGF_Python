@@ -29,6 +29,7 @@ class GreenFunction():
         ## calculate RGF ##
         for mesh_idx, u_idx in enumerate(self.mesh_grid):
             unit = self.unit_list[u_idx]
+            unit.setKx(kx_idx)
             ## initialize all component for RGF
             if mesh_idx == 0:
                 ## calculate incident state ##
