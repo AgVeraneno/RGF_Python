@@ -69,12 +69,14 @@ class UnitCell():
         for m in range(self.m_BLG):
             block = int(m/4)
             ##
-            if block < self.AB_start + w_bt:
-                site_delta = m%2*B_inv*delta_bt + (1-m%2)*delta_bt
+            if (block >= self.AB_start and block < self.AB_start+w_bb)\
+            or (block >= self.ab_start and block < self.ab_start+w_bb):
+                site_delta = m%2*B_inv*delta_bb + (1-m%2)*delta_bb
                 site_V1 = zone['Vbot']
                 site_V2 = zone['Vbot']
-            elif block > self.ab_stop - w_bb:
-                site_delta = m%2*B_inv*delta_bb + (1-m%2)*delta_bb
+            elif (block >= self.AB_stop-w_bt+1 and block <= self.AB_stop)\
+            or   (block >= self.ab_stop-w_bt+1 and block <= self.ab_stop):
+                site_delta = m%2*B_inv*delta_bt + (1-m%2)*delta_bt
                 site_V1 = zone['Vtop']
                 site_V2 = zone['Vtop']
             else:
