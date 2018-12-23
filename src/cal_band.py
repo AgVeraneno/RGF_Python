@@ -1,18 +1,37 @@
-import copy
+import os, copy
 import numpy as np
 
-class BandStructure():
-    def __init__(self, inputs):
+class CPU():
+    def __init__(self, inputs, unit):
         self.inputs = inputs        # user input
+        self.unit = unit
         self.ax = self.inputs['material'].ax
         self.mesh = inputs['mesh']
-    def calState(self, unit, idx):
-        unit.setKx(idx)
-        Heig = unit.H+\
-               np.exp(1j*unit.kx*self.ax)*unit.P_plus+\
-               np.exp(-1j*unit.kx*self.ax)*unit.P_minus
+        self.x = []
+        self.y = []
+    def calState(self, idx):
+        self.unit.setKx(idx)
+        kx = self.unit.kx
+        H = self.unit.H
+        Pp = self.unit.P_plus
+        Pn = self.unit.P_minus
+        Heig = H+\
+               np.exp(1j*kx*self.ax)*Pp+\
+               np.exp(-1j*kx*self.ax)*Pn
         val, vec = np.linalg.eig(Heig)
         return self.__sort__(val, vec)
+    def calState_MP(self, idx):
+        self.unit.setKx(idx)
+        kx = self.unit.kx
+        H = self.unit.H
+        Pp = self.unit.P_plus
+        Pn = self.unit.P_minus
+        Heig = H+\
+               np.exp(1j*kx*self.ax)*Pp+\
+               np.exp(-1j*kx*self.ax)*Pn
+        val, vec = np.linalg.eig(Heig)
+        sort_val, sort_vec = self.__sort__(val, vec)
+        return [sort_val, self.unit.kx_norm]
     def getCBidx(self, gap, eig_val):
         for v_idx, v in enumerate(eig_val):
             if v > 0 and gap - v <= 1e-4:
