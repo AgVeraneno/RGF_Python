@@ -59,8 +59,8 @@ if __name__ == '__main__':
     
     kx_sweep = range(inputs['mesh'][0],inputs['mesh'][1])
     RGF_result = {'E':[],'T':[],'R':[]}
-    if True:
-        with Pool(processes=2) as mp:
+    if inputs['CPU']['p_enable']:
+        with Pool(processes=inputs['CPU']['p_num']) as mp:
             RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
         RGF_result['E'] = np.array(RGF_output)[:,0]
         RGF_result['T'] = np.array(RGF_output)[:,1]

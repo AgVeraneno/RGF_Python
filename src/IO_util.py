@@ -12,7 +12,8 @@ def importFromExcel(filename=None):
               'Unit cell': [],
               'function':{'isPlotBand':False,
                           'isPlotZoom':False},
-              'CPU Max matrix':0,
+              'CPU':{'p_enable':False,
+                     'p_num':1},
               'GPU':{'enable': False,
                      'Max matrix':0}}
     with lib_excel.excel(filename) as excel_parser:
@@ -20,8 +21,9 @@ def importFromExcel(filename=None):
             if row[0].value == 'Using GPU':
                 inputs['GPU']['enable'] = bool(row[1].value)
                 inputs['GPU']['Max matrix'] = int(row[2].value)
-            elif row[0].value == 'CPU max matrix':
-                inputs['CPU Max matrix'] = int(row[1].value)
+            elif row[0].value == 'Using Parallel':
+                inputs['CPU']['p_enable'] = bool(row[1].value)
+                inputs['CPU']['p_num'] = int(row[2].value)
             elif row[0].value == 'Material':
                 if str(row[1].value) == 'Graphene':
                     inputs['material'] = lib_material.Graphene()
