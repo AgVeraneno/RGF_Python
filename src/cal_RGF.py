@@ -119,9 +119,9 @@ class CPU():
         cn = np.dot(Tmat, i_state)
         c0_minus = np.dot(Rmat, i_state)
         ## calculate current ##
-        Ji = np.dot(np.conj(np.transpose(c0)), np.dot(J0, c0))
-        Jt = np.dot(np.conj(np.transpose(cn)), np.dot(J0, cn))
-        Jr = np.dot(np.conj(np.transpose(c0_minus)), np.dot(J0, c0_minus))
+        Ji = np.dot(np.transpose(c0), np.dot(J0, c0))
+        Jt = np.dot(np.transpose(cn), np.dot(J0, cn))
+        Jr = np.dot(np.transpose(c0_minus), np.dot(J0, c0_minus))
         if not np.isclose(np.real(Ji),0):
             T = Jt/Ji
             R = Jr/Ji
