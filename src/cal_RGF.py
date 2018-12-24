@@ -123,8 +123,8 @@ class CPU():
         Jt = np.dot(np.transpose(cn), np.dot(J0, cn))
         Jr = np.dot(np.transpose(c0_minus), np.dot(J0, c0_minus))
         if not np.isclose(np.real(Ji),0):
-            T = Jt/Ji
-            R = Jr/Ji
+            T = np.abs(np.real(Jt/Ji))
+            R = np.abs(np.real(Jr/Ji))
         else:
             T = R = 0
         return T,R
