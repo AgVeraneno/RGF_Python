@@ -147,7 +147,7 @@ def saveAsFigure(inputs, u_idx, unit, input_array, save_type=None):
         T = input_array['T']
         R = input_array['R']
         pyplot.plot(E, T)
-        pyplot.ylim([0,1])
+        pyplot.ylim([-0.05,1.05])
         pyplot.xlabel("E (eV)")
         pyplot.ylabel("T")
         pyplot.savefig('../output/'+file_name+condition+'.png')
