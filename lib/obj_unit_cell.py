@@ -323,15 +323,15 @@ class UnitCell():
         self.__AB2ab_P__[3,0] = -self.mat.r1
         '''
         AB/ab intra and inter subcell hopping
-           Hsu next             P+ next             AB->ab next        P+ AB->ab next
+           Hsu next           AB->ab next
         a   b   a'  b'
-        ==============       ==============       ==============       ==============
+        ==============       ==============
         A   B   A'  B'
-        ==============       ==============       ==============       ==============
-        0   r0  0   0        0   0   0   0        0   0   0   0        0   0   0   0
-        0   0   0   0        0   0   0   0        0   0   0   0        0   0   0   0
-        0   0   0   0        0   0   0   0        0   0   0   0        0   0   0   0
-        0   0   r0  0        0   0   0   0        0   0   0   0        0   0   0   0
+        ==============       ==============
+        0   r0  0   0        0   r3  0   0
+        0   0   0   0        0   0   0   0
+        0   0   0   0        0   0   0   0
+        0   0   r0  0        0   0   0   0
         ==============
         '''
         # H
@@ -339,39 +339,19 @@ class UnitCell():
         self.__AB2ABnext__[3,2] = -self.mat.r0
         self.__ab2abnext__[0,1] = -self.mat.r0
         self.__ab2abnext__[3,2] = -self.mat.r0
+        self.__AB2abnext__[0,1] = -self.mat.r3
         '''
         AB/ab intra and inter subcell hopping
-           Hsu pre              P+ pre              AB->ab pre          P+ AB->ab pre
+          AB->ab pre
         a   b   a'  b'
-        ==============       ==============       ==============       ==============
+        ==============
         A   B   A'  B'
-        ==============       ==============       ==============       ==============
-        0   0   0   0        0   0   0   0        0   0   0   0        0   0   0   0
-        0   0   0   0        0   0   0   0        0   0   0   0        0   0   0   0
-        0   0   0   0        0   0   0   0        0   0   0   r3       0   0   0   0
-        0   0   0   0        0   0   0   0        0   0   0   0        0   0   0   0
+        ==============
+        0   0   0   0
+        0   0   0   0
+        0   0   0   r3
+        0   0   0   0
         ==============
         '''
         # H
         self.__AB2abpre__[2,3] = -self.mat.r3
-        '''
-        Intra layer hopping
-        '''
-        self.__AB2ab__[0,1] = -self.mat.r3
-        self.__AB2ab__[0,3] = -self.mat.r3
-        self.__AB2ab__[1,0] = -self.mat.r1
-        self.__AB2ab__[2,3] = -self.mat.r3
-        self.__AB2ab__[3,2] = -self.mat.r1
-        self.__AB2ab_top__[1,0] = -self.mat.r1
-        self.__AB2ab_top__[2,3] = -self.mat.r3
-        self.__AB2ab_bot__[0,1] = -self.mat.r3
-        self.__AB2ab_bot__[3,2] = -self.mat.r1
-        self.__AB2ab_P__[2,1] = -self.mat.r3
-        self.__AB2ab_P_bot__[2,1] = -self.mat.r3
-        '''
-        Inter layer hopping
-        '''
-        self.__AB2abnext__[0,3] = -self.mat.r3
-        self.__AB2abnext_bot__[0,3] = -self.mat.r3
-        self.__AB2abpre_P__[2,1] = -self.mat.r3
-        self.__AB2abpre_P_top__[2,1] = -self.mat.r3
