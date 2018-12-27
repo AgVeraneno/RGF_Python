@@ -22,7 +22,7 @@ class UnitCell():
         self.u_wid = self.info['W']+\
                      self.info['Barrier']['top width']+\
                      self.info['Barrier']['bot width']+\
-                     self.info['Type']
+                     self.info['Type']-1
         # Matrix size.
         self.m_BLG = self.u_wid*8
         self.m_MLG = self.u_wid*4
@@ -67,8 +67,8 @@ class UnitCell():
         else:
             B_inv = 1
         for m in range(self.m_BLG):
-            block = int(m/4)
-            ##
+            block = int(m/4)        # get current block
+            ## Construct energy  profile ##
             if (block >= self.AB_start and block < self.AB_start+w_bb)\
             or (block >= self.ab_start and block < self.ab_start+w_bb):
                 site_delta = m%2*B_inv*delta_bb + (1-m%2)*delta_bb
@@ -83,40 +83,26 @@ class UnitCell():
                 site_delta = m%2*B_inv*delta_ch + (1-m%2)*delta_ch
                 site_V1 = (zone['Vbot']+(block-self.AB_start-w_bt)*dVt)
                 site_V2 = (zone['Vbot']+(block-self.AB_start-w_bt+1)*dVt)
-            ##
-            if block < self.AB_start:       # shift area
+            ## Fill in energy ##
+            if block < self.AB_start:       # shifted area
                 self.H[m,m] = 1000
             elif self.incTop and (block == self.AB_stop or block == self.ab_stop):# top edge
-                if block == self.AB_stop:
-                    if m % 4 == 0 or m % 4 == 3:# empty atoms
-                        self.H[m,m] = 1000
-                    else:                   # AB top edge
-                        self.H[m,m] = site_delta+site_V1
-                elif block == self.ab_stop:
-                    if m % 4 == 1 or m % 4 == 2:# empty atoms
-                        self.H[m,m] = 1000
-                    else:                   # ab top edge
-                        self.H[m,m] = -site_delta+site_V1
-            elif block == self.AB_start:    # AB bottom edge
-                if m % 4 == 1 or m % 4 == 2:
-                    self.H[m,m] = 1000
+                if m % 4 == 1 or m % 4 == 2:        # empty atoms
+                    self.H[m,m] = site_delta+site_V1
                 else:
-                    self.H[m,m] = site_delta+site_V2
-            elif block == self.ab_start:    # ab bottom edge
-                if m % 4 == 0 or m % 4 == 3:
                     self.H[m,m] = 1000
-                else:
-                    self.H[m,m] = -site_delta+site_V2
-            elif block >= self.AB_start and block < (self.AB_stop+1):
+            elif block >= self.AB_start and block <= self.AB_stop:
                 if m % 4 == 1 or m % 4 == 2:        # AB lower atoms
                     self.H[m,m] = site_delta+site_V1
-                elif m % 4 == 0 or m % 4 == 3:      # AB higher atoms
+                else:                               # AB higher atoms
                     self.H[m,m] = site_delta+site_V2
-            elif block >= self.ab_start and block < (self.ab_stop+1):
-                if m % 4 == 0 or m % 4 == 3:        # ab lower atoms
+            elif block >= self.ab_start and block <= self.ab_stop:
+                if m % 4 == 1 or m % 4 == 2:        # ab lower atoms
                     self.H[m,m] = -site_delta+site_V1
-                elif m % 4 == 1 or m % 4 == 2:      # ab higher atoms
+                else:                               # ab higher atoms
                     self.H[m,m] = -site_delta+site_V2
+            else:
+                self.H[m,m] = 1000
     def __ArmchairOD__(self):
         '''
         Off diagonal term
@@ -128,101 +114,36 @@ class UnitCell():
             row = []
             rowP = []
             for c in range(int(self.u_wid*2)):
-                if r == self.AB_start or r == self.ab_start:
-                    ## Bottom edge ##
-                    if r == self.AB_start:
-                        ## AB layer bottom ##
-                        if r == c:                  # on site energy
-                            row.append(self.__AB2AB_bot__)
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
-                        elif r == c-1:              # inter cell hopping AB
-                            row.append(self.__AB2ABnext_bot__)
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
-                        elif r == c-self.u_wid:  # inter layer hopping
-                            row.append(self.__AB2ab_bot__)
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
-                        elif r == c-self.u_wid-1:# inter layer AB to next ab
-                            row.append(self.__AB2abnext_bot__)
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
-                        else:
-                            row.append(np.zeros((4,4), dtype=np.complex128))
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
-                    elif r == self.ab_start:
-                        ## ab layer bottom ##
-                        if r == c:                  # on site energy
-                            row.append(self.__ab2ab_bot__)
-                            rowP.append(self.__ab2ab_P__)
-                        elif r == c-1:              # inter cell hopping ab
-                            row.append(self.__ab2abnext_bot__)
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
-                        else:
-                            row.append(np.zeros((4,4), dtype=np.complex128))
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
-                    else:
-                        row.append(np.zeros((4,4), dtype=np.complex128))
-                        rowP.append(np.zeros((4,4), dtype=np.complex128))
-                elif (r == self.AB_stop or r == self.ab_stop) and self.incTop:
-                    ## Top edge ##
-                    if r == self.AB_stop:
-                        ## AB layer top ##
-                        if r == c:                  # on site energy
-                            row.append(self.__AB2AB_top__)
-                            rowP.append(self.__AB2AB_P_top__)
-                        elif r == c-self.u_wid:      # inter layer hopping
-                            row.append(self.__AB2ab_top__)
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
-                        elif r == c-self.u_wid+1:    # inter layer AB to ab pre
-                            row.append(np.zeros((4,4), dtype=np.complex128))
-                            rowP.append(self.__AB2abpre_P__)
-                        else:
-                            row.append(np.zeros((4,4), dtype=np.complex128))
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
-                    elif r == self.ab_stop:
-                        if r == c:                  # on site energy
-                            row.append(self.__ab2ab_top__)
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
-                        else:
-                            row.append(np.zeros((4,4), dtype=np.complex128))
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
-                    else:
-                        row.append(np.zeros((4,4), dtype=np.complex128))
-                        rowP.append(np.zeros((4,4), dtype=np.complex128))
-                elif r > self.AB_start and r <= self.AB_stop:
-                    ## AB layer cell ##
-                    if r == c:                      # on site energy AB layer
+                if r >= self.AB_start and r <= self.AB_stop:
+                    if r == c:      ## AB -> AB
                         row.append(self.__AB2AB__)
                         rowP.append(self.__AB2AB_P__)
-                    elif r == c-self.u_wid:          # inter layer hopping
-                        row.append(self.__AB2ab__)
-                        rowP.append(self.__AB2ab_P__)
-                    elif not r == self.AB_stop:
-                        if r == c-1:                # AB inter sub unit cell hopping
-                            row.append(self.__AB2ABnext__)
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
-                        elif r == c-self.u_wid-1:    # inter layer AB to next ab
+                    elif r == c-1 and r != self.AB_stop:  ## AB -> AB next
+                        row.append(self.__AB2ABnext__)
+                        rowP.append(np.zeros((4,4), dtype=np.complex128))
+                    elif c >= self.ab_start and c <= self.ab_stop:
+                        if r == c-self.u_wid:       ## AB -> ab
+                            row.append(self.__AB2ab__)
+                            rowP.append(self.__AB2ab_P__)
+                        elif r == c-self.u_wid-1 and r != self.AB_stop:   ## AB -> ab next
                             row.append(self.__AB2abnext__)
                             rowP.append(np.zeros((4,4), dtype=np.complex128))
-                        elif r == c-self.u_wid+1:
-                            row.append(np.zeros((4,4), dtype=np.complex128))
-                            rowP.append(self.__AB2abpre_P__)
+                        elif r == c-self.u_wid+1 and r != self.AB_stop:   ## AB -> ab pre
+                            row.append(self.__AB2abpre__)
+                            rowP.append(np.zeros((4,4), dtype=np.complex128))
                         else:
                             row.append(np.zeros((4,4), dtype=np.complex128))
                             rowP.append(np.zeros((4,4), dtype=np.complex128))
                     else:
                         row.append(np.zeros((4,4), dtype=np.complex128))
                         rowP.append(np.zeros((4,4), dtype=np.complex128))
-                elif r > self.ab_start and r <= self.ab_stop:
-                    ## ab layer cell ##
-                    if r == c:                      # on site energy ab layer
+                elif r >= self.ab_start and r <= self.ab_stop:
+                    if r == c:      ## AB -> AB
                         row.append(self.__ab2ab__)
                         rowP.append(self.__ab2ab_P__)
-                    elif not r == self.ab_stop:
-                        if r == c-1:
-                            row.append(self.__ab2abnext__)
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
-                        else:
-                            row.append(np.zeros((4,4), dtype=np.complex128))
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
+                    elif r == c-1 and r != self.ab_stop:  ## AB -> AB next
+                        row.append(self.__ab2abnext__)
+                        rowP.append(np.zeros((4,4), dtype=np.complex128))
                     else:
                         row.append(np.zeros((4,4), dtype=np.complex128))
                         rowP.append(np.zeros((4,4), dtype=np.complex128))

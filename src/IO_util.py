@@ -1,3 +1,5 @@
+import sys
+sys.path.append('../lib/')
 import lib_excel, lib_material
 import numpy as np
 from matplotlib import pyplot
@@ -7,7 +9,7 @@ def importFromExcel(filename=None):
               'lattice': None,
               'direction': None,
               'mesh': [0, 0],
-              'kx_mesh': 383,
+              'kx_mesh': 0,
               'Vbias': [0.0, 0.0],
               'Unit cell': [],
               'function':{'isPlotBand':False,
