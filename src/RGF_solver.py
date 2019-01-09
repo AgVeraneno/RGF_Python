@@ -2,15 +2,9 @@ import sys, os, copy, time, warnings
 sys.path.append('../lib/')
 import numpy as np
 import lib_material, lib_excel, obj_unit_cell, IO_util, cal_band, cal_RGF
-import traceback
 from multiprocessing import Pool
 
 if __name__ == '__main__':
-    try:
-        from PyQt4 import QtGui
-        app = QtGui.QApplication(sys.argv)
-    except:
-        warnings.warn('No valid PyQt4 installed. This may cause error!')
     '''
     This program simulates ballistic transpotation along x-axis.
     '''
