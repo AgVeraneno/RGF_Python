@@ -36,7 +36,7 @@ class CPU():
         for v_idx, v in enumerate(eig_val):
             if v > 0 and gap - v <= 1e-4:
                 return v_idx
-    def __sort__(self, val, vec, mode='CPU'):
+    def __sort__(self, val, vec):
         """
         What: Sort eigenstate with small to large sequence
         How: 1.Sweep original eigenvalue and match sorted one.

@@ -1,85 +1,42 @@
 import os, copy
 import numpy as np
-from matplotlib import pyplot
 
-#import skcuda.linalg as cuLA
-import pycuda.gpuarray as gpuarray
-import pycuda.driver as cuda
-import pycuda.autoinit
-import pycuda.cumath as cumath
-import cupy as cp
-
-class BandStructure():
-    def __init__(self, inputs):
+class CPU():
+    def __init__(self, inputs, unit):
         self.inputs = inputs        # user input
+        self.unit = unit
         self.ax = self.inputs['material'].ax
         self.mesh = inputs['mesh']
-    def calState(self, unit, idx):
-        unit.setKx(idx)
-        H = unit.H+\
-            np.exp(1j*unit.kx*self.ax)*unit.P_plus+\
-            np.exp(-1j*unit.kx*self.ax)*unit.P_minus
-        val, vec = np.linalg.eig(H)
+        self.x = []
+        self.y = []
+    def calState(self, idx):
+        self.unit.setKx(idx)
+        kx = self.unit.kx
+        H = self.unit.H
+        Pp = self.unit.P_plus
+        Pn = self.unit.P_minus
+        Heig = H+\
+               np.exp(1j*kx*self.ax)*Pp+\
+               np.exp(-1j*kx*self.ax)*Pn
+        val, vec = np.linalg.eig(Heig)
         return self.__sort__(val, vec)
-    def calState_GPU(self, unit, idx):
-        unit.setKx(idx)
-        H = unit.H+\
-            np.exp(1j*unit.kx*self.ax)*unit.P_plus+\
-            np.exp(-1j*unit.kx*self.ax)*unit.P_minus
-        H_GPU = cp.array(H.astype(np.complex128))
-        val, vec = cp.linalg.eigh(H_GPU)
-        return self.__sort__(val, vec, 'GPU')
+    def calState_MP(self, idx):
+        self.unit.setKx(idx)
+        kx = self.unit.kx
+        H = self.unit.H
+        Pp = self.unit.P_plus
+        Pn = self.unit.P_minus
+        Heig = H+\
+               np.exp(1j*kx*self.ax)*Pp+\
+               np.exp(-1j*kx*self.ax)*Pn
+        val, vec = np.linalg.eig(Heig)
+        sort_val, sort_vec = self.__sort__(val, vec)
+        return [sort_val, self.unit.kx_norm]
     def getCBidx(self, gap, eig_val):
         for v_idx, v in enumerate(eig_val):
             if v > 0 and gap - v <= 1e-4:
                 return v_idx
-    def plotBand(self, bandgap_list, unit_idx):
-        ## construct vectors
-        eig_mat = np.real(np.array(bandgap_list['y']))
-        kx_sweep = np.real(np.array(bandgap_list['x']))
-        for y_idx in range(np.size(eig_mat,1)):
-            pyplot.plot(kx_sweep,eig_mat[:,y_idx])
-            pyplot.xlim([0,1])
-            pyplot.ylim([-10,10])
-            pyplot.xlabel("kx*ax/pi")
-            pyplot.ylabel("E (eV)")
-        ## output to figures
-        thisUnit = self.inputs['Unit cell'][unit_idx]
-        if self.inputs['material'].name == 'Graphene' \
-        and self.inputs['direction'] == 'Armchair':
-            filename = self.inputs['lattice']+'_AGNR_'
-        elif self.inputs['material'].name == 'Graphene' \
-        and self.inputs['direction'] == 'Zigzag':
-            filename = self.inputs['lattice']+'_ZGNR_'
-        condition = 'Z='+str(thisUnit['Region'])+\
-                    ',Type='+str(thisUnit['Type'])+\
-                    ',S='+str(thisUnit['Shift'])+\
-                    ',W='+str(thisUnit['W'])+\
-                    ',L='+str(thisUnit['L'])+\
-                    ',Vtop='+str(thisUnit['Vtop'])+\
-                    ',Vbot='+str(thisUnit['Vbot'])+\
-                    ',d='+str(thisUnit['delta'])
-        try:
-            pyplot.savefig('figures/'+filename+condition+'.png')
-        except:
-            os.mkdir('figures')
-            pyplot.savefig('figures/'+filename+condition+'.png')
-        pyplot.close()
-        ## plot zoom in figure if enabled
-        if self.inputs['function']['isPlotZoom']:
-            for y_idx in range(np.size(eig_mat,1)):
-                pyplot.plot(kx_sweep,eig_mat[:,y_idx])
-                pyplot.xlim([0,1])
-                pyplot.ylim([-1,1])
-                pyplot.xlabel("kx*ax/pi")
-                pyplot.ylabel("E (eV)")
-            try:
-                pyplot.savefig('figures/'+filename+condition+'_zoom.png')
-            except:
-                os.mkdir('figures')
-                pyplot.savefig('figures/'+filename+condition+'_zoom.png')
-            pyplot.close()
-    def __sort__(self, val, vec, mode='CPU'):
+    def __sort__(self, val, vec):
         """
         What: Sort eigenstate with small to large sequence
         How: 1.Sweep original eigenvalue and match sorted one.
@@ -88,10 +45,9 @@ class BandStructure():
         val: eigenvalue [n*n]
         vec: eigenstate [n*n]
         """
-        vec_size = cp.size(vec,0)
-        output_vec = cp.zeros((vec_size,vec_size), dtype=cp.complex128)
-        ## first kx point ##
-        sorted_val = cp.sort(val)
+        vec_size = np.size(vec,0)
+        output_vec = np.zeros((vec_size,vec_size), dtype=np.complex128)
+        sorted_val = np.sort(val)
         for v1_idx, v1 in enumerate(val):
             for v2_idx, v2 in enumerate(sorted_val):
                 if v1 == v2:

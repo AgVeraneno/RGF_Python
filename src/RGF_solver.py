@@ -49,11 +49,15 @@ if __name__ == '__main__':
     Construct Green's matrix
     '''
     t_start = time.time()
-    RGF_util = cal_RGF.CPU(inputs, unit_list)
+    if inputs['GPU']['enable']:
+        import cal_RGF_GPU
+        RGF_util = cal_RGF_GPU.GPU(inputs, unit_list)
+    else:
+        RGF_util = cal_RGF.CPU(inputs, unit_list)
     
     kx_sweep = range(inputs['mesh'][0],inputs['mesh'][1])
     RGF_result = {'E':[],'T':[],'R':[]}
-    if inputs['CPU']['p_enable']:
+    if inputs['CPU']['p_enable'] and not inputs['GPU']['enable']:
         with Pool(processes=inputs['CPU']['p_num']) as mp:
             RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
         RGF_result['E'] = np.array(RGF_output)[:,0]
@@ -61,15 +65,8 @@ if __name__ == '__main__':
         RGF_result['R'] = np.array(RGF_output)[:,2]
     else:
         for kx_idx in range(inputs['mesh'][0],inputs['mesh'][1]):        # sweep kx meshing
-            if inputs['GPU']['enable']:
-                ## RGF
-                RGF_util.calRGFT_GPU(kx_idx, CB_idx)
-                #RGF_util.calRGFR_GPU(kx_idx, CB_idx)
-                ## Jt/JR
-                Jt, Jr = RGF_util.calTR_GPU()
-            else:
-                ## RGF
-                RGF_output = RGF_util.calRGF_transmit(kx_idx)
+            ## RGF
+            RGF_output = RGF_util.calRGF_transmit(kx_idx)
             RGF_result['E'].append(RGF_output[0])
             RGF_result['T'].append(RGF_output[1])
             RGF_result['R'].append(RGF_output[2])
