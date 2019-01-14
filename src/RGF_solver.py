@@ -40,8 +40,12 @@ if __name__ == '__main__':
                 else:
                     val, vec = band_parser.calState(idx)
                 ## record data ##
+                
                 bandgap_list['x'].append(unit.kx_norm)
-                bandgap_list['y'].append(val)
+                bandgap_list['y'].append([])
+                for j in range(6):
+                    bandgap_list['y'][-1].append(val[unit.m_MLG-4+j])
+                    
             IO_util.saveAsFigure(inputs, u_idx, unit, bandgap_list, save_type='band')
     t_band = time.time() - t_start
     print('Calculate band structure:',t_band,'(sec)')
