@@ -1,6 +1,7 @@
 import sys, os, copy, time, warnings
 sys.path.append('../lib/')
 import numpy as np
+import data_util
 import lib_material, lib_excel, obj_unit_cell, IO_util, cal_band, cal_RGF
 from multiprocessing import Pool
 
@@ -8,8 +9,36 @@ if __name__ == '__main__':
     '''
     This program simulates ballistic transpotation along x-axis.
     '''
-    t_start = time.time()       # record import time
-    inputs = IO_util.importFromExcel('../input/RGF_input_file.xlsx')
+    try:
+        '''
+        Work with command line.
+        use "python RGF_solver.py <setup file> <job file>" command
+        
+        for excel input, setup file contains "__setup__" and "job" sheets.
+        <job file> is not needed
+        '''
+        p_name, p_type = data_util.string_splitter(sys.argv[0],'.')
+        input_file, input_type = data_util.string_splitter(sys.argv[1],'.')
+        print('Program ',p_name, 'start @ ',time.asctime(time.localtime(time.time())))
+        t_start = time.time()       # record import time
+        if input_type == 'xlsx' or input_type == 'xls':
+            inputs = IO_util.importFromExcel('../input/'+sys.argv[1])
+        elif input_type == 'csv':
+            setup = IO_util.importFromCSV('../input/'+sys.argv[1])
+            jobs = IO_util.importFromCSV('../input/'+sys.argv[2])
+        else:
+            raise ValueError('Not supported type input:',input_type)
+    except:
+        print('Program RGF_solver start @ ',time.asctime(time.localtime(time.time())))
+        input_type = input('please provide input type:')
+        t_start = time.time()       # record import time
+        if input_type == 'xlsx' or input_type == 'xls':
+            inputs = IO_util.importFromExcel('../input/RGF_input_file.xlsx')
+        elif input_type == 'csv':
+            setup = IO_util.importFromCSV('../input/setup.csv')
+            jobs = IO_util.importFromCSV('../input/job.csv')
+        else:
+            raise ValueError('Not supported type input:',input_type)
     t_import = time.time() - t_start
     print('Import time:', t_import, '(sec)')
     '''
