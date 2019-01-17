@@ -1,7 +1,7 @@
 import sys, os, copy, time, warnings
 sys.path.append('../lib/')
 import numpy as np
-import lib_material, lib_excel, obj_unit_cell, IO_util, cal_band, cal_RGF
+import lib_material, obj_unit_cell, IO_util, cal_band, cal_RGF
 from multiprocessing import Pool
 
 if __name__ == '__main__':
@@ -9,7 +9,8 @@ if __name__ == '__main__':
     This program simulates ballistic transpotation along x-axis.
     '''
     t_start = time.time()       # record import time
-    inputs = IO_util.importFromExcel('../input/RGF_input_file.xlsx')
+    #inputs = IO_util.importFromExcel('../input/RGF_input_file.xlsx')
+    inputs = IO_util.importFromCSV('../input/RGF_input_file.csv')
     t_import = time.time() - t_start
     print('Import time:', t_import, '(sec)')
     '''
@@ -21,7 +22,7 @@ if __name__ == '__main__':
         new_unitcell = obj_unit_cell.UnitCell(inputs, idx)
         new_unitcell.genHamiltonian()
         unit_list.append(new_unitcell)
-        IO_util.saveAsExcel(inputs, idx, new_unitcell, save_type='matrix')
+        #IO_util.saveAsCSV(inputs, idx, new_unitcell, save_type='matrix')
     t_unitGen = time.time() - t_start
     print('Generate unit cell time:',t_unitGen,'(sec)')
     '''
@@ -29,7 +30,7 @@ if __name__ == '__main__':
     '''
     t_start = time.time()       # record band structure time
     #bs_parser = bs_GPU.BandStructure(inputs)
-    if inputs['function']['isPlotBand']:
+    if inputs['function']['isPlotBand'] and False:
         for u_idx, unit in enumerate(unit_list):
             band_parser = cal_band.CPU(inputs, unit)
             bandgap_list = {'x':[],'y':[]}
@@ -77,6 +78,6 @@ if __name__ == '__main__':
     ## plot transmission ##
     unit = unit_list[0]
     IO_util.saveAsFigure(inputs, -1, unit, RGF_result, save_type='TR')
-    IO_util.saveAsExcel(inputs, -1, unit, RGF_result, save_type='TR')
+    #IO_util.saveAsCSV(inputs, -1, unit, RGF_result, save_type='TR')
     t_RGF = time.time() - t_start
     print('Calculate RGF:',t_RGF,'(sec)')

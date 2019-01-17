@@ -5,8 +5,11 @@ updated: 2018/11/30
 '''
 ## exterior library
 import os
-from openpyxl import load_workbook
-from openpyxl import Workbook
+try:
+    from openpyxl import load_workbook
+    from openpyxl import Workbook
+except:
+    pass
 
 class excel():
     def __init__(self, file=None, readfile=True, sheet_name=''):

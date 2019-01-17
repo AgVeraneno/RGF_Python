@@ -1,4 +1,4 @@
-import sys
+import sys,csv
 sys.path.append('../lib/')
 import lib_excel, lib_material
 import numpy as np
@@ -59,7 +59,83 @@ def importFromExcel(filename=None):
                                        'bot gap':float(row[12].value)}}
                 inputs['Unit cell'].append(new_unit)
     return inputs
-
+def importFromCSV(filename=None):
+    inputs = {'material': None,
+              'lattice': None,
+              'direction': None,
+              'mesh': [0, 0],
+              'kx_mesh': 0,
+              'Vbias': [0.0, 0.0],
+              'Unit cell': [],
+              'function':{'isPlotBand':False,
+                          'isPlotZoom':False},
+              'CPU':{'p_enable':False,
+                     'p_num':1},
+              'GPU':{'enable': False,
+                     'Max matrix':0}}
+    with open(filename, newline='') as csvfile:
+        for row in csv.reader(csvfile):
+            if row[0] == 'Using GPU':
+                if row[1] == 'TRUE':
+                    inputs['GPU']['enable'] = True
+                else:
+                    inputs['GPU']['enable'] = False
+                inputs['GPU']['Max matrix'] = int(row[2])
+            elif row[0] == 'Using Parallel':
+                if row[1] == 'TRUE':
+                    inputs['CPU']['p_enable'] = True
+                else:
+                    inputs['CPU']['p_enable'] = False
+                inputs['CPU']['p_num'] = int(row[2])
+            elif row[0] == 'Material':
+                if str(row[1]) == 'Graphene':
+                    inputs['material'] = lib_material.Graphene()
+            elif row[0] == 'Lattice':
+                inputs['lattice'] = str(row[1])
+            elif row[0] == 'Direction':
+                inputs['direction'] = str(row[1])
+            elif row[0] == 'kx mesh':
+                inputs['kx_mesh'] = int(row[1])
+            elif row[0] == 'mesh':
+                inputs['mesh'][0] = int(row[1])
+                inputs['mesh'][1] = int(row[2])
+            elif row[0] == 'Bias(V)':
+                inputs['Vbias'][0] = float(row[1])
+                inputs['Vbias'][1] = float(row[2])
+            elif row[0] == 'Plot band structure':
+                if row[1] == 'TRUE':
+                    inputs['function']['isPlotBand'] = True
+                else:
+                    inputs['function']['isPlotBand'] = False
+                if row[1] == 'TRUE':
+                    inputs['function']['isPlotZoom'] = True
+                else:
+                    inputs['function']['isPlotZoom'] = False
+            elif row[0] == 'o':
+                new_unit = {'Region': int(row[1]),
+                            'Type': int(row[2]),
+                            'Shift': int(row[3]),
+                            'W': int(row[4]),
+                            'L': int(row[5]),
+                            'Vtop': float(row[6]),
+                            'Vbot': float(row[7]),
+                            'delta': float(row[8]),
+                            'Barrier':{'top width':int(row[9]),
+                                       'top gap':float(row[10]),
+                                       'bot width':int(row[11]),
+                                       'bot gap':float(row[12])}}
+                inputs['Unit cell'].append(new_unit)
+    return inputs
+def saveAsCSV(inputs, u_idx, unit, input_array=None, save_type=None):
+    lattice = inputs['lattice']
+    mat = inputs['material'].name
+    dir = inputs['direction']
+    file_name = str(u_idx)+"_"+save_type+"_"+lattice+"_"+dir[0]+mat[0]+"NR.csv"
+    with open(file_name, 'w',newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        if save_type == 'matrix': 
+            writer.writerows([str(np.real(input_array['E'][i])),
+                              str(np.real(input_array['T'][i]))])
 def saveAsExcel(inputs, u_idx, unit, input_array=None, save_type=None):
     lattice = inputs['lattice']
     mat = inputs['material'].name
