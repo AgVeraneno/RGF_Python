@@ -2,6 +2,7 @@ import sys, os, copy, time, warnings
 sys.path.append('../lib/')
 import numpy as np
 import data_util
+import unit_cell
 import lib_material, lib_excel, obj_unit_cell, IO_util, cal_band, cal_RGF
 from multiprocessing import Pool
 
@@ -41,7 +42,7 @@ if __name__ == '__main__':
             raise ValueError('Not supported type input:',input_type)
     print('Import time:', time.time() - t_start, '(sec)')
     '''
-    Create unit cell
+    Create unit cellcsv
     '''
     t_start = time.time()       # record unit cell generation time
     unit_list = []              # unit cell object list
@@ -54,11 +55,15 @@ if __name__ == '__main__':
             unitcell = unit_list[r_idx]
         except:
             if setup['brief'] == 'AGNR':
-                new_unitcell = unit_cell.AGNR(setup['material'], job)
-                
-        new_unitcell.genHamiltonian()
-        unit_list.append(new_unitcell)
-        IO_util.saveAsExcel(inputs, idx, new_unitcell, save_type='matrix')
+                unitcell = unit_cell.AGNR(setup, job)
+            else:
+                raise ValueError('Non supported setup:',setup['brief'])
+            unit_list.append(unitcell)
+        #{ for debug use
+        IO_util.saveAsCSV(setup, job, unitcell.H, 'H')
+        IO_util.saveAsCSV(setup, job, unitcell.P_plus, 'P+')
+        IO_util.saveAsCSV(setup, job, unitcell.P_minus, 'P-')
+        #}
     t_unitGen = time.time() - t_start
     print('Generate unit cell time:',t_unitGen,'(sec)')
     '''
@@ -66,7 +71,9 @@ if __name__ == '__main__':
     '''
     t_start = time.time()       # record band structure time
     #bs_parser = bs_GPU.BandStructure(inputs)
-    if inputs['function']['isPlotBand']:
+    if setup['isPlot_band']:
+        lead_unit = unit_list[0]
+        
         for u_idx, unit in enumerate(unit_list):
             band_parser = cal_band.CPU(inputs, unit)
             bandgap_list = {'x':[],'y':[]}

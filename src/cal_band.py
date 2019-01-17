@@ -2,8 +2,7 @@ import os, copy
 import numpy as np
 
 class CPU():
-    def __init__(self, inputs, unit):
-        self.inputs = inputs        # user input
+    def __init__(self, setup, unit):
         self.unit = unit
         self.ax = self.inputs['material'].ax
         self.mesh = inputs['mesh']

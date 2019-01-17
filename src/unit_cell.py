@@ -8,166 +8,137 @@ class AGNR():
     P_plus: forward inter unit cell hopping matrix
     P_minus: backward inter unit cell hopping matrix
     '''
-    def __init__(self, mat, job):
-        self.mat = mat
-        ## cell type
+    def __init__(self, setup, job):
+        self.mat = setup['material']
+        self.subunit_size = 4
+        ## matrix size
         if job['cell_type'] == 'wave':
             self.add_top = False
+            subunit_count = int(job['width'])
         elif job['cell_type'] == 'envelope':
             self.add_top = True
+            subunit_count = int(job['width'])+1
         else:
             raise ValueError('Unresolved cell_type:',job['cell_type'])
-        ## unit cell width
-        
-        
-        
-        ## import inputs
-        self.inputs = inputs                        # user inputs
-        self.info = inputs['Unit cell'][u_idx]      # unit cell information
-        self.mat = inputs['material']               # material object
-        if self.info['Type'] == 1:                  # True if type is 2-2-2-2
-            self.incTop = False
+        MLG_m_size = subunit_count*4
+        BLG_m_size = subunit_count*8
+        ## on site energy
+        self.gap = float(job['gap'])
+        self.Vtop = float(job['Vtop'])
+        self.Vbot = float(job['Vbot'])
+        self.dV = (self.Vtop-self.Vbot)/(subunit_count-1)
+        if setup['lattice'] == 'MLG':
+            self.B_inv = -1
         else:
-            self.incTop = True
-        # Unit width, in unit of subunit cell
-        self.u_wid = self.info['W']+\
-                     self.info['Barrier']['top width']+\
-                     self.info['Barrier']['bot width']+\
-                     self.info['Type']-1
-        # Matrix size.
-        self.m_BLG = self.u_wid*8
-        self.m_MLG = self.u_wid*4
-        ## create default matrix
-        self.H = np.zeros((self.m_BLG,self.m_BLG), dtype=np.complex128)
-        self.P_plus = np.zeros((self.m_BLG,self.m_BLG), dtype=np.complex128)
-        self.P_minus = np.zeros((self.m_BLG,self.m_BLG), dtype=np.complex128)
-    def genHamiltonian(self):
-        ## create data entrance points
-        self.AB_start = self.info['Shift']              # AB layer start point
-        self.AB_stop = self.AB_start+self.u_wid-1       # AB layer stop point
-        self.ab_start = self.info['Shift']+self.u_wid   # ab layer start point
-        self.ab_stop = self.ab_start+self.u_wid-1       # ab layer stop point
-        ## generate matrix
-        if self.inputs['direction'] == 'Armchair':
-            self.__armchair_matrix_unit__()
-            self.__ArmchairOD__()
-            self.__ArmchairD__()
-        ## degenerate to MLG
-        if self.inputs['lattice'] == 'MLG':
-            MLGstart = 0
-            MLGstop = self.u_wid*4
-            self.H = self.H[MLGstart:MLGstop,MLGstart:MLGstop]
-            self.P_plus = self.P_plus[MLGstart:MLGstop,MLGstart:MLGstop]
-            self.P_minus = self.P_minus[MLGstart:MLGstop,MLGstart:MLGstop]
+            self.B_inv = 1
+        ## matrix entrance
+        self.L1_start = int(job['shift'])
+        self.L1_stop = self.L1_start+subunit_count-1
+        self.L2_start = self.L1_stop+int(job['shift'])+1
+        self.L2_stop = self.L2_start+subunit_count-1
+        ## Hamiltonian
+        empty_matrix = np.zeros((BLG_m_size,BLG_m_size), dtype=np.complex128)
+        self.H = copy.deepcopy(empty_matrix)
+        self.P_plus = copy.deepcopy(empty_matrix)
+        self.P_minus = copy.deepcopy(empty_matrix)
+        self.__gen_Hamiltonian__()
+    def __gen_Hamiltonian__(self):
+        self.__4by4Component__()
+        self.__off_diagonal__()
+        self.__on_site_energy__()
     def setKx(self, l_idx):
         self.kx = 2*l_idx*np.pi/(self.mat.ax*self.inputs['kx_mesh'])
         self.kx_norm = self.kx*self.mat.ax/np.pi
-    def __ArmchairD__(self):
-        zone = self.info
-        ## get on site energy components ##
-        # calculate bias
-        Vt = zone['Vtop'] - zone['Vbot']        # voltage drop across unit
-        dVt = Vt/(self.u_wid*2)
-        delta_ch = zone['delta']                # channel gap
-        delta_bt = zone['Barrier']['top gap']   # top barrier gap
-        delta_bb = zone['Barrier']['bot gap']   # bottom barrier gap
-        w_bt = zone['Barrier']['top width']     # top barrier gap
-        w_bb = zone['Barrier']['bot width']     # top barrier gap
-        if self.inputs['lattice'] == 'MLG':
-            B_inv = -1
-        else:
-            B_inv = 1
-        for m in range(self.m_BLG):
+    def __on_site_energy__(self):
+        full_matrix_size = self.L2_stop+1
+        half_matrix_size = int(full_matrix_size/2)
+        actual_size = half_matrix_size*self.subunit_size
+        for m in range(actual_size):
             block = int(m/4)        # get current block
-            ## Construct energy  profile ##
-            if (block >= self.AB_start and block < self.AB_start+w_bb)\
-            or (block >= self.ab_start and block < self.ab_start+w_bb):
-                site_delta = m%2*B_inv*delta_bb + (1-m%2)*delta_bb
-                site_V1 = zone['Vbot']
-                site_V2 = zone['Vbot']
-            elif (block >= self.AB_stop-w_bt+1 and block <= self.AB_stop)\
-            or   (block >= self.ab_stop-w_bt+1 and block <= self.ab_stop):
-                site_delta = m%2*B_inv*delta_bt + (1-m%2)*delta_bt
-                site_V1 = zone['Vtop']
-                site_V2 = zone['Vtop']
-            else:
-                site_delta = m%2*B_inv*delta_ch + (1-m%2)*delta_ch
-                site_V1 = (zone['Vbot']+(block-self.AB_start-w_bt)*dVt)
-                site_V2 = (zone['Vbot']+(block-self.AB_start-w_bt+1)*dVt)
-            ## Fill in energy ##
-            if block < self.AB_start:       # shifted area
-                self.H[m,m] = 1000
-            elif self.incTop and (block == self.AB_stop or block == self.ab_stop):# top edge
-                if m % 4 == 1 or m % 4 == 2:        # empty atoms
-                    self.H[m,m] = site_delta+site_V1
-                else:
-                    self.H[m,m] = 1000
-            elif block >= self.AB_start and block <= self.AB_stop:
-                if m % 4 == 1 or m % 4 == 2:        # AB lower atoms
-                    self.H[m,m] = site_delta+site_V1
-                else:                               # AB higher atoms
-                    self.H[m,m] = site_delta+site_V2
-            elif block >= self.ab_start and block <= self.ab_stop:
-                if m % 4 == 1 or m % 4 == 2:        # ab lower atoms
-                    self.H[m,m] = -site_delta+site_V1
-                else:                               # ab higher atoms
-                    self.H[m,m] = -site_delta+site_V2
+            site_gap = m%2*self.B_inv*self.gap + (1-m%2)*self.gap
+            site_V = (self.Vbot+(block-self.L1_start)*self.dV)
+            if block >= self.L1_start and block <= self.L1_stop:
+                self.H[m,m] = site_gap+site_V
+                self.H[m+half_matrix_size,m+half_matrix_size] = site_gap+site_V
             else:
                 self.H[m,m] = 1000
-    def __ArmchairOD__(self):
-        '''
-        Off diagonal term
-        '''
+                self.H[m+actual_size,m+actual_size] = 1000
+            self.H[m,m] = site_gap+site_V
+            self.H[m+actual_size,m+actual_size] = site_gap+site_V
+    def __off_diagonal__(self):
+        empty_matrix = np.zeros((self.subunit_size,self.subunit_size), dtype=np.complex128)
+        full_matrix_size = self.L2_stop+1
+        half_matrix_size = int(full_matrix_size/2)
         ## unit cell H
         np_matrix = []
         np_matrixP = []
-        for r in range(int(self.u_wid*2)):
+        for r in range(full_matrix_size):
             row = []
             rowP = []
-            for c in range(int(self.u_wid*2)):
-                if r >= self.AB_start and r <= self.AB_stop:
-                    if r == c:      ## AB -> AB
-                        row.append(self.__AB2AB__)
-                        rowP.append(self.__AB2AB_P__)
-                    elif r == c-1 and r != self.AB_stop:  ## AB -> AB next
-                        row.append(self.__AB2ABnext__)
-                        rowP.append(np.zeros((4,4), dtype=np.complex128))
-                    elif c >= self.ab_start and c <= self.ab_stop:
-                        if r == c-self.u_wid:       ## AB -> ab
-                            row.append(self.__AB2ab__)
-                            rowP.append(self.__AB2ab_P__)
-                        elif r == c-self.u_wid-1 and r != self.AB_stop:   ## AB -> ab next
-                            row.append(self.__AB2abnext__)
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
-                        elif r == c-self.u_wid+1 and r != self.AB_stop:   ## AB -> ab pre
-                            row.append(self.__AB2abpre__)
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
+            for c in range(full_matrix_size):
+                if r >= self.L1_start and r <= self.L1_stop:
+                    if c >= self.L1_start and c <= self.L1_stop:        # AB-AB
+                        if r == c:
+                            if self.add_top and r == self.L1_stop:
+                                row.append(self.__AB2ABtop__)
+                                rowP.append(empty_matrix)
+                            else:
+                                row.append(self.__AB2AB__)
+                                rowP.append(self.__AB2AB_P__)
+                        elif r == c-1:
+                            row.append(self.__AB2ABnext__)
+                            rowP.append(empty_matrix)
                         else:
-                            row.append(np.zeros((4,4), dtype=np.complex128))
-                            rowP.append(np.zeros((4,4), dtype=np.complex128))
+                            row.append(empty_matrix)
+                            rowP.append(empty_matrix)
+                    elif c >= self.L2_start and c <= self.L2_stop:        # AB-ab
+                        if r == c-half_matrix_size:
+                            if self.add_top and r == self.L1_stop:
+                                row.append(self.__AB2abtop__)
+                                rowP.append(self.__AB2abtop_P__)
+                            else:
+                                row.append(self.__AB2ab__)
+                                rowP.append(self.__AB2ab_P__)
+                        elif r == c-half_matrix_size-1:
+                            row.append(self.__AB2abnext__)
+                            rowP.append(empty_matrix)
+                        elif r == c-half_matrix_size+1 and r != self.L2_start:
+                            row.append(self.__AB2abpre__)
+                            rowP.append(empty_matrix)
+                        else:
+                            row.append(empty_matrix)
+                            rowP.append(empty_matrix)
                     else:
-                        row.append(np.zeros((4,4), dtype=np.complex128))
-                        rowP.append(np.zeros((4,4), dtype=np.complex128))
-                elif r >= self.ab_start and r <= self.ab_stop:
-                    if r == c:      ## AB -> AB
-                        row.append(self.__ab2ab__)
-                        rowP.append(self.__ab2ab_P__)
-                    elif r == c-1 and r != self.ab_stop:  ## AB -> AB next
-                        row.append(self.__ab2abnext__)
-                        rowP.append(np.zeros((4,4), dtype=np.complex128))
+                        row.append(empty_matrix)
+                        rowP.append(empty_matrix)
+                elif r >= self.L2_start and r <= self.L2_stop:
+                    if c >= self.L2_start and c <= self.L2_stop:        # ab-ab
+                        if r == c:
+                            if self.add_top and r == self.L2_stop:
+                                row.append(self.__ab2abtop__)
+                                rowP.append(empty_matrix)
+                            else:
+                                row.append(self.__ab2ab__)
+                                rowP.append(self.__ab2ab_P__)
+                        elif r == c+1:
+                            row.append(self.__ab2abnext__)
+                            rowP.append(empty_matrix)
+                        else:
+                            row.append(empty_matrix)
+                            rowP.append(empty_matrix)
                     else:
-                        row.append(np.zeros((4,4), dtype=np.complex128))
-                        rowP.append(np.zeros((4,4), dtype=np.complex128))
+                        row.append(empty_matrix)
+                        rowP.append(empty_matrix)
                 else:
-                    row.append(np.zeros((4,4), dtype=np.complex128))
-                    rowP.append(np.zeros((4,4), dtype=np.complex128))
+                    row.append(empty_matrix)
+                    rowP.append(empty_matrix)
             np_matrix.append(row)
             np_matrixP.append(rowP)
         self.H = np.block(np_matrix)
         self.H = self.H + np.transpose(np.conj(self.H))
-        self.P_plus = np.block(np_matrixP)
-        self.P_minus = np.transpose(np.conj(self.P_plus))
-    def __armchair_matrix_unit__(self):
+        self.P_minus = np.block(np_matrixP)
+        self.P_plus = np.transpose(np.conj(self.P_minus))
+    def __4by4Component__(self):
         '''
         =================================
                            b   a',B  A'
@@ -181,60 +152,39 @@ class AGNR():
         =================================
         H sequence: A1, B1, A1', B1', A2, B2, ..., Am', Bm', a1, b1, a1', b1', a2, b2, ..., am, bm
         '''
+        empty_matrix = np.zeros((self.subunit_size,self.subunit_size), dtype=np.complex128)
         # within sub unit cell hopping
-        self.__AB2AB__ = np.zeros((4,4), dtype=np.complex128)
-        self.__ab2ab__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2AB_bot__ = np.zeros((4,4), dtype=np.complex128)
-        self.__ab2ab_bot__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2AB_top__ = np.zeros((4,4), dtype=np.complex128)
-        self.__ab2ab_top__ = np.zeros((4,4), dtype=np.complex128)
+        self.__AB2AB__ = copy.deepcopy(empty_matrix)
+        self.__ab2ab__ = copy.deepcopy(empty_matrix)
+        self.__AB2ABtop__ = copy.deepcopy(empty_matrix)
+        self.__ab2abtop__ = copy.deepcopy(empty_matrix)
         # next sub unit cell hopping
-        self.__AB2ABnext__ = np.zeros((4,4), dtype=np.complex128)
-        self.__ab2abnext__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2ABnext_bot__ = np.zeros((4,4), dtype=np.complex128)
-        self.__ab2abnext_bot__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2ABnext_top__ = np.zeros((4,4), dtype=np.complex128)
-        self.__ab2abnext_top__ = np.zeros((4,4), dtype=np.complex128)
+        self.__AB2ABnext__ = copy.deepcopy(empty_matrix)
+        self.__ab2abnext__ = copy.deepcopy(empty_matrix)
         # within sub unit cell inter layer hopping
-        self.__AB2ab__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2ab_top__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2ab_bot__ = np.zeros((4,4), dtype=np.complex128)
+        self.__AB2ab__ = copy.deepcopy(empty_matrix)
+        self.__AB2abtop__ = copy.deepcopy(empty_matrix)
         # next sub unit cell inter layer hopping
-        self.__AB2abnext__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2abpre__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2abnext_top__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2abpre_top__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2abnext_bot__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2abpre_bot__ = np.zeros((4,4), dtype=np.complex128)
+        self.__AB2abnext__ = copy.deepcopy(empty_matrix)
+        self.__AB2abpre__ = copy.deepcopy(empty_matrix)
+        self.__AB2abpretop__ = copy.deepcopy(empty_matrix)
         # next unit cell, same sub unit cell, same layer hopping
-        self.__AB2AB_P__ = np.zeros((4,4), dtype=np.complex128)
-        self.__ab2ab_P__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2AB_P_top__ = np.zeros((4,4), dtype=np.complex128)
-        self.__ab2ab_P_top__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2AB_P_bot__ = np.zeros((4,4), dtype=np.complex128)
-        self.__ab2ab_P_bot__ = np.zeros((4,4), dtype=np.complex128)
+        self.__AB2AB_P__ = copy.deepcopy(empty_matrix)
+        self.__ab2ab_P__ = copy.deepcopy(empty_matrix)
         # next unit cell, same sub unit cell, different layer hopping
-        self.__AB2ab_P__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2ab_P_top__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2ab_P_bot__ = np.zeros((4,4), dtype=np.complex128)
-        # next unit cell, next sub unit cell, different layer hopping
-        self.__AB2abnext_P__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2abpre_P__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2abnext_P_top__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2abpre_P_top__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2abnext_P_bot__ = np.zeros((4,4), dtype=np.complex128)
-        self.__AB2abpre_P_bot__ = np.zeros((4,4), dtype=np.complex128)
+        self.__AB2ab_P__ = copy.deepcopy(empty_matrix)
+        self.__AB2abtop_P__ = copy.deepcopy(empty_matrix)
         '''
         AB/ab intra and inter layer hopping
-              Hsu                 P+                 AB->ab               P+ AB->ab
+              Hsu                 P-                 AB->ab               P- AB->ab
         a   b   a'  b'
         ==============       ==============       ==============       ==============
         A   B   A'  B'
         ==============       ==============       ==============       ==============
-        v   r0  0   0        0   0   0   0        0   r3  0   r3       0   0   0   0
+        v   r0  0   0        0   0   0  r0        0   r3  0   r3       0   0   0   0
         -   v   r0  0        0   0   0   0        0   0   r1  0        0   0   0   0
         -   -   v   r0       0   0   0   0        0   0   0   r3       0   r3  0   0
-        -   -   -   v        r0  0   0   0        0   0   0   0        r1  0   0   0
+        -   -   -   v        0   0   0   0        0   0   0   0        r1  0   0   0
         ==============      ==============        ==============       ==============
         '''
         # H
@@ -248,11 +198,15 @@ class AGNR():
         self.__AB2ab__[0,3] = -self.mat.r3
         self.__AB2ab__[1,2] = -self.mat.r1
         self.__AB2ab__[2,3] = -self.mat.r3
-        # P+
-        self.__AB2AB_P__[3,0] = -self.mat.r0
-        self.__ab2ab_P__[3,0] = -self.mat.r0
+        self.__AB2ABtop__[1,2] = -self.mat.r0
+        self.__ab2abtop__[1,2] = -self.mat.r0
+        self.__AB2abtop__[1,2] = -self.mat.r1
+        # P-
+        self.__AB2AB_P__[0,3] = -self.mat.r0
+        self.__ab2ab_P__[0,3] = -self.mat.r0
         self.__AB2ab_P__[2,1] = -self.mat.r3
         self.__AB2ab_P__[3,0] = -self.mat.r1
+        self.__AB2abtop_P__[2,1] = -self.mat.r3
         '''
         AB/ab intra and inter subcell hopping
            Hsu next           AB->ab next
@@ -287,3 +241,4 @@ class AGNR():
         '''
         # H
         self.__AB2abpre__[2,3] = -self.mat.r3
+        self.__AB2abpretop__[2,3] = -self.mat.r3

@@ -58,6 +58,13 @@ def importFromCSV(setup_file, job_file):
             else:
                 continue
     return setup, job_list
+def saveAsCSV(setup, job, table, identifier=''):
+    file_name = job['region']+'_'+setup['lattice']+'_'+setup['brief']+'_W='+\
+                job['width']+'_delta='+job['gap']+'_'+identifier+'.csv'
+    with open(file_name, 'w', newline='') as csv_file:
+        csv_parser = csv.writer(csv_file, delimiter=',',quotechar='|')
+        for i in range(np.size(np.array(table), 0)):
+            csv_parser.writerow(list(table[i,:]))
                 
 def importFromExcel(filename=None):
     inputs = {'material': None,
