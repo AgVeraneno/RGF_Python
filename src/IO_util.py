@@ -1,9 +1,64 @@
-import sys
+import sys, copy, csv
 sys.path.append('../lib/')
 import lib_excel, lib_material
 import numpy as np
 from matplotlib import pyplot
 
+def importFromCSV(setup_file, job_file):
+    setup = {'isGPU':False,
+             'isParallel':False,
+             'parallel_CPU':1,
+             'material':None,
+             'lattice':None,
+             'direction':None,
+             'brief':None,
+             'kx_mesh':None,
+             'mesh_start':0,
+             'mesh_stop':0,
+             'isPlot_band':False,
+             'isPlot_zoom':False}
+    job = {'region':-1,
+           'cell_type':1,
+           'shift':0,
+           'width':0,
+           'length':0,
+           'Vtop':0,
+           'Vbot':0,
+           'gap':0}
+    '''
+    import setup
+    '''
+    with open(setup_file,newline='') as csv_file:
+        rows = csv.DictReader(csv_file)
+        for row in rows:
+            for key in setup.keys():
+                if key[0:2] == 'is':
+                    if row[key] == '1':
+                        setup[key] = True
+                    elif row[key] == '0':
+                        setup[key] = False
+                    else:
+                        raise ValueError('Incorrect input in job file:', row[key])
+                elif key == 'material':
+                    setup[key] = lib_material.Material(row[key])
+                else:
+                    setup[key] = row[key]
+    '''
+    import jobs
+    '''
+    with open(job_file,newline='') as csv_file:
+        rows = csv.DictReader(csv_file)
+        job_list = []
+        for row in rows:
+            if row['enable'] == 'o':
+                new_job = copy.deepcopy(job)
+                for key in job.keys():
+                    new_job[key] = row[key]
+                job_list.append(new_job)
+            else:
+                continue
+    return setup, job_list
+                
 def importFromExcel(filename=None):
     inputs = {'material': None,
               'lattice': None,

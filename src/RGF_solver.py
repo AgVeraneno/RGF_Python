@@ -24,8 +24,8 @@ if __name__ == '__main__':
         if input_type == 'xlsx' or input_type == 'xls':
             inputs = IO_util.importFromExcel('../input/'+sys.argv[1])
         elif input_type == 'csv':
-            setup = IO_util.importFromCSV('../input/'+sys.argv[1])
-            jobs = IO_util.importFromCSV('../input/'+sys.argv[2])
+            setup, jobs = IO_util.importFromCSV('../input/'+sys.argv[1],
+                                                '../input/'+sys.argv[2])
         else:
             raise ValueError('Not supported type input:',input_type)
     except:
@@ -35,19 +35,27 @@ if __name__ == '__main__':
         if input_type == 'xlsx' or input_type == 'xls':
             inputs = IO_util.importFromExcel('../input/RGF_input_file.xlsx')
         elif input_type == 'csv':
-            setup = IO_util.importFromCSV('../input/setup.csv')
-            jobs = IO_util.importFromCSV('../input/job.csv')
+            setup, jobs = IO_util.importFromCSV('../input/RGF_setup.csv',
+                                                '../input/RGF_job.csv')
         else:
             raise ValueError('Not supported type input:',input_type)
-    t_import = time.time() - t_start
-    print('Import time:', t_import, '(sec)')
+    print('Import time:', time.time() - t_start, '(sec)')
     '''
     Create unit cell
     '''
     t_start = time.time()       # record unit cell generation time
     unit_list = []              # unit cell object list
-    for idx in range(len(inputs['Unit cell'])):
-        new_unitcell = obj_unit_cell.UnitCell(inputs, idx)
+    for job in jobs:
+        ###                                  ###
+        # Add new type of simulation type here #
+        ###                                  ###
+        r_idx = int(job['region'])-1        # region index
+        try:
+            unitcell = unit_list[r_idx]
+        except:
+            if setup['brief'] == 'AGNR':
+                new_unitcell = unit_cell.AGNR(setup['material'], job)
+                
         new_unitcell.genHamiltonian()
         unit_list.append(new_unitcell)
         IO_util.saveAsExcel(inputs, idx, new_unitcell, save_type='matrix')
