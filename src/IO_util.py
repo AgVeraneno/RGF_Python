@@ -58,13 +58,16 @@ def importFromCSV(setup_file, job_file):
             else:
                 continue
     return setup, job_list
-def saveAsCSV(setup, job, table, identifier=''):
+def saveAsCSV(setup, job, table, identifier='', folder=''):
     file_name = job['region']+'_'+setup['lattice']+'_'+setup['brief']+'_W='+\
                 job['width']+'_delta='+job['gap']+'_'+identifier+'.csv'
-    with open(file_name, 'w', newline='') as csv_file:
+    with open(folder+file_name, 'w', newline='') as csv_file:
         csv_parser = csv.writer(csv_file, delimiter=',',quotechar='|')
         for i in range(np.size(np.array(table), 0)):
-            csv_parser.writerow(list(table[i,:]))
+            try:
+                csv_parser.writerow(list(table[i,:]))
+            except:
+                csv_parser.writerow(table[i])
                 
 def importFromExcel(filename=None):
     inputs = {'material': None,
@@ -169,42 +172,34 @@ def saveAsExcel(inputs, u_idx, unit, input_array=None, save_type=None):
             _ = excel_parser.worksheet.cell(column=2, row=i+1,\
                                             value=str(np.real(input_array['R'][i])))
         excel_parser.save()
-def saveAsFigure(inputs, u_idx, unit, input_array, save_type=None):
-    lattice = inputs['lattice']
-    mat = inputs['material'].name
-    dir = inputs['direction']
-    file_name = str(u_idx)+"_"+save_type+"_"+lattice+"_"+dir[0]+mat[0]+"NR_"
-    condition = 'Z='+str(unit.info['Region'])+\
-                ',Type='+str(unit.info['Type'])+\
-                ',S='+str(unit.info['Shift'])+\
-                ',W='+str(unit.info['W'])+\
-                ',L='+str(unit.info['L'])+\
-                ',Vtop='+str(unit.info['Vtop'])+\
-                ',Vbot='+str(unit.info['Vbot'])+\
-                ',d='+str(unit.info['delta'])
+def saveAsFigure(setup, u_idx, unit, table, save_type=None):
+    lattice = setup['lattice']
+    mat = setup['material'].name
+    dir = setup['direction']
+    file_name = str(u_idx)+"_"+save_type+"_"+setup['brief']+"_"+"lead"
     if save_type == 'band':
         ## construct vectors
-        eig_mat = np.real(np.array(input_array['y']))
-        kx_sweep = np.real(np.array(input_array['x']))
+        eig_mat = np.array(table)[:,1:]
+        kx_sweep = np.array(table)[:,0]
         for y_idx in range(np.size(eig_mat,1)):
             pyplot.plot(kx_sweep,eig_mat[:,y_idx])
             pyplot.xlim([0,1])
             pyplot.ylim([-10,10])
-            pyplot.xlabel("kx*ax/pi")
+            pyplot.xlabel("kx*ax/(2*pi)")
             pyplot.ylabel("E (eV)")
         ## output to figures
 
-        pyplot.savefig('../output/'+file_name+condition+'.png')
+        pyplot.savefig('../output/'+file_name+'.png')
         pyplot.close()
         ## plot zoom in figure if enabled
-        if inputs['function']['isPlotZoom']:
+        if setup['isPlot_zoom']:
             for y_idx in range(np.size(eig_mat,1)):
                 pyplot.plot(kx_sweep,eig_mat[:,y_idx])
-                pyplot.xlim([0,1])
-                pyplot.ylim([-1,1])
-                pyplot.xlabel("kx*ax/pi")
+                pyplot.xlim([0,0.4])
+                pyplot.ylim([-0.5,0.5])
+                pyplot.xlabel("kx*ax/(2*pi)")
                 pyplot.ylabel("E (eV)")
-            pyplot.savefig('../output/'+file_name+condition+'_zoom.png')
+            pyplot.savefig('../output/'+file_name+'_zoom.png')
             pyplot.close()
     elif save_type == 'TR':
         E = input_array['E']

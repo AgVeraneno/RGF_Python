@@ -4,13 +4,16 @@ import numpy as np
 class CPU():
     def __init__(self, setup, unit):
         self.unit = unit
-        self.ax = self.inputs['material'].ax
-        self.mesh = inputs['mesh']
-        self.x = []
-        self.y = []
-    def calState(self, idx):
-        self.unit.setKx(idx)
-        kx = self.unit.kx
+        self.ax = setup['material'].ax
+        self.mesh = int(setup['kx_mesh'])
+        self.val = []
+        
+    def setKx(self, l_idx):
+        kx = 2*l_idx*np.pi/(self.ax*self.mesh)
+        self.kx_norm = kx*self.ax/np.pi
+        return kx
+    def calState(self, l_idx):
+        kx = self.setKx(l_idx)
         H = self.unit.H
         Pp = self.unit.P_plus
         Pn = self.unit.P_minus
@@ -18,19 +21,10 @@ class CPU():
                np.exp(1j*kx*self.ax)*Pp+\
                np.exp(-1j*kx*self.ax)*Pn
         val, vec = np.linalg.eig(Heig)
-        return self.__sort__(val, vec)
-    def calState_MP(self, idx):
-        self.unit.setKx(idx)
-        kx = self.unit.kx
-        H = self.unit.H
-        Pp = self.unit.P_plus
-        Pn = self.unit.P_minus
-        Heig = H+\
-               np.exp(1j*kx*self.ax)*Pp+\
-               np.exp(-1j*kx*self.ax)*Pn
-        val, vec = np.linalg.eig(Heig)
-        sort_val, sort_vec = self.__sort__(val, vec)
-        return [sort_val, self.unit.kx_norm]
+        val, vec = self.__sort__(val, vec)
+        self.val.append({'kx':self.kx_norm,
+                         'val':val})
+        return self.kx_norm, val, vec
     def getCBidx(self, gap, eig_val):
         for v_idx, v in enumerate(eig_val):
             if v > 0 and gap - v <= 1e-4:

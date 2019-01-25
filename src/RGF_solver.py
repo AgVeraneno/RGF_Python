@@ -42,7 +42,7 @@ if __name__ == '__main__':
             raise ValueError('Not supported type input:',input_type)
     print('Import time:', time.time() - t_start, '(sec)')
     '''
-    Create unit cellcsv
+    Create unit cell
     '''
     t_start = time.time()       # record unit cell generation time
     unit_list = []              # unit cell object list
@@ -60,9 +60,9 @@ if __name__ == '__main__':
                 raise ValueError('Non supported setup:',setup['brief'])
             unit_list.append(unitcell)
         #{ for debug use
-        IO_util.saveAsCSV(setup, job, unitcell.H, 'H')
-        IO_util.saveAsCSV(setup, job, unitcell.P_plus, 'P+')
-        IO_util.saveAsCSV(setup, job, unitcell.P_minus, 'P-')
+        IO_util.saveAsCSV(setup, job, unitcell.H, 'H', '../output/')
+        IO_util.saveAsCSV(setup, job, unitcell.P_plus, 'P+', '../output/')
+        IO_util.saveAsCSV(setup, job, unitcell.P_minus, 'P-', '../output/')
         #}
     t_unitGen = time.time() - t_start
     print('Generate unit cell time:',t_unitGen,'(sec)')
@@ -72,25 +72,19 @@ if __name__ == '__main__':
     t_start = time.time()       # record band structure time
     #bs_parser = bs_GPU.BandStructure(inputs)
     if setup['isPlot_band']:
+        ## initialize ##
         lead_unit = unit_list[0]
-        
-        for u_idx, unit in enumerate(unit_list):
-            band_parser = cal_band.CPU(inputs, unit)
-            bandgap_list = {'x':[],'y':[]}
-            # construct each unit cell
-            for idx in range(0,inputs['kx_mesh'],int(inputs['kx_mesh']/500)):
-                if inputs['GPU']['enable']:
-                    val, vec = bs_parser.calState_GPU(unit, idx)
-                else:
-                    val, vec = band_parser.calState(idx)
-                ## record data ##
-                
-                bandgap_list['x'].append(unit.kx_norm)
-                bandgap_list['y'].append([])
-                for j in range(6):
-                    bandgap_list['y'][-1].append(val[unit.m_MLG-4+j])
-                    
-            IO_util.saveAsFigure(inputs, u_idx, unit, bandgap_list, save_type='band')
+        band_parser = cal_band.CPU(setup, lead_unit)
+        sweep_mesh = range(0,int(setup['kx_mesh']),int(int(setup['kx_mesh'])/500))
+        ## calculate band structure ##
+        with Pool(processes=int(setup['parallel_CPU'])) as mp:
+            eig = mp.map(band_parser.calState,sweep_mesh)
+        plot_table = []
+        for i in eig:
+            plot_table.append([i[0]])
+            plot_table[-1].extend(list(np.real(i[1])))
+        IO_util.saveAsCSV(setup, jobs[0], plot_table, 'band', '../output/')
+        IO_util.saveAsFigure(setup, 0, lead_unit, plot_table, save_type='band')
     t_band = time.time() - t_start
     print('Calculate band structure:',t_band,'(sec)')
     '''

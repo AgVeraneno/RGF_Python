@@ -27,10 +27,6 @@ class AGNR():
         self.Vtop = float(job['Vtop'])
         self.Vbot = float(job['Vbot'])
         self.dV = (self.Vtop-self.Vbot)/(subunit_count-1)
-        if setup['lattice'] == 'MLG':
-            self.B_inv = -1
-        else:
-            self.B_inv = 1
         ## matrix entrance
         self.L1_start = int(job['shift'])
         self.L1_stop = self.L1_start+subunit_count-1
@@ -41,31 +37,66 @@ class AGNR():
         self.H = copy.deepcopy(empty_matrix)
         self.P_plus = copy.deepcopy(empty_matrix)
         self.P_minus = copy.deepcopy(empty_matrix)
-        self.__gen_Hamiltonian__()
-    def __gen_Hamiltonian__(self):
+        self.__gen_Hamiltonian__(setup['lattice'])
+    def __gen_Hamiltonian__(self, lattice='MLG'):
         self.__4by4Component__()
-        self.__off_diagonal__()
-        self.__on_site_energy__()
+        self.__off_diagonal__(lattice)
+        self.__on_site_energy__(lattice)
     def setKx(self, l_idx):
         self.kx = 2*l_idx*np.pi/(self.mat.ax*self.inputs['kx_mesh'])
         self.kx_norm = self.kx*self.mat.ax/np.pi
-    def __on_site_energy__(self):
+    def __on_site_energy__(self, lattice='MLG'):
         full_matrix_size = self.L2_stop+1
         half_matrix_size = int(full_matrix_size/2)
         actual_size = half_matrix_size*self.subunit_size
-        for m in range(actual_size):
-            block = int(m/4)        # get current block
-            site_gap = m%2*self.B_inv*self.gap + (1-m%2)*self.gap
-            site_V = (self.Vbot+(block-self.L1_start)*self.dV)
-            if block >= self.L1_start and block <= self.L1_stop:
-                self.H[m,m] = site_gap+site_V
-                self.H[m+half_matrix_size,m+half_matrix_size] = site_gap+site_V
-            else:
-                self.H[m,m] = 1000
-                self.H[m+actual_size,m+actual_size] = 1000
-            self.H[m,m] = site_gap+site_V
-            self.H[m+actual_size,m+actual_size] = site_gap+site_V
-    def __off_diagonal__(self):
+        ## place gap open and transverse field ##
+        if lattice == 'MLG':
+            for m in range(actual_size):
+                block = int(m/self.subunit_size)        # get current block
+                ## define gap and V
+                # assign A as +1 and B as -1
+                site_gap = -m%2*self.gap + (1-m%2)*self.gap
+                # on site V on sub unit cell
+                site_V = (self.Vbot+(block-self.L1_start)*self.dV)
+                if block >= self.L1_start and block <= self.L1_stop:
+                    if block == self.L1_stop and self.add_top:
+                        if m%self.subunit_size == 0:
+                            self.H[m,m] = 1000
+                        elif m%self.subunit_size == 3:
+                            self.H[m,m] = -1000
+                        else:
+                            self.H[m,m] = site_gap+site_V
+                    else:
+                        self.H[m,m] = site_gap+site_V
+                else:
+                    self.H[m,m] = 1000
+        elif lattice == 'BLG':
+            for m in range(actual_size):
+                block = int(m/self.subunit_size)        # get current block
+                ## define gap and V
+                # assign A as +1 and B as -1
+                site_gap = self.gap
+                # on site V on sub unit cell
+                site_V = (self.Vbot+(block-self.L1_start)*self.dV)
+                if block >= self.L1_start and block <= self.L1_stop:
+                    if block == self.L1_stop and self.add_top:
+                        if m%self.subunit_size == 0 or m%self.subunit_size == 3:
+                            self.H[m,m] = 1000
+                            self.H[m+actual_size,
+                                   m+actual_size] = -1000
+                        else:
+                            self.H[m,m] = site_gap+site_V
+                            self.H[m+actual_size,
+                                   m+actual_size] = -site_gap+site_V
+                    else:
+                        self.H[m,m] = site_gap+site_V
+                        self.H[m+actual_size,
+                               m+actual_size] = -site_gap+site_V
+                else:
+                    self.H[m,m] = 1000
+                    self.H[m+actual_size,
+                           m+actual_size] = -1000
+    def __off_diagonal__(self, lattice='MLG'):
         empty_matrix = np.zeros((self.subunit_size,self.subunit_size), dtype=np.complex128)
         full_matrix_size = self.L2_stop+1
         half_matrix_size = int(full_matrix_size/2)
