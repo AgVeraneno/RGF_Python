@@ -11,40 +11,51 @@ class AGNR():
     def __init__(self, setup, job):
         self.mat = setup['material']
         self.subunit_size = 4
-        ## matrix size
-        if job['cell_type'] == 'wave':
-            self.add_top = False
-            subunit_count = int(job['width'])
-        elif job['cell_type'] == 'envelope':
-            self.add_top = True
-            subunit_count = int(job['width'])+1
-        else:
-            raise ValueError('Unresolved cell_type:',job['cell_type'])
-        MLG_m_size = subunit_count*4
-        BLG_m_size = subunit_count*8
+        self.__structure__(job)
+        self.mesh = int(setup['kx_mesh'])
+        self.ax = self.mat.ax
         ## on site energy
         self.gap = float(job['gap'])
         self.Vtop = float(job['Vtop'])
         self.Vbot = float(job['Vbot'])
-        self.dV = (self.Vtop-self.Vbot)/(subunit_count-1)
+        self.dV = (self.Vtop-self.Vbot)/(self.W-1)
         ## matrix entrance
         self.L1_start = int(job['shift'])
-        self.L1_stop = self.L1_start+subunit_count-1
+        self.L1_stop = self.L1_start+self.W-1
         self.L2_start = self.L1_stop+int(job['shift'])+1
-        self.L2_stop = self.L2_start+subunit_count-1
+        self.L2_stop = self.L2_start+self.W-1
         ## Hamiltonian
-        empty_matrix = np.zeros((BLG_m_size,BLG_m_size), dtype=np.complex128)
+        empty_matrix = np.zeros((self.BL_size,self.BL_size), dtype=np.complex128)
         self.H = copy.deepcopy(empty_matrix)
         self.P_plus = copy.deepcopy(empty_matrix)
         self.P_minus = copy.deepcopy(empty_matrix)
         self.__gen_Hamiltonian__(setup['lattice'])
+    def __structure__(self, job):
+        
+        ## matrix size
+        if job['cell_type'] == 'wave':
+            self.add_top = False
+            self.W = int(job['width'])
+        elif job['cell_type'] == 'envelope':
+            self.add_top = True
+            self.W = int(job['width'])+1
+        else:
+            raise ValueError('Unresolved cell_type:',job['cell_type'])
+        self.ML_size = self.W*4
+        self.BL_size = self.W*8
+        self.L = int(job['length'])
     def __gen_Hamiltonian__(self, lattice='MLG'):
         self.__4by4Component__()
         self.__off_diagonal__(lattice)
         self.__on_site_energy__(lattice)
+        if lattice == 'MLG':
+            self.H = self.H[0:self.ML_size,0:self.ML_size]
+            self.P_plus = self.P_plus[0:self.ML_size,0:self.ML_size]
+            self.P_minus = self.P_minus[0:self.ML_size,0:self.ML_size]
     def setKx(self, l_idx):
-        self.kx = 2*l_idx*np.pi/(self.mat.ax*self.inputs['kx_mesh'])
-        self.kx_norm = self.kx*self.mat.ax/np.pi
+        kx = 2*l_idx*np.pi/(self.ax*self.mesh)
+        self.kx_norm = kx*self.ax/np.pi
+        return kx
     def __on_site_energy__(self, lattice='MLG'):
         full_matrix_size = self.L2_stop+1
         half_matrix_size = int(full_matrix_size/2)
@@ -55,19 +66,24 @@ class AGNR():
                 block = int(m/self.subunit_size)        # get current block
                 ## define gap and V
                 # assign A as +1 and B as -1
-                site_gap = -m%2*self.gap + (1-m%2)*self.gap
+                site_gap = self.gap
                 # on site V on sub unit cell
                 site_V = (self.Vbot+(block-self.L1_start)*self.dV)
                 if block >= self.L1_start and block <= self.L1_stop:
                     if block == self.L1_stop and self.add_top:
                         if m%self.subunit_size == 0:
                             self.H[m,m] = 1000
+                        elif m%self.subunit_size == 1:
+                            self.H[m,m] = -site_gap+site_V
+                        elif m%self.subunit_size == 2:
+                            self.H[m,m] = site_gap+site_V
                         elif m%self.subunit_size == 3:
                             self.H[m,m] = -1000
-                        else:
-                            self.H[m,m] = site_gap+site_V
                     else:
-                        self.H[m,m] = site_gap+site_V
+                        if m%2 == 0:
+                            self.H[m,m] = site_gap+site_V
+                        elif m%2 == 1:
+                            self.H[m,m] = -site_gap+site_V
                 else:
                     self.H[m,m] = 1000
         elif lattice == 'BLG':

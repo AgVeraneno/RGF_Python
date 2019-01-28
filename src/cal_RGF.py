@@ -1,60 +1,57 @@
 import copy, os, time
 import numpy as np
 import cal_band
-from matplotlib import pyplot
-#import lib_excel, blas
 
 class CPU():
-    def __init__(self, inputs, unit_list):
-        self.inputs = inputs
-        self.mat = inputs['material']
-        self.unit_info = inputs['Unit cell']
+    def __init__(self, setup, unit_list):
+        self.setup = setup
+        self.mat = setup['material']
         self.unit_list = unit_list
-        self.__meshing__()
-    def __meshing__(self):
+        self.__meshing__(unit_list)
+    def __meshing__(self, unit_list):
         """
         create a list with unit cell vs mesh
         """
         self.mesh_grid = []
-        for u_idx, unit in enumerate(self.unit_info):
+        for key, zone in unit_list.items():
             counter = 0
-            while counter < unit['L']:
-                self.mesh_grid.append(u_idx)
+            while counter < zone.L:
+                self.mesh_grid.append(key)
                 counter += 1
-    def setBand(self, inputs, unit):
-        self.band_parser = cal_band.CPU(inputs, unit)
+    def setBand(self, unit, kx_idx):
+        band_parser = cal_band.CPU(self.setup, unit)
+        kx, val, vec = band_parser.calState(kx_idx, True)
+        CB_idx = unit.ML_size
+        E = val[CB_idx]
+        i_state = vec[:,CB_idx]
+        return kx, E, i_state
     def calRGF_transmit(self, kx_idx):
         t_mesh_start = time.time()
         ## calculate RGF ##
-        for mesh_idx, u_idx in enumerate(self.mesh_grid):
-            unit = self.unit_list[u_idx]
-            unit.setKx(kx_idx)
+        for mesh_idx, key in enumerate(self.mesh_grid):
+            unit = self.unit_list[key]
+            m_size = np.size(unit.H,0)
             ## initialize all component for RGF
             if mesh_idx == 0:
                 ## calculate incident state ##
-                self.setBand(self.inputs, unit)
-                val, vec = self.band_parser.calState(kx_idx)
-                CB_idx = self.band_parser.getCBidx(unit.info['delta'], val)
-                E = copy.deepcopy(val[CB_idx])
-                E_matrix = np.eye(np.size(self.unit_list[0].H,0), dtype=np.complex128)*E
-                i_state = copy.deepcopy(vec[:,CB_idx])
-                # reimplement H, P+ and p-
+                kx, E, i_state = self.setBand(unit, kx_idx)
+                E_matrix = np.eye(m_size, dtype=np.complex128)*E
+                phase_p = np.exp(1j*kx*self.mat.ax)
+                phase_n = np.exp(-1j*kx*self.mat.ax)
+                # re-implement H, P+ and p-
                 H = unit.H
                 Pp = unit.P_plus
                 Pn = unit.P_minus
-                P_phase = np.exp(-1j*unit.kx*self.mat.ax)-np.exp(1j*unit.kx*self.mat.ax)
+                P_phase = phase_n-phase_p
                 # initialize R matrix
-                R_matrix = np.eye(np.size(self.unit_list[0].H,0), dtype=np.complex128)*-1
+                R_matrix = np.eye(m_size, dtype=np.complex128)*-1
                 ## Generate first Green matrix: G00 ##
-                G_inv = E_matrix - H - Pn*np.exp(1j*unit.kx*self.mat.ax)
+                G_inv = (E_matrix-H)-Pn*phase_p
                 Gnn = np.linalg.inv(G_inv)
                 Gn0 = copy.deepcopy(Gnn)
-                J0 = 1j*1.6e-19*self.mat.ax/self.mat.h_bar*\
-                        (Pp*np.exp(1j*unit.kx*self.mat.ax)-\
-                        Pn*np.exp(-1j*unit.kx*self.mat.ax))
             elif mesh_idx == len(self.mesh_grid)-1:
                 ## Calculate last Gnn ##
-                G_inv = E_matrix - H - Pp*np.exp(1j*unit.kx*self.mat.ax) - np.dot(Pn, np.dot(Gnn,Pp))
+                G_inv = E_matrix - H - Pp*phase_p - np.dot(Pn, np.dot(Gnn,Pp))
                 Gnn = np.linalg.inv(G_inv)
                 ## Calculate Gn0 ##
                 Gn0 = np.dot(Gnn, np.dot(Pn,Gn0))
@@ -66,6 +63,7 @@ class CPU():
                 Gn0 = np.dot(Gnn, np.dot(Pn,Gn0))
         T_matrix = np.dot(Gn0,Pn*P_phase)
         ## calculate T and R ##
+        J0 = 1j*self.mat.ax/self.mat.h_bar*(Pp*phase_p-Pn*phase_n)
         T, R = self.calTR(i_state, T_matrix, R_matrix, J0)
         t_mesh_stop = time.time() - t_mesh_start
         print('Mesh point @',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
@@ -112,7 +110,7 @@ class CPU():
                 Gn0 = np.dot(Gnn, np.dot(Pn,Gn0))
         T_matrix = np.dot(Gn0,Pn*P_phase)
         T, R = self.calTR(i_state, T_matrix, R_matrix, J0)
-        return E,T,R
+        return np.real(E),np.real(T),np.real(R)
     def calTR(self, i_state, Tmat, Rmat, J0):
         ## calculate states ##
         c0 = i_state

@@ -7,12 +7,11 @@ class CPU():
         self.ax = setup['material'].ax
         self.mesh = int(setup['kx_mesh'])
         self.val = []
-        
     def setKx(self, l_idx):
         kx = 2*l_idx*np.pi/(self.ax*self.mesh)
         self.kx_norm = kx*self.ax/np.pi
         return kx
-    def calState(self, l_idx):
+    def calState(self, l_idx, returnKx=False):
         kx = self.setKx(l_idx)
         H = self.unit.H
         Pp = self.unit.P_plus
@@ -24,7 +23,10 @@ class CPU():
         val, vec = self.__sort__(val, vec)
         self.val.append({'kx':self.kx_norm,
                          'val':val})
-        return self.kx_norm, val, vec
+        if returnKx:
+            return kx, val, vec
+        else:
+            return self.kx_norm, val, vec
     def getCBidx(self, gap, eig_val):
         for v_idx, v in enumerate(eig_val):
             if v > 0 and gap - v <= 1e-4:

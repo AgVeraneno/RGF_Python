@@ -1,6 +1,6 @@
 import sys, copy, csv
 sys.path.append('../lib/')
-import lib_excel, lib_material
+import lib_material
 import numpy as np
 from matplotlib import pyplot
 
@@ -16,7 +16,8 @@ def importFromCSV(setup_file, job_file):
              'mesh_start':0,
              'mesh_stop':0,
              'isPlot_band':False,
-             'isPlot_zoom':False}
+             'isPlot_zoom':False,
+             'isRGF':False}
     job = {'region':-1,
            'cell_type':1,
            'shift':0,
@@ -68,7 +69,7 @@ def saveAsCSV(setup, job, table, identifier='', folder=''):
                 csv_parser.writerow(list(table[i,:]))
             except:
                 csv_parser.writerow(table[i])
-                
+'''
 def importFromExcel(filename=None):
     inputs = {'material': None,
               'lattice': None,
@@ -172,6 +173,7 @@ def saveAsExcel(inputs, u_idx, unit, input_array=None, save_type=None):
             _ = excel_parser.worksheet.cell(column=2, row=i+1,\
                                             value=str(np.real(input_array['R'][i])))
         excel_parser.save()
+'''
 def saveAsFigure(setup, u_idx, unit, table, save_type=None):
     lattice = setup['lattice']
     mat = setup['material'].name
