@@ -1,0 +1,2 @@
+isGPU,isParallel,parallel_CPU,material,lattice,direction,brief,kx_mesh,mesh_start,mesh_stop,isPlot_band,isPlot_zoom,isRGF
+0,0,1,Graphene,BLG,Armchair,AGNR,10000,113,163,1,1,1
