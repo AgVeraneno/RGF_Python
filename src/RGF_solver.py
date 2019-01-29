@@ -60,9 +60,9 @@ if __name__ == '__main__':
                 raise ValueError('Non supported setup:',setup['brief'])
             unit_list[job['region']] = unitcell
         #{ for debug use
-        IO_util.saveAsCSV(setup, job, unitcell.H, 'H', '../output/')
-        IO_util.saveAsCSV(setup, job, unitcell.P_plus, 'P+', '../output/')
-        IO_util.saveAsCSV(setup, job, unitcell.P_minus, 'P-', '../output/')
+        #IO_util.saveAsCSV(setup, job, unitcell.H, 'H', '../output/')
+        #IO_util.saveAsCSV(setup, job, unitcell.P_plus, 'P+', '../output/')
+        #IO_util.saveAsCSV(setup, job, unitcell.P_minus, 'P-', '../output/')
         #}
     t_unitGen = time.time() - t_start
     print('Generate unit cell time:',t_unitGen,'(sec)')
@@ -102,8 +102,8 @@ if __name__ == '__main__':
             with Pool(processes=int(setup['parallel_CPU'])) as mp:
                 RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
             RGF_output = np.real(RGF_output)
-    ## plot transmission ##
-    IO_util.saveAsCSV(setup, job, RGF_output, 'TR', '../output/')
+        ## plot transmission ##
+        IO_util.saveAsCSV(setup, job, RGF_output, 'TR', '../output/')
     t_RGF = time.time() - t_start
     print('Calculate RGF:',t_RGF,'(sec)')
     print('Program stop @ ',time.asctime(time.localtime(time.time())))

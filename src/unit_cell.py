@@ -18,7 +18,7 @@ class AGNR():
         self.gap = float(job['gap'])
         self.Vtop = float(job['Vtop'])
         self.Vbot = float(job['Vbot'])
-        self.dV = (self.Vtop-self.Vbot)/(self.W-1)
+        self.dV = (self.Vtop-self.Vbot)/self.W
         ## matrix entrance
         self.L1_start = int(job['shift'])
         self.L1_stop = self.L1_start+self.W-1
@@ -111,7 +111,7 @@ class AGNR():
                 else:
                     self.H[m,m] = 1000
                     self.H[m+actual_size,
-                           m+actual_size] = -1000
+                           m+actual_size] = 1000
     def __off_diagonal__(self, lattice='MLG'):
         empty_matrix = np.zeros((self.subunit_size,self.subunit_size), dtype=np.complex128)
         full_matrix_size = self.L2_stop+1
@@ -167,7 +167,7 @@ class AGNR():
                             else:
                                 row.append(self.__ab2ab__)
                                 rowP.append(self.__ab2ab_P__)
-                        elif r == c+1:
+                        elif r == c-1:
                             row.append(self.__ab2abnext__)
                             rowP.append(empty_matrix)
                         else:
