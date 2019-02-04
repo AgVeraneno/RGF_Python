@@ -1,10 +1,8 @@
 import sys, os, copy, time, warnings
-sys.path.append('../lib/')
 import numpy as np
-import data_util
-import unit_cell
-import IO_util, cal_band, cal_RGF
 from multiprocessing import Pool
+import data_util, IO_util
+import unit_cell, cal_band, cal_RGF
 
 if __name__ == '__main__':
     '''
@@ -31,8 +29,8 @@ if __name__ == '__main__':
             raise ValueError('Not supported type input:',input_type)
     except:
         print('Program RGF_solver start @ ',time.asctime(time.localtime(time.time())))
-        #input_type = input('please provide input type:')
-        input_type = 'csv'
+        input_type = input('please provide input type:')
+        #input_type = 'csv'
         t_start = time.time()       # record import time
         if input_type == 'xlsx' or input_type == 'xls':
             inputs = IO_util.importFromExcel('../input/RGF_input_file.xlsx')
