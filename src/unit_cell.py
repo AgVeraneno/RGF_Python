@@ -14,6 +14,12 @@ class AGNR():
         self.__structure__(job)
         self.mesh = int(setup['kx_mesh'])
         self.ax = self.mat.ax
+        ## record info ##
+        self.info = {'region':job['region'],
+                     'lattice':setup['lattice'],
+                     'brief':setup['brief'],
+                     'width':float(job['width']),
+                     'gap':float(job['gap'])}
         ## on site energy
         self.gap = float(job['gap'])
         self.Vtop = float(job['Vtop'])
@@ -31,7 +37,6 @@ class AGNR():
         self.P_minus = copy.deepcopy(empty_matrix)
         self.__gen_Hamiltonian__(setup['lattice'])
     def __structure__(self, job):
-        
         ## matrix size
         if job['cell_type'] == 'wave':
             self.add_top = False
@@ -45,13 +50,89 @@ class AGNR():
         self.BL_size = self.W*8
         self.L = int(job['length'])
     def __gen_Hamiltonian__(self, lattice='MLG'):
+        ## generate matrix components ##
         self.__4by4Component__()
+        ## assemble matrix ##
         self.__off_diagonal__(lattice)
         self.__on_site_energy__(lattice)
+        ## resize to half if lattice type is MLG ##
         if lattice == 'MLG':
             self.H = self.H[0:self.ML_size,0:self.ML_size]
             self.P_plus = self.P_plus[0:self.ML_size,0:self.ML_size]
             self.P_minus = self.P_minus[0:self.ML_size,0:self.ML_size]
+    def updateHamiltonian(self, setup, job):
+        ## copy old matrix ##
+        old_H = copy.deepcopy(self.H)
+        old_Pp = copy.deepcopy(self.P_plus)
+        old_Pn = copy.deepcopy(self.P_minus)
+        old_ps = copy.deepcopy(self.L1_start*self.subunit_size)
+        old_pe = copy.deepcopy((self.L1_stop+1)*self.subunit_size)
+        old_ps2 = copy.deepcopy(self.L2_start*self.subunit_size)
+        old_pe2 = copy.deepcopy((self.L2_stop+1)*self.subunit_size)
+        ## on site energy
+        self.gap = float(job['gap'])
+        self.Vtop = float(job['Vtop'])
+        self.Vbot = float(job['Vbot'])
+        self.dV = (self.Vtop-self.Vbot)/self.W
+        ## matrix entrance
+        self.L1_start = int(job['shift'])
+        self.L1_stop = self.L1_start+self.W-1
+        self.L2_start = self.L1_stop+int(job['shift'])+1
+        self.L2_stop = self.L2_start+self.W-1
+        ## generate new matrix ##
+        empty_matrix = np.zeros((self.BL_size,self.BL_size), dtype=np.complex128)
+        self.H = copy.deepcopy(empty_matrix)
+        self.P_plus = copy.deepcopy(empty_matrix)
+        self.P_minus = copy.deepcopy(empty_matrix)
+        self.__gen_Hamiltonian__(setup['lattice'])
+        ## combine matrices ##
+        if setup['lattice'] == 'MLG':
+            ps = self.L1_start*self.subunit_size
+            pe = (self.L1_stop+1)*self.subunit_size
+            if np.size(old_H,0) <= np.size(self.H,0):
+                self.H[ps:pe, ps:pe] = old_H[ps:pe, ps:pe]
+                self.P_plus[ps:pe, ps:pe] = old_Pp[ps:pe, ps:pe]
+                self.P_minus[ps:pe, ps:pe] = old_Pn[ps:pe, ps:pe]
+            else:
+                old_H[ps:pe, ps:pe] = self.H[ps:pe, ps:pe]
+                old_Pp[ps:pe, ps:pe] = self.P_plus[ps:pe, ps:pe]
+                old_Pn[ps:pe, ps:pe] = self.P_minus[ps:pe, ps:pe]
+                self.H = old_H
+                self.P_plus = old_Pp
+                self.P_minus = old_Pn
+        elif setup['lattice'] == 'BLG':
+            old_half_m = int(np.size(old_H,0)/2)
+            half_m = int(np.size(self.H,0)/2)
+            ps = self.L1_start*self.subunit_size
+            pe = (self.L1_stop+1)*self.subunit_size
+            ps2 = self.L2_start*self.subunit_size
+            pe2 = (self.L2_stop+1)*self.subunit_size
+            if np.size(old_H,0) <= np.size(self.H,0):
+                ## new matrix is larger than old one
+                ## intra layer
+                self.H[:old_half_m, :old_half_m] = old_H[:old_half_m, :old_half_m]
+                self.P_plus[:old_half_m, :old_half_m] = old_Pp[:old_half_m, :old_half_m]
+                self.P_minus[:old_half_m, :old_half_m] = old_Pn[:old_half_m, :old_half_m]
+                self.H[half_m:half_m+old_half_m, half_m:half_m+old_half_m] = old_H[old_half_m:, old_half_m:]
+                self.P_plus[half_m:half_m+old_half_m, half_m:half_m+old_half_m] = old_Pp[old_half_m:, old_half_m:]
+                self.P_minus[half_m:half_m+old_half_m, half_m:half_m+old_half_m] = old_Pn[old_half_m:, old_half_m:]
+                ## inter layer
+                self.H[:old_half_m, half_m:half_m+old_half_m] = old_H[:old_half_m, old_half_m:]
+                self.P_plus[:old_half_m, half_m:half_m+old_half_m] = old_Pp[:old_half_m, old_half_m:]
+                self.P_minus[:old_half_m, half_m:half_m+old_half_m] = old_Pn[:old_half_m, old_half_m:]
+                self.H[half_m:half_m+old_half_m, :old_half_m] = old_H[old_half_m:, :old_half_m]
+                self.P_plus[half_m:half_m+old_half_m, :old_half_m] = old_Pp[old_half_m:, :old_half_m]
+                self.P_minus[half_m:half_m+old_half_m, :old_half_m] = old_Pn[old_half_m:, :old_half_m]
+            else:
+                old_H[ps:pe, ps:pe] = self.H[ps:pe, ps:pe]
+                old_Pp[ps:pe, ps:pe] = self.P_plus[ps:pe, ps:pe]
+                old_Pn[ps:pe, ps:pe] = self.P_minus[ps:pe, ps:pe]
+                old_H[ps2:pe2, ps2:pe2] = self.H[ps2:pe2, ps2:pe2]
+                old_Pp[ps2:pe2, ps2:pe2] = self.P_plus[ps2:pe2, ps2:pe2]
+                old_P[ps2:pe2, ps2:pe2] = self.P_minus[ps2:pe2, ps2:pe2]
+                self.H = old_H
+                self.P_plus = old_Pp
+                self.P_minus = old_Pn
     def setKx(self, l_idx):
         kx = 2*l_idx*np.pi/(self.ax*self.mesh)
         self.kx_norm = kx*self.ax/np.pi

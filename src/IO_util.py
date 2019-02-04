@@ -1,5 +1,4 @@
 import sys, copy, csv
-sys.path.append('../lib/')
 import lib_material
 import numpy as np
 from matplotlib import pyplot
@@ -59,10 +58,8 @@ def importFromCSV(setup_file, job_file):
             else:
                 continue
     return setup, job_list
-def saveAsCSV(setup, job, table, identifier='', folder=''):
-    file_name = job['region']+'_'+setup['lattice']+'_'+setup['brief']+'_W='+\
-                job['width']+'_delta='+job['gap']+'_'+identifier+'.csv'
-    with open(folder+file_name, 'w', newline='') as csv_file:
+def saveAsCSV(file_name, table):
+    with open(file_name, 'w', newline='') as csv_file:
         csv_parser = csv.writer(csv_file, delimiter=',',quotechar='|')
         for i in range(np.size(np.array(table), 0)):
             try:

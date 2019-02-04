@@ -45,13 +45,23 @@ if __name__ == '__main__':
     Create unit cell
     '''
     t_start = time.time()       # record unit cell generation time
+    job_list = {}
     unit_list = {}              # unit cell object list
+    ## combine jobs ##
     for job in jobs:
+        if job['region'] in job_list:
+            job_list[job['']] = 
+        else:
+            job_list[job['region']] = job
+    ## bulid unit cell ##
+    for job in job_list:
         ###                                  ###
         # Add new type of simulation type here #
         ###                                  ###
+        
         try:
             unitcell = unit_list[job['region']]
+            unitcell.updateHamiltonian(setup, job)
         except:
             ## currently support AGNR only
             if setup['brief'] == 'AGNR':
@@ -59,11 +69,16 @@ if __name__ == '__main__':
             else:
                 raise ValueError('Non supported setup:',setup['brief'])
             unit_list[job['region']] = unitcell
-        #{ for debug use
-        #IO_util.saveAsCSV(setup, job, unitcell.H, 'H', '../output/')
-        #IO_util.saveAsCSV(setup, job, unitcell.P_plus, 'P+', '../output/')
-        #IO_util.saveAsCSV(setup, job, unitcell.P_minus, 'P-', '../output/')
-        #}
+    #{ for debug use
+    for u_idx,unit in unit_list.items():
+        folder = '../output/debug/'
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+        file_name = unit.info['region']+'_'+unit.info['lattice']+'_'+unit.info['brief']
+        IO_util.saveAsCSV(folder+file_name+'_H.csv', unit.H)
+        IO_util.saveAsCSV(folder+file_name+'_P+.csv', unit.P_plus)
+        IO_util.saveAsCSV(folder+file_name+'_P-.csv', unit.P_minus)
+    #}
     t_unitGen = time.time() - t_start
     print('Generate unit cell time:',t_unitGen,'(sec)')
     '''
@@ -83,7 +98,12 @@ if __name__ == '__main__':
         for i in eig:
             plot_table.append([i[0]])
             plot_table[-1].extend(list(np.real(i[1])))
-        IO_util.saveAsCSV(setup, jobs[0], plot_table, 'band', '../output/')
+        ## output to file
+        folder = '../output/band structure/'
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+        file_name = ''
+        IO_util.saveAsCSV(folder+file_name+'_BS.csv', plot_table)
         #IO_util.saveAsFigure(setup, 0, lead_unit, plot_table, save_type='band')
     t_band = time.time() - t_start
     print('Calculate band structure:',t_band,'(sec)')
@@ -102,8 +122,12 @@ if __name__ == '__main__':
             with Pool(processes=int(setup['parallel_CPU'])) as mp:
                 RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
             RGF_output = np.real(RGF_output)
-        ## plot transmission ##
-        IO_util.saveAsCSV(setup, job, RGF_output, 'TR', '../output/')
+        ## output to file ##
+        folder = '../output/'
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+        file_name = ''
+        IO_util.saveAsCSV(folder+file_name+'_TR.csv', RGF_output)
     t_RGF = time.time() - t_start
     print('Calculate RGF:',t_RGF,'(sec)')
     print('Program stop @ ',time.asctime(time.localtime(time.time())))

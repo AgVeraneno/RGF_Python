@@ -1,0 +1,7 @@
+enable,region,cell_type,shift,width,length,Vtop,Vbot,gap
+o,lead,wave,0,1,1400,0,0,0.5
+o,lead,wave,1,1,1400,0,0,0.08
+o,lead,wave,2,1,1400,0,0,0.5
+o,output,wave,0,1,1400,0,0,0.08
+x,2,wave,0,70,1000,0,0,0.5
+x,3,envelope,0,70,1000,0,0,0.1

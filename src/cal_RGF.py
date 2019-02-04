@@ -1,6 +1,6 @@
 import copy, os, time
 import numpy as np
-import cal_band
+import data_util, cal_band
 
 class CPU():
     def __init__(self, setup, unit_list):
@@ -24,7 +24,15 @@ class CPU():
         CB_idx = unit.ML_size
         E = val[CB_idx]
         i_state = vec[:,CB_idx]
-        return kx, E, i_state
+        ## remove i_state with energy is +-1000 (wall)
+        wall = []
+        for w in data_util.mfind(-1000, val):
+            i_state[w] = 0
+            wall.append(w)
+        for w in data_util.mfind(1000, val):
+            i_state[w] = 0
+            wall.append(w)
+        return kx, E, i_state, wall
     def calRGF_transmit(self, kx_idx):
         t_mesh_start = time.time()
         ## calculate RGF ##
@@ -34,7 +42,7 @@ class CPU():
             ## initialize all component for RGF
             if mesh_idx == 0:
                 ## calculate incident state ##
-                kx, E, i_state = self.setBand(unit, kx_idx)
+                kx, E, i_state, wall = self.setBand(unit, kx_idx)
                 E_matrix = np.eye(m_size, dtype=np.complex128)*E
                 phase_p = np.exp(1j*kx*self.mat.ax)
                 phase_n = np.exp(-1j*kx*self.mat.ax)
@@ -64,7 +72,7 @@ class CPU():
         T_matrix = np.dot(Gn0,Pn*P_phase)
         ## calculate T and R ##
         J0 = 1j*self.mat.ax/self.mat.h_bar*(Pp*phase_p-Pn*phase_n)
-        T, R = self.calTR(i_state, T_matrix, R_matrix, J0)
+        T, R = self.calTR(i_state, T_matrix, R_matrix, J0, wall)
         t_mesh_stop = time.time() - t_mesh_start
         print('Mesh point @',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
         return E,T,R
@@ -111,15 +119,19 @@ class CPU():
         T_matrix = np.dot(Gn0,Pn*P_phase)
         T, R = self.calTR(i_state, T_matrix, R_matrix, J0)
         return np.real(E),np.real(T),np.real(R)
-    def calTR(self, i_state, Tmat, Rmat, J0):
+    def calTR(self, i_state, Tmat, Rmat, J0, wall):
         ## calculate states ##
         c0 = i_state
         cn = np.dot(Tmat, i_state)
         c0_minus = np.dot(Rmat, i_state)
+        ## remove wall
+        for w in wall:
+            cn[w] = 0
+            c0_minus[w] = 0
         ## calculate current ##
-        Ji = np.dot(np.conj(c0), np.dot(J0, c0))
-        Jt = np.dot(np.conj(cn), np.dot(J0, cn))
-        Jr = np.dot(np.conj(c0_minus), np.dot(J0, c0_minus))
+        Ji = np.vdot(c0, np.dot(J0, c0))
+        Jt = np.vdot(cn, np.dot(J0, cn))
+        Jr = np.vdot(c0_minus, np.dot(J0, c0_minus))
         if not np.isclose(np.real(Ji),0):
             T = np.abs(np.real(Jt/Ji))
             R = np.abs(np.real(Jr/Ji))
