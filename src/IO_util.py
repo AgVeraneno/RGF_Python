@@ -4,13 +4,15 @@ import numpy as np
 from matplotlib import pyplot
 
 def importFromCSV(setup_file, job_file):
-    setup = {'isGPU':False,
+    setup = {'isDebug':False,
+             'isGPU':False,
              'isParallel':False,
              'parallel_CPU':1,
              'material':None,
              'lattice':None,
              'direction':None,
              'brief':None,
+             'brick_size':None,
              'kx_mesh':None,
              'mesh_start':0,
              'mesh_stop':0,

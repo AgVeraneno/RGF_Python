@@ -39,6 +39,9 @@ class CPU():
         for mesh_idx, key in enumerate(self.mesh_grid):
             unit = self.unit_list[key]
             m_size = np.size(unit.H,0)
+            H = unit.H
+            Pp = unit.P_plus
+            Pn = unit.P_minus
             ## initialize all component for RGF
             if mesh_idx == 0:
                 ## calculate incident state ##
@@ -47,9 +50,6 @@ class CPU():
                 phase_p = np.exp(1j*kx*self.mat.ax)
                 phase_n = np.exp(-1j*kx*self.mat.ax)
                 # re-implement H, P+ and p-
-                H = unit.H
-                Pp = unit.P_plus
-                Pn = unit.P_minus
                 P_phase = phase_n-phase_p
                 # initialize R matrix
                 R_matrix = np.eye(m_size, dtype=np.complex128)*-1
@@ -82,6 +82,9 @@ class CPU():
         mesh_grid_r.reverse()
         for mesh_idx, u_idx in enumerate(mesh_grid_r):
             unit = self.unit_list[u_idx]
+            H = unit.H
+            Pp = unit.P_plus
+            Pn = unit.P_minus
             ## initialize all component for RGF
             if mesh_idx == 0:
                 ## calculate incident state ##
@@ -90,10 +93,6 @@ class CPU():
                 E = copy.deepcopy(val[CB_idx])
                 E_matrix = np.eye(np.size(self.unit_list[0].H,0), dtype=np.complex128)*E
                 i_state = copy.deepcopy(vec[:,CB_idx])
-                # reimplement H, P+ and p-
-                H = unit.H
-                Pp = unit.P_plus
-                Pn = unit.P_minus
                 P_phase = np.exp(-1j*unit.kx*self.mat.ax)-np.exp(1j*unit.kx*self.mat.ax)
                 # initialize R matrix
                 R_matrix = np.eye(np.size(self.unit_list[0].H,0), dtype=np.complex128)*-1

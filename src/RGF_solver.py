@@ -31,7 +31,8 @@ if __name__ == '__main__':
             raise ValueError('Not supported type input:',input_type)
     except:
         print('Program RGF_solver start @ ',time.asctime(time.localtime(time.time())))
-        input_type = input('please provide input type:')
+        #input_type = input('please provide input type:')
+        input_type = 'csv'
         t_start = time.time()       # record import time
         if input_type == 'xlsx' or input_type == 'xls':
             inputs = IO_util.importFromExcel('../input/RGF_input_file.xlsx')
@@ -45,40 +46,44 @@ if __name__ == '__main__':
     Create unit cell
     '''
     t_start = time.time()       # record unit cell generation time
-    job_list = {}
+    job_list = {}               # unit cell definition
     unit_list = {}              # unit cell object list
     ## combine jobs ##
     for job in jobs:
-        if job['region'] in job_list:
-            job_list[job['']] = 
+        key = job['region']
+        if key in job_list:
+            job_list[key]['shift'].append(int(job['shift']))
+            job_list[key]['width'].append(int(job['width']))
+            job_list[key]['Vtop'].append(float(job['Vtop']))
+            job_list[key]['Vbot'].append(float(job['Vbot']))
+            job_list[key]['gap'].append(float(job['gap']))
         else:
-            job_list[job['region']] = job
+            job['shift'] = [int(job['shift'])]
+            job['width'] = [int(job['width'])]
+            job['Vtop'] = [float(job['Vtop'])]
+            job['Vbot'] = [float(job['Vbot'])]
+            job['gap'] = [float(job['gap'])]
+            job['length'] = int(float(job['length']))
+            job_list[key] = job
     ## bulid unit cell ##
-    for job in job_list:
-        ###                                  ###
-        # Add new type of simulation type here #
-        ###                                  ###
-        
-        try:
-            unitcell = unit_list[job['region']]
-            unitcell.updateHamiltonian(setup, job)
-        except:
-            ## currently support AGNR only
-            if setup['brief'] == 'AGNR':
-                unitcell = unit_cell.AGNR(setup, job)
-            else:
-                raise ValueError('Non supported setup:',setup['brief'])
-            unit_list[job['region']] = unitcell
-    #{ for debug use
-    for u_idx,unit in unit_list.items():
-        folder = '../output/debug/'
-        if not os.path.exists(folder):
-            os.mkdir(folder)
-        file_name = unit.info['region']+'_'+unit.info['lattice']+'_'+unit.info['brief']
-        IO_util.saveAsCSV(folder+file_name+'_H.csv', unit.H)
-        IO_util.saveAsCSV(folder+file_name+'_P+.csv', unit.P_plus)
-        IO_util.saveAsCSV(folder+file_name+'_P-.csv', unit.P_minus)
-    #}
+                ###                                  ###
+                # Add new type of simulation type here #
+                ###                                  ###
+    for jobid, job in job_list.items():
+        if setup['brief'] == 'AGNR':
+            unit_list[job['region']] = unit_cell.AGNR(setup, job)
+        else:
+            raise ValueError('Non supported setup:',setup['brief'])
+    ## print out matrix. debug use ##
+    if setup['isDebug']:
+        for u_idx,unit in unit_list.items():
+            folder = '../output/debug/'
+            if not os.path.exists(folder):
+                os.mkdir(folder)
+            file_name = unit.info['region']+'_'+unit.info['lattice']+'_'+unit.info['brief']
+            IO_util.saveAsCSV(folder+file_name+'_H.csv', unit.H)
+            IO_util.saveAsCSV(folder+file_name+'_P+.csv', unit.P_plus)
+            IO_util.saveAsCSV(folder+file_name+'_P-.csv', unit.P_minus)
     t_unitGen = time.time() - t_start
     print('Generate unit cell time:',t_unitGen,'(sec)')
     '''
