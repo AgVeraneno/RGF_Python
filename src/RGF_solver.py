@@ -29,8 +29,8 @@ if __name__ == '__main__':
             raise ValueError('Not supported type input:',input_type)
     except:
         print('Program RGF_solver start @ ',time.asctime(time.localtime(time.time())))
-        input_type = input('please provide input type:')
-        #input_type = 'csv'
+        #input_type = input('please provide input type:')
+        input_type = 'csv'
         t_start = time.time()       # record import time
         if input_type == 'xlsx' or input_type == 'xls':
             inputs = IO_util.importFromExcel('../input/RGF_input_file.xlsx')
@@ -110,7 +110,7 @@ if __name__ == '__main__':
         try:
             IO_util.saveAsFigure(setup, 0, lead_unit, plot_table, save_type='band')
         except:
-            warning.warn("error when ploting figures. Skip and continue.")
+            warnings.warn("error when ploting figures. Skip and continue.")
     t_band = time.time() - t_start
     print('Calculate band structure:',t_band,'(sec)')
     '''
@@ -127,7 +127,6 @@ if __name__ == '__main__':
             RGF_util = cal_RGF.CPU(setup, unit_list)
             with Pool(processes=int(setup['parallel_CPU'])) as mp:
                 RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
-            RGF_output = np.real(RGF_output)
         ## output to file ##
         folder = '../output/'
         if not os.path.exists(folder):
