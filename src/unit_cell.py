@@ -87,19 +87,26 @@ class AGNR():
                 block = int(m/self.brick_size)        # get current block
                 ## define gap and V
                 # assign A as +1 and B as -1
-                site_gap = gap_profile[block]*m%2 - gap_profile[block]*(m+1)%2
+                site_gap = gap_profile[block]
                 # on site V on sub unit cell
                 if m%4 == 0 or m%4 == 3:
                     site_V = (vbot_profile[block]+(block+0.5)*dv_profile[block])
                 else:
                     site_V = (vbot_profile[block]+block*dv_profile[block])
                 if block == max(self.L1_stop) and self.add_top:
-                    if m%self.brick_size == 1 or m%self.brick_size == 2:
+                    if m%self.brick_size == 0:
+                        self.H[m,m] = 1000
+                    elif m%self.brick_size == 1:
+                        self.H[m,m] = -site_gap + site_V
+                    elif m%self.brick_size == 2:
                         self.H[m,m] = site_gap + site_V
                     else:
-                        self.H[m,m] = 1000
+                        self.H[m,m] = -1000
                 else:
-                    self.H[m,m] = site_gap + site_V
+                    if m%2 == 0:
+                        self.H[m,m] = site_gap + site_V
+                    else:
+                        self.H[m,m] = -site_gap + site_V
         elif lattice == 'BLG':
             ## create width profile ##
             gap_profile = np.ones(max(self.L1_stop)+1)*1000
