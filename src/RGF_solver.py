@@ -127,6 +127,9 @@ if __name__ == '__main__':
             RGF_util = cal_RGF.CPU(setup, unit_list)
             with Pool(processes=int(setup['parallel_CPU'])) as mp:
                 RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
+            RGF_output = np.real(RGF_output)
+            ## rearrange position ##
+            RGF_output = RGF_util.sort_E(RGF_output)
         ## output to file ##
         folder = '../output/'
         if not os.path.exists(folder):
