@@ -8,6 +8,15 @@ def find(key, key_list):
             continue
     else:
         return -1
+def mfind(key, key_list):
+    output_list = []
+    for k_idx, k in enumerate(key_list):
+        if key == k:
+            output_list.append(k_idx)
+        else:
+            continue
+    else:
+        return output_list
 def string_splitter(string, totem=',', nobracket=False, nospace=False):
     forbid_list_a = ['(',')','[',']','{','}']
     forbid_list_b = [' ']

@@ -9,21 +9,25 @@ class AGNR():
     P_minus: backward inter unit cell hopping matrix
     '''
     def __init__(self, setup, job):
-        self.mat = setup['material']
-        self.subunit_size = 4
-        self.__structure__(job)
-        self.mesh = int(setup['kx_mesh'])
-        self.ax = self.mat.ax
+        self.mat = setup['material']            # unit cell material
+        self.brick_size = int(setup['brick_size'])# sub unitcell size
+        self.__structure__(job)                 # build unit cell geometry
+        self.mesh = int(setup['kx_mesh'])       # band structure mesh
+        self.ax = self.mat.ax                   # unit length
+        ## info
+        self.info = {'region':job['region'],
+                     'lattice':setup['lattice'],
+                     'brief':setup['brief']}
         ## on site energy
-        self.gap = float(job['gap'])
-        self.Vtop = float(job['Vtop'])
-        self.Vbot = float(job['Vbot'])
-        self.dV = (self.Vtop-self.Vbot)/self.W
+        self.gap = job['gap']
+        self.Vtop = job['Vtop']
+        self.Vbot = job['Vbot']
+        self.dV = [(job['Vtop'][i]-job['Vbot'][i])/W for i,W in enumerate(job['width'])]
         ## matrix entrance
-        self.L1_start = int(job['shift'])
-        self.L1_stop = self.L1_start+self.W-1
-        self.L2_start = self.L1_stop+int(job['shift'])+1
-        self.L2_stop = self.L2_start+self.W-1
+        self.L1_start = job['shift']
+        self.L1_stop = [self.L1_start[i]+W-1 for i,W in enumerate(job['width'])]
+        self.L2_start = [self.half_m+S for S in job['shift']]
+        self.L2_stop = [self.L2_start[i]+W-1 for i,W in enumerate(job['width'])]
         ## Hamiltonian
         empty_matrix = np.zeros((self.BL_size,self.BL_size), dtype=np.complex128)
         self.H = copy.deepcopy(empty_matrix)
@@ -31,23 +35,27 @@ class AGNR():
         self.P_minus = copy.deepcopy(empty_matrix)
         self.__gen_Hamiltonian__(setup['lattice'])
     def __structure__(self, job):
-        
         ## matrix size
         if job['cell_type'] == 'wave':
             self.add_top = False
-            self.W = int(job['width'])
+            self.W = sum(job['width'])
         elif job['cell_type'] == 'envelope':
             self.add_top = True
-            self.W = int(job['width'])+1
+            self.W = sum(job['width'])+1
+            job['width'][-1] += 1
         else:
             raise ValueError('Unresolved cell_type:',job['cell_type'])
-        self.ML_size = self.W*4
-        self.BL_size = self.W*8
-        self.L = int(job['length'])
+        self.half_m = min(job['shift'])+self.W
+        self.ML_size = self.half_m*self.brick_size
+        self.BL_size = self.half_m*self.brick_size*2
+        self.L = job['length']
     def __gen_Hamiltonian__(self, lattice='MLG'):
+        ## generate matrix components ##
         self.__4by4Component__()
+        ## assemble matrix ##
         self.__off_diagonal__(lattice)
         self.__on_site_energy__(lattice)
+        ## resize to half if lattice type is MLG ##
         if lattice == 'MLG':
             self.H = self.H[0:self.ML_size,0:self.ML_size]
             self.P_plus = self.P_plus[0:self.ML_size,0:self.ML_size]
@@ -57,76 +65,104 @@ class AGNR():
         self.kx_norm = kx*self.ax/np.pi
         return kx
     def __on_site_energy__(self, lattice='MLG'):
-        full_matrix_size = self.L2_stop+1
-        half_matrix_size = int(full_matrix_size/2)
-        actual_size = half_matrix_size*self.subunit_size
         ## place gap open and transverse field ##
         if lattice == 'MLG':
-            for m in range(actual_size):
-                block = int(m/self.subunit_size)        # get current block
+            ## create width profile ##
+            gap_profile = np.ones(max(self.L1_stop)+1)*1000
+            vtop_profile = np.zeros(max(self.L1_stop)+1)
+            vbot_profile = np.zeros(max(self.L1_stop)+1)
+            dv_profile = np.zeros(max(self.L1_stop)+1)
+            for i in range(len(self.L1_start)):
+                l1s = self.L1_start[i]
+                l1e = self.L1_stop[i]
+                counter = l1s
+                while counter <= l1e:
+                    gap_profile[counter] = self.gap[i]
+                    vtop_profile[counter] = self.Vtop[i]
+                    vbot_profile[counter] = self.Vbot[i]
+                    dv_profile[counter] = self.dV[i]
+                    counter += 1
+            ## generate energy profile ##
+            for m in range(self.ML_size):
+                block = int(m/self.brick_size)        # get current block
                 ## define gap and V
                 # assign A as +1 and B as -1
-                site_gap = self.gap
+                site_gap = gap_profile[block]
                 # on site V on sub unit cell
-                site_V = (self.Vbot+(block-self.L1_start)*self.dV)
-                if block >= self.L1_start and block <= self.L1_stop:
-                    if block == self.L1_stop and self.add_top:
-                        if m%self.subunit_size == 0:
-                            self.H[m,m] = 1000
-                        elif m%self.subunit_size == 1:
-                            self.H[m,m] = -site_gap+site_V
-                        elif m%self.subunit_size == 2:
-                            self.H[m,m] = site_gap+site_V
-                        elif m%self.subunit_size == 3:
-                            self.H[m,m] = -1000
-                    else:
-                        if m%2 == 0:
-                            self.H[m,m] = site_gap+site_V
-                        elif m%2 == 1:
-                            self.H[m,m] = -site_gap+site_V
+                if m%4 == 0 or m%4 == 3:
+                    site_V = (vbot_profile[block]+(block+0.5)*dv_profile[block])
                 else:
-                    self.H[m,m] = 1000
+                    site_V = (vbot_profile[block]+block*dv_profile[block])
+                if block == max(self.L1_stop) and self.add_top:
+                    if m%self.brick_size == 0:
+                        self.H[m,m] = 1000
+                    elif m%self.brick_size == 1:
+                        self.H[m,m] = -site_gap + site_V
+                    elif m%self.brick_size == 2:
+                        self.H[m,m] = site_gap + site_V
+                    else:
+                        self.H[m,m] = -1000
+                else:
+                    if m%2 == 0:
+                        self.H[m,m] = site_gap + site_V
+                    else:
+                        self.H[m,m] = -site_gap + site_V
         elif lattice == 'BLG':
-            for m in range(actual_size):
-                block = int(m/self.subunit_size)        # get current block
+            ## create width profile ##
+            gap_profile = np.ones(max(self.L1_stop)+1)*1000
+            vtop_profile = np.zeros(max(self.L1_stop)+1)
+            vbot_profile = np.zeros(max(self.L1_stop)+1)
+            dv_profile = np.zeros(max(self.L1_stop)+1)
+            for i in range(len(self.L1_start)):
+                l1s = self.L1_start[i]
+                l1e = self.L1_stop[i]
+                counter = l1s
+                while counter <= l1e:
+                    gap_profile[counter] = self.gap[i]
+                    vtop_profile[counter] = self.Vtop[i]
+                    vbot_profile[counter] = self.Vbot[i]
+                    dv_profile[counter] = self.dV[i]
+                    counter += 1
+            ## generate energy profile ##
+            for m in range(self.ML_size):
+                block = int(m/self.brick_size)        # get current block
                 ## define gap and V
-                # assign A as +1 and B as -1
-                site_gap = self.gap
+                site_gap = gap_profile[block]
                 # on site V on sub unit cell
-                site_V = (self.Vbot+(block-self.L1_start)*self.dV)
-                if block >= self.L1_start and block <= self.L1_stop:
-                    if block == self.L1_stop and self.add_top:
-                        if m%self.subunit_size == 0 or m%self.subunit_size == 3:
-                            self.H[m,m] = 1000
-                            self.H[m+actual_size,
-                                   m+actual_size] = -1000
-                        else:
-                            self.H[m,m] = site_gap+site_V
-                            self.H[m+actual_size,
-                                   m+actual_size] = -site_gap+site_V
-                    else:
-                        self.H[m,m] = site_gap+site_V
-                        self.H[m+actual_size,
-                               m+actual_size] = -site_gap+site_V
+                if m%4 == 0 or m%4 == 3:
+                    site_V = (vbot_profile[block]+(block+0.5)*dv_profile[block])
                 else:
-                    self.H[m,m] = 1000
-                    self.H[m+actual_size,
-                           m+actual_size] = 1000
+                    site_V = (vbot_profile[block]+block*dv_profile[block])
+                if block == max(self.L1_stop) and self.add_top:
+                    if m%self.brick_size == 1 or m%self.brick_size == 2:
+                        self.H[m,m] = site_gap + site_V
+                        self.H[m+self.ML_size,m+self.ML_size] = -site_gap + site_V
+                    else:
+                        self.H[m,m] = 1000
+                        self.H[m+self.ML_size,m+self.ML_size] = -1000
+                else:
+                    self.H[m,m] = site_gap + site_V
+                    self.H[m+self.ML_size,m+self.ML_size] = -site_gap + site_V
+                
+                
     def __off_diagonal__(self, lattice='MLG'):
-        empty_matrix = np.zeros((self.subunit_size,self.subunit_size), dtype=np.complex128)
-        full_matrix_size = self.L2_stop+1
-        half_matrix_size = int(full_matrix_size/2)
+        empty_matrix = np.zeros((self.brick_size,self.brick_size), dtype=np.complex128)
+        l1s = min(self.L1_start)
+        l1e = max(self.L1_stop)
+        l2s = min(self.L2_start)
+        l2e = max(self.L2_stop)
         ## unit cell H
         np_matrix = []
         np_matrixP = []
-        for r in range(full_matrix_size):
+        ##
+        for r in range(2*self.half_m):
             row = []
             rowP = []
-            for c in range(full_matrix_size):
-                if r >= self.L1_start and r <= self.L1_stop:
-                    if c >= self.L1_start and c <= self.L1_stop:        # AB-AB
+            for c in range(2*self.half_m):
+                if r >= l1s and r <= l1e:
+                    if c >= l1s and c <= l1e:        # AB-AB
                         if r == c:
-                            if self.add_top and r == self.L1_stop:
+                            if self.add_top and r == l1e:
                                 row.append(self.__AB2ABtop__)
                                 rowP.append(empty_matrix)
                             else:
@@ -138,18 +174,18 @@ class AGNR():
                         else:
                             row.append(empty_matrix)
                             rowP.append(empty_matrix)
-                    elif c >= self.L2_start and c <= self.L2_stop:        # AB-ab
-                        if r == c-half_matrix_size:
-                            if self.add_top and r == self.L1_stop:
+                    elif c >= l2s and c <= l2e:        # AB-ab
+                        if r == c-self.W:
+                            if self.add_top and r == l1e:
                                 row.append(self.__AB2abtop__)
                                 rowP.append(self.__AB2abtop_P__)
                             else:
                                 row.append(self.__AB2ab__)
                                 rowP.append(self.__AB2ab_P__)
-                        elif r == c-half_matrix_size-1:
+                        elif r == c-self.W-1:
                             row.append(self.__AB2abnext__)
                             rowP.append(empty_matrix)
-                        elif r == c-half_matrix_size+1 and r != self.L2_start:
+                        elif r == c-self.W+1 and r != l2s:
                             row.append(self.__AB2abpre__)
                             rowP.append(empty_matrix)
                         else:
@@ -158,10 +194,10 @@ class AGNR():
                     else:
                         row.append(empty_matrix)
                         rowP.append(empty_matrix)
-                elif r >= self.L2_start and r <= self.L2_stop:
-                    if c >= self.L2_start and c <= self.L2_stop:        # ab-ab
+                elif r >= l2s and r <= l2e:
+                    if c >= l2s and c <= l2e:        # ab-ab
                         if r == c:
-                            if self.add_top and r == self.L2_stop:
+                            if self.add_top and r == l2e:
                                 row.append(self.__ab2abtop__)
                                 rowP.append(empty_matrix)
                             else:
@@ -199,7 +235,7 @@ class AGNR():
         =================================
         H sequence: A1, B1, A1', B1', A2, B2, ..., Am', Bm', a1, b1, a1', b1', a2, b2, ..., am, bm
         '''
-        empty_matrix = np.zeros((self.subunit_size,self.subunit_size), dtype=np.complex128)
+        empty_matrix = np.zeros((self.brick_size,self.brick_size), dtype=np.complex128)
         # within sub unit cell hopping
         self.__AB2AB__ = copy.deepcopy(empty_matrix)
         self.__ab2ab__ = copy.deepcopy(empty_matrix)
