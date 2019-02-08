@@ -85,3 +85,9 @@ class CPU():
         else:
             T = 0
         return T
+    def sort_E(self, table):
+        output = copy.deepcopy(table)
+        E_sort = np.argsort(table[:,0], axis=0)
+        for i, E_idx in enumerate(E_sort):
+            output[i, :] = np.array(table)[E_idx, :]
+        return output
