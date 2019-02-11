@@ -21,7 +21,7 @@ class Material():
             '''
             Graphene const.
             '''
-            self.a = 2.46e-10                     # m. same atom's nearest neighbor distance
+            self.a = 1.42e-10                     # m. same atom's nearest neighbor distance
             self.ax = 3*self.a                    # m. unit cell width
             self.acc = self.a/3**0.5              # m. carbon to carbon distance
             self.K_norm = 4/3*np.pi/self.acc      # m-1. normalized K vector
