@@ -72,7 +72,7 @@ class CPU():
             T = self.calTR(i_state, T_matrix, J0)
             t_mesh_stop = time.time() - t_mesh_start
             print('Mesh point @',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
-            return E,T
+            return kx*self.mat.ax/np.pi, E,T
     def calTR(self, i_state, Tmat, J0):
         ## calculate states ##
         c0 = i_state
