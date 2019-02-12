@@ -81,7 +81,7 @@ class CPU():
         Ji = np.vdot(c0, np.dot(J0, c0))
         Jt = np.vdot(cn, np.dot(J0, cn))
         if not np.isclose(np.real(Ji),0):
-            T = np.abs(np.real(Jt/Ji))
+            T = Jt/Ji
         else:
             T = 0
         return T
