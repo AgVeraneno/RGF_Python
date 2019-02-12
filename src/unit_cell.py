@@ -65,86 +65,68 @@ class AGNR():
         self.kx_norm = kx*self.ax/np.pi
         return kx
     def __on_site_energy__(self, lattice='MLG'):
-        ## place gap open and transverse field ##
-        if lattice == 'MLG':
-            ## create width profile ##
-            gap_profile = np.ones(max(self.L1_stop)+1)*1000
-            vtop_profile = np.zeros(max(self.L1_stop)+1)
-            vbot_profile = np.zeros(max(self.L1_stop)+1)
-            dv_profile = np.zeros(max(self.L1_stop)+1)
-            for i in range(len(self.L1_start)):
-                l1s = self.L1_start[i]
-                l1e = self.L1_stop[i]
-                counter = l1s
-                while counter <= l1e:
-                    gap_profile[counter] = self.gap[i]
-                    vtop_profile[counter] = self.Vtop[i]
-                    vbot_profile[counter] = self.Vbot[i]
-                    dv_profile[counter] = self.dV[i]
-                    counter += 1
-            ## generate energy profile ##
-            for m in range(self.ML_size):
-                block = int(m/self.brick_size)        # get current block
-                ## define gap and V
-                # assign A as +1 and B as -1
-                site_gap = gap_profile[block]
-                # on site V on sub unit cell
-                if m%4 == 0 or m%4 == 3:
-                    site_V = (vbot_profile[block]+(block+0.5)*dv_profile[block])
-                else:
-                    site_V = (vbot_profile[block]+block*dv_profile[block])
+        '''
+        Width profile
+        '''
+        gap_profile = np.ones(max(self.L1_stop)+1)*1000
+        vtop_profile = np.zeros(max(self.L1_stop)+1)
+        vbot_profile = np.zeros(max(self.L1_stop)+1)
+        dv_profile = np.zeros(max(self.L1_stop)+1)
+        for i in range(len(self.L1_start)):
+            l1s = self.L1_start[i]
+            l1e = self.L1_stop[i]
+            counter = l1s
+            while counter <= l1e:
+                gap_profile[counter] = self.gap[i]
+                vtop_profile[counter] = self.Vtop[i]
+                vbot_profile[counter] = self.Vbot[i]
+                dv_profile[counter] = self.dV[i]
+                counter += 1
+        '''
+        Generate on site energy
+        '''
+        for m in range(self.ML_size):
+            block = int(m/self.brick_size)        # get current block
+            '''
+            On site gap energy
+            '''
+            site_gap = gap_profile[block]
+            '''
+            Potential
+            '''
+            if m%4 == 0 or m%4 == 3:
+                site_V = (vbot_profile[block]+(block+0.5)*dv_profile[block])
+            else:
+                site_V = (vbot_profile[block]+block*dv_profile[block])
+            ##
+            if lattice == 'MLG':
                 if block == max(self.L1_stop) and self.add_top:
+                    ## top cell ##
                     if m%self.brick_size == 0:
                         self.H[m,m] = 1000
                     elif m%self.brick_size == 1:
-                        self.H[m,m] = -site_gap + site_V
+                        self.H[m,m] = -site_gap+site_V
                     elif m%self.brick_size == 2:
-                        self.H[m,m] = site_gap + site_V
+                        self.H[m,m] = site_gap+site_V
                     else:
                         self.H[m,m] = -1000
                 else:
                     if m%2 == 0:
-                        self.H[m,m] = site_gap + site_V
+                        self.H[m,m] = site_gap+site_V
                     else:
-                        self.H[m,m] = -site_gap + site_V
-        elif lattice == 'BLG':
-            ## create width profile ##
-            gap_profile = np.ones(max(self.L1_stop)+1)*1000
-            vtop_profile = np.zeros(max(self.L1_stop)+1)
-            vbot_profile = np.zeros(max(self.L1_stop)+1)
-            dv_profile = np.zeros(max(self.L1_stop)+1)
-            for i in range(len(self.L1_start)):
-                l1s = self.L1_start[i]
-                l1e = self.L1_stop[i]
-                counter = l1s
-                while counter <= l1e:
-                    gap_profile[counter] = self.gap[i]
-                    vtop_profile[counter] = self.Vtop[i]
-                    vbot_profile[counter] = self.Vbot[i]
-                    dv_profile[counter] = self.dV[i]
-                    counter += 1
-            ## generate energy profile ##
-            for m in range(self.ML_size):
-                block = int(m/self.brick_size)        # get current block
-                ## define gap and V
-                site_gap = gap_profile[block]
-                # on site V on sub unit cell
-                if m%4 == 0 or m%4 == 3:
-                    site_V = (vbot_profile[block]+(block+0.5)*dv_profile[block])
-                else:
-                    site_V = (vbot_profile[block]+block*dv_profile[block])
+                        self.H[m,m] = -site_gap+site_V
+            elif lattice == 'BLG':
                 if block == max(self.L1_stop) and self.add_top:
+                    ## top cell ##
                     if m%self.brick_size == 1 or m%self.brick_size == 2:
-                        self.H[m,m] = site_gap + site_V
-                        self.H[m+self.ML_size,m+self.ML_size] = -site_gap + site_V
+                        self.H[m,m] = site_gap+site_V
+                        self.H[m+self.ML_size,m+self.ML_size] = -site_gap+site_V
                     else:
                         self.H[m,m] = 1000
                         self.H[m+self.ML_size,m+self.ML_size] = -1000
                 else:
-                    self.H[m,m] = site_gap + site_V
-                    self.H[m+self.ML_size,m+self.ML_size] = -site_gap + site_V
-                
-                
+                    self.H[m,m] = site_gap+site_V
+                    self.H[m+self.ML_size,m+self.ML_size] = -site_gap+site_V
     def __off_diagonal__(self, lattice='MLG'):
         empty_matrix = np.zeros((self.brick_size,self.brick_size), dtype=np.complex128)
         l1s = min(self.L1_start)
