@@ -63,13 +63,14 @@ if __name__ == '__main__':
             job['gap'] = [float(job['gap'])]
             job['length'] = int(float(job['length']))
             job_list[key] = job
-    ## bulid unit cell ##
                 ###                                  ###
                 # Add new type of simulation type here #
                 ###                                  ###
     for jobid, job in job_list.items():
         if setup['brief'] == 'AGNR':
             unit_list[job['region']] = unit_cell.AGNR(setup, job)
+        elif setup['brief'] == 'AMNR':
+            unit_list[job['region']] = unit_cell.AMNR(setup, job)
         else:
             raise ValueError('Non supported setup:',setup['brief'])
     ## print out matrix. debug use ##

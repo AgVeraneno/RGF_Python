@@ -28,9 +28,12 @@ class CPU():
         else:
             return self.kx_norm, val, vec
     def getCBidx(self, gap, eig_val):
+        return self.unit.ML_size
+        '''
         for v_idx, v in enumerate(eig_val):
             if v >= 0:
                 return v_idx
+        '''
     def __sort__(self, val, vec):
         """
         What: Sort eigenstate with small to large sequence
