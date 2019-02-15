@@ -35,7 +35,7 @@ class Material():
             MoS2 const.
             '''
             self.acc = 3.125e-10                  # m. nearest neighbor distance
-            self.a = self.a*3**0.5                # m. carbon to carbon distance
+            self.a = self.acc*3**0.5                # m. carbon to carbon distance
             self.ax = 3*self.a                    # m. unit cell width
             self.K_norm = 4/3*np.pi/self.acc      # m-1. normalized K vector
             ### hopping energy
@@ -59,7 +59,7 @@ class Material():
             self.A1[3,1]=0.343654-0.323148j
             self.A1[3,3]=0.1485+0.329j
             self.A1[3,5]=-0.1145
-            self.A1[4,0]=0.343654-0.323148j
+            self.A1[4,0]=0.343654+0.323148j
             self.A1[4,2]=-0.1145
             self.A1[4,4]=0.1485-0.329j
             self.A1[5,1]=0.343654+0.323148j
