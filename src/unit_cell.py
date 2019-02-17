@@ -439,7 +439,7 @@ class AMNR():
                         self.H[m,m] = site_gap+site_V
                 else:
                     if m%self.brick_size >= half_brick:
-                        self.H[m,m] = -site_gap+site_V
+                        self.H[m,m] = site_gap+site_V
                     else:
                         self.H[m,m] = site_gap+site_V
             elif lattice == 'BLG':
@@ -523,7 +523,7 @@ class AMNR():
         ==============       ==============       ==============
         A   B
         ==============       ==============       ==============
-        A0  A6               0   A5               0   0
+        A0  A3               0   A5               0   0
         -   A0               0   0                A2  0
         ==============      ==============        ==============
         
@@ -531,15 +531,15 @@ class AMNR():
         ==============       ==============       ==============
         A   B
         ==============       ==============       ==============
-        A1  0                0   A6               0   0
-        A2  A1               0   0                A3  0
+        A4  0                0   A6               0   0
+        A5  A4               0   0                A3  0
         ==============       ==============       ==============
         '''
         mat_z = np.zeros((int(self.brick_size/2),int(self.brick_size/2)), dtype=np.complex128)
         # H
-        self.su_M = np.block([[mat_z,self.mat.A6],[mat_z,mat_z]])
-        self.su_Mn = np.block([[self.mat.A1,mat_z],[self.mat.A2,self.mat.A1]])
-        self.top_Mn = np.block([[self.mat.A1,mat_z],[self.mat.A2,mat_z]])
+        self.su_M = np.block([[mat_z,self.mat.A3],[mat_z,mat_z]])
+        self.su_Mn = np.block([[self.mat.A4,mat_z],[self.mat.A5,self.mat.A4]])
+        self.top_Mn = np.block([[self.mat.A4,mat_z],[self.mat.A5,mat_z]])
         # P-
         self.su_PR = np.block([[mat_z,self.mat.A5],[mat_z,mat_z]])
         self.su_PRp = np.block([[mat_z,self.mat.A6],[mat_z,mat_z]])
