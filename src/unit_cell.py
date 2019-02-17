@@ -403,6 +403,7 @@ class AMNR():
         vtop_profile = np.zeros(max(self.L1_stop)+1)
         vbot_profile = np.zeros(max(self.L1_stop)+1)
         dv_profile = np.zeros(max(self.L1_stop)+1)
+        dv_raw = np.zeros(max(self.L1_stop)+1)
         for i in range(len(self.L1_start)):
             l1s = self.L1_start[i]
             l1e = self.L1_stop[i]
@@ -411,7 +412,14 @@ class AMNR():
                 gap_profile[counter] = self.gap[i]
                 vtop_profile[counter] = self.Vtop[i]
                 vbot_profile[counter] = self.Vbot[i]
-                dv_profile[counter] = self.dV[i]
+                if self.dV[i] != 0:
+                    if counter != 0:
+                        dv_profile[counter] = dv_profile[counter-1] + 2*self.dV[i]
+                    else:
+                        dv_profile[counter] = self.dV[i]
+                else:
+                    dv_profile[counter] = self.dV[i]
+                dv_raw[counter] = self.dV[i]
                 counter += 1
         '''
         Generate on site energy
@@ -427,9 +435,10 @@ class AMNR():
             Potential
             '''
             if m%self.brick_size >= half_brick:
-                site_V = (vbot_profile[block]+(block+0.5)*dv_profile[block])
+                site_V = (vbot_profile[block]+dv_profile[block])
             else:
-                site_V = (vbot_profile[block]+block*dv_profile[block])
+                site_V = (vbot_profile[block]+dv_profile[block]-dv_raw[block])
+            ##
             if lattice == 'MLG':
                 if block == max(self.L1_stop) and self.add_top:
                     ## top cell ##
@@ -438,10 +447,7 @@ class AMNR():
                     else:
                         self.H[m,m] = site_gap+site_V
                 else:
-                    if m%self.brick_size >= half_brick:
-                        self.H[m,m] = site_gap+site_V
-                    else:
-                        self.H[m,m] = site_gap+site_V
+                    self.H[m,m] = site_gap+site_V
             elif lattice == 'BLG':
                 raise ValueError("Not support BLG for MoS2.")
     def __off_diagonal__(self):
