@@ -69,10 +69,10 @@ class CPU():
             T_matrix = np.dot(Gn0,Pn*P_phase)
             ## calculate T and R ##
             J0 = 1j*self.mat.ax/self.mat.h_bar*(Pp*phase_p-Pn*phase_n)
-            T = self.calTR(i_state, T_matrix, J0)
+            JT, Ji, T = self.calTR(i_state, T_matrix, J0)
             t_mesh_stop = time.time() - t_mesh_start
             print('Mesh point @',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
-            return kx*self.mat.ax/np.pi, E, T
+            return kx*self.mat.ax/np.pi, E, T, JT, Ji
     def calTR(self, i_state, Tmat, J0):
         ## calculate states ##
         c0 = i_state
@@ -84,7 +84,7 @@ class CPU():
             T = Jt/Ji
         else:
             T = 0
-        return T
+        return Jt, Ji, T
     def sort_E(self, table):
         output = copy.deepcopy(table)
         E_sort = np.argsort(table[:,0], axis=0)
