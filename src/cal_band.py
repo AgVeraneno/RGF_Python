@@ -5,7 +5,6 @@ class CPU():
     def __init__(self, setup, unit):
         self.unit = unit
         self.ax = setup['material'].ax
-        self.CB_idx = setup['CB_idx']
         self.mesh = int(setup['kx_mesh'])
         self.val = []
     def setKx(self, l_idx):
