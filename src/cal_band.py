@@ -5,6 +5,7 @@ class CPU():
     def __init__(self, setup, unit):
         self.unit = unit
         self.ax = setup['material'].ax
+        self.CB_idx = setup['CB_idx']
         self.mesh = int(setup['kx_mesh'])
         self.val = []
     def setKx(self, l_idx):
@@ -29,9 +30,12 @@ class CPU():
             return self.kx_norm, val, vec
     def getCBidx(self, gap, eig_val):
         #return int(np.size(self.unit.H,0)/2)
+        return int(self.CB_idx)
+        '''
         for v_idx, v in enumerate(eig_val):
             if v >= 0:
                 return v_idx
+        '''
     def __sort__(self, val, vec):
         """
         What: Sort eigenstate with small to large sequence

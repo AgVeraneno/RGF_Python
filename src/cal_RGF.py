@@ -22,7 +22,7 @@ class CPU():
     def setBand(self, unit, kx_idx):
         band_parser = cal_band.CPU(self.setup, unit)
         kx, val, vec = band_parser.calState(kx_idx, True)
-        CB_idx = int(np.size(unit.H,0)/2)
+        CB_idx = band_parser.getCBidx(0,0)
         E = val[CB_idx]
         i_state = vec[:,CB_idx]
         return kx, E, i_state

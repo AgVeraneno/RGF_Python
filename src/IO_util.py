@@ -18,7 +18,8 @@ def importFromCSV(setup_file, job_file):
              'mesh_stop':0,
              'isPlot_band':False,
              'isPlot_zoom':False,
-             'isRGF':False}
+             'isRGF':False,
+             'CB_idx':None}
     job = {'region':-1,
            'cell_type':1,
            'shift':0,
