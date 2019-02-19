@@ -9,7 +9,7 @@ class CPU():
         self.unit_list = unit_list
         self.__meshing__(unit_list)
         self.reflect = False
-        self.CB_idx = np.arange(int(setup['CB_idx_start']),int(setup['CB_idx_stop'])+1,1)
+        self.CB_idx = np.arange(int(setup['CB_idx_start'])-1,int(setup['CB_idx_stop']),1)
     def __meshing__(self, unit_list):
         """
         create a list with unit cell vs mesh
@@ -75,7 +75,7 @@ class CPU():
                 Jt_tot += JT
                 Ji_tot += Ji
                 t_mesh_stop = time.time() - t_mesh_start
-        print('Mesh point @ kx=',str(kx_idx),'CB=',str(CB_idx),' time:',t_mesh_stop, ' (sec)')
+        print('Mesh point @ kx=',str(kx_idx),'CB=',str(CB_idx+1),' time:',t_mesh_stop, ' (sec)')
         return kx*self.mat.ax/np.pi, E, Jt_tot/Ji_tot, Jt_tot, Ji_tot
     def calTR(self, i_state, Tmat, J0):
         ## calculate states ##
