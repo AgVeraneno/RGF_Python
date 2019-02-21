@@ -36,7 +36,7 @@ class Material():
             '''
             self.acc = 3.125e-10                  # m. nearest neighbor distance
             self.a = self.acc*3**0.5                # m. carbon to carbon distance
-            self.ax = 3*self.a                    # m. unit cell width
+            self.ax = 3*self.acc                    # m. unit cell width
             self.K_norm = 4/3*np.pi/self.acc      # m-1. normalized K vector
             ### hopping energy
             self.A0=np.zeros((6,6),dtype=np.complex128)

@@ -39,6 +39,10 @@ class CPU():
             kx, E, i_state = self.setBand(self.unit_list[mesh_grid[0]], kx_idx, CB_idx)
             m_size = np.size(self.unit_list[mesh_grid[0]].H,0)
             E_matrix = np.eye(m_size, dtype=np.complex128)*E
+            ## phase terms
+            phase_p = np.exp(1j*kx*self.mat.ax)
+            phase_n = np.exp(-1j*kx*self.mat.ax)
+            P_phase = phase_n-phase_p
             ## calculate RGF ##
             for mesh_idx, key in enumerate(mesh_grid):
                 unit = self.unit_list[key]
@@ -47,10 +51,6 @@ class CPU():
                 Pn = unit.P_minus
                 ## initialize all component for RGF
                 if mesh_idx == 0:
-                    ## phase terms
-                    phase_p = np.exp(1j*kx*self.mat.ax)
-                    phase_n = np.exp(-1j*kx*self.mat.ax)
-                    P_phase = phase_n-phase_p
                     ## Generate first Green matrix: G00 ##
                     G_inv = (E_matrix-H)-Pn*phase_p
                     Gnn = np.linalg.inv(G_inv)
