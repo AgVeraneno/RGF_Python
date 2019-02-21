@@ -70,7 +70,7 @@ class CPU():
             else:
                 T_matrix = np.dot(Gn0,Pp*P_phase)
                 ## calculate T and R ##
-                J0 = 1j*self.mat.ax/self.mat.h_bar*(Pp*phase_n-Pn*phase_p)
+                J0 = 1j*self.mat.ax/self.mat.h_bar*(Pn*phase_p-Pp*phase_n)
                 JT, Ji, T = self.calTR(i_state, T_matrix, J0)
                 Jt_tot += JT
                 Ji_tot += Ji
