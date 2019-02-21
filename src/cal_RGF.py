@@ -57,13 +57,13 @@ class CPU():
                     Gn0 = copy.deepcopy(Gnn)
                 elif mesh_idx == len(self.mesh_grid)-1:
                     ## Calculate last Gnn ##
-                    G_inv = E_matrix - H - Pn*phase_p - np.dot(Pp, np.dot(Gnn,Pn))
+                    G_inv = E_matrix - H - Pn*phase_p + np.dot(Pp, np.dot(Gnn,Pn))
                     Gnn = np.linalg.inv(G_inv)
                     ## Calculate Gn0 ##
                     Gn0 = np.dot(Gnn, np.dot(Pp,Gn0))
                 else:
                     ## Calculate Gnn ##
-                    G_inv = E_matrix - H - np.dot(Pp, np.dot(Gnn,Pn))
+                    G_inv = E_matrix - H + np.dot(Pp, np.dot(Gnn,Pn))
                     Gnn = np.linalg.inv(G_inv)
                     ## Calculate Gn0 ##
                     Gn0 = np.dot(Gnn, np.dot(Pp,Gn0))
