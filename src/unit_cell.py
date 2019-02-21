@@ -223,8 +223,8 @@ class AGNR():
             np_matrixP.append(rowP)
         self.H = np.block(np_matrix)
         self.H = self.H + np.transpose(np.conj(self.H))
-        self.P_minus = np.block(np_matrixP)
-        self.P_plus = np.transpose(np.conj(self.P_minus))
+        self.P_plus = np.block(np_matrixP)
+        self.P_minus = np.transpose(np.conj(self.P_plus))
     def __4by4Component__(self):
         '''
         1)
