@@ -120,23 +120,26 @@ if __name__ == '__main__':
     t_start = time.time()
     if setup['isRGF']:
         kx_sweep = range(int(setup['mesh_start']),int(setup['mesh_stop'])+1)
+        CB_idx = np.arange(int(setup['CB_idx_start'])-1,int(setup['CB_idx_stop']),1)
         RGF_result = {'E':[],'T':[],'R':[]}
         if setup['isGPU']:      # using GPU calculation
             ## not support GPU yet
             pass
         else:
             RGF_util = cal_RGF.CPU(setup, unit_list)
-            with Pool(processes=int(setup['parallel_CPU'])) as mp:
-                RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
-            RGF_output = np.real(RGF_output)
-            ## rearrange position ##
-            RGF_output = RGF_util.sort_E(RGF_output)
-        ## output to file ##
-        folder = '../output/'
-        if not os.path.exists(folder):
-            os.mkdir(folder)
-        file_name = ''
-        IO_util.saveAsCSV(folder+file_name+'_TR.csv', RGF_output)
+            for CB in CB_idx:
+                RGF_util.CB = CB
+                with Pool(processes=int(setup['parallel_CPU'])) as mp:
+                    RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
+                RGF_output = np.real(RGF_output)
+                ## sort kx position low to high
+                RGF_output = RGF_util.sort_E(RGF_output)
+                ## output to file ##
+                folder = '../output/'
+                if not os.path.exists(folder):
+                    os.mkdir(folder)
+                file_name = "CB="+str(CB+1)
+                IO_util.saveAsCSV(folder+file_name+'_TR.csv', RGF_output)
     t_RGF = time.time() - t_start
     print('Calculate RGF:',t_RGF,'(sec)')
-    print('Program stop @ ',time.asctime(time.localtime(time.time())))
+    print('Program finished successfully @ ',time.asctime(time.localtime(time.time())))

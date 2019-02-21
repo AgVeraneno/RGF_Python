@@ -472,17 +472,17 @@ class AMNR():
                                 rowP.append(empty_matrix)
                             else:
                                 row.append(self.su_M)
-                                rowP.append(self.su_PR)
+                                rowP.append(self.su_PA)
                         elif r == c-1:  # next sub-cell
                             if self.add_top and c == l1e:       # top layer
                                 row.append(self.top_Mn)
-                                rowP.append(empty_matrix)
+                                rowP.append(self.top_PAn)
                             else:
                                 row.append(self.su_Mn)
-                                rowP.append(empty_matrix)
+                                rowP.append(self.su_PAn)
                         elif r == c+1 and r != l1s:  # previous sub-cell
                             row.append(empty_matrix)
-                            rowP.append(self.su_PRp)
+                            rowP.append(empty_matrix)
                         else:
                             row.append(empty_matrix)
                             rowP.append(empty_matrix)
@@ -546,8 +546,7 @@ class AMNR():
         self.su_M = np.block([[mat_z,self.mat.A3],[mat_z,mat_z]])
         self.su_Mn = np.block([[self.mat.A4,mat_z],[self.mat.A5,self.mat.A4]])
         self.top_Mn = np.block([[self.mat.A4,mat_z],[self.mat.A5,mat_z]])
-        # P-
-        self.su_PR = np.block([[mat_z,self.mat.A5],[mat_z,mat_z]])
-        self.su_PRp = np.block([[mat_z,self.mat.A6],[mat_z,mat_z]])
-        self.top_PR = np.block([[mat_z,self.mat.A5],[mat_z,mat_z]])
-        self.top_PRp = np.block([[mat_z,self.mat.A6],[mat_z,mat_z]])
+        # P+
+        self.su_PA = np.block([[mat_z,mat_z],[self.mat.A2,mat_z]])
+        self.su_PAn = np.block([[mat_z,mat_z],[self.mat.A3,mat_z]])
+        self.top_PAn = np.block([[mat_z,mat_z],[self.mat.A3,mat_z]])
