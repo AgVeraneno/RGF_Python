@@ -52,25 +52,25 @@ class CPU():
                 ## initialize all component for RGF
                 if mesh_idx == 0:
                     ## Generate first Green matrix: G00 ##
-                    G_inv = (E_matrix-H)-Pn*phase_p
+                    G_inv = E_matrix - H - Pp*phase_p
                     Gnn = np.linalg.inv(G_inv)
                     Gn0 = copy.deepcopy(Gnn)
                 elif mesh_idx == len(self.mesh_grid)-1:
                     ## Calculate last Gnn ##
-                    G_inv = E_matrix - H - Pp*phase_p - np.dot(Pn, np.dot(Gnn,Pp))
+                    G_inv = E_matrix - H - Pn*phase_p - np.dot(Pp, np.dot(Gnn,Pn))
                     Gnn = np.linalg.inv(G_inv)
                     ## Calculate Gn0 ##
-                    Gn0 = np.dot(Gnn, np.dot(Pn,Gn0))
+                    Gn0 = np.dot(Gnn, np.dot(Pp,Gn0))
                 else:
                     ## Calculate Gnn ##
-                    G_inv = E_matrix - H - np.dot(Pn, np.dot(Gnn,Pp))
+                    G_inv = E_matrix - H - np.dot(Pp, np.dot(Gnn,Pn))
                     Gnn = np.linalg.inv(G_inv)
                     ## Calculate Gn0 ##
-                    Gn0 = np.dot(Gnn, np.dot(Pn,Gn0))
+                    Gn0 = np.dot(Gnn, np.dot(Pp,Gn0))
             else:
-                T_matrix = np.dot(Gn0,Pn*P_phase)
+                T_matrix = np.dot(Gn0,Pp*P_phase)
                 ## calculate T and R ##
-                J0 = 1j*self.mat.ax/self.mat.h_bar*(Pp*phase_p-Pn*phase_n)
+                J0 = 1j*self.mat.ax/self.mat.h_bar*(Pp*phase_n-Pn*phase_p)
                 JT, Ji, T = self.calTR(i_state, T_matrix, J0)
                 Jt_tot += JT
                 Ji_tot += Ji
