@@ -6,6 +6,7 @@ from matplotlib import pyplot
 def importFromCSV(setup_file, job_file):
     setup = {'isDebug':False,
              'isGPU':False,
+             'isReflect':False,
              'isParallel':False,
              'parallel_CPU':1,
              'material':None,

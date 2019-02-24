@@ -74,7 +74,10 @@ class CPU():
                 Gn0 = np.dot(Gnn, np.dot(Pp,Gn0))
         else:
             ## calculate T
-            T_matrix = np.dot(Gn0,Pp*P_phase)
+            if self.reflect:
+                T_matrix = np.eye(m_size, dtype=np.complex128)*-1 + np.dot(Gn0,Pp*P_phase)
+            else:
+                T_matrix = np.dot(Gn0,Pp*P_phase)
             J0 = 1j*self.mat.ax/self.mat.h_bar*(Pn*phase_p-Pp*phase_n)
             Jt, Ji, T = self.calTR(i_state, T_matrix, J0)
             t_mesh_stop = time.time() - t_mesh_start

@@ -140,6 +140,20 @@ if __name__ == '__main__':
                     os.mkdir(folder)
                 file_name = "CB="+str(CB+1)
                 IO_util.saveAsCSV(folder+file_name+'_TR.csv', RGF_output)
+                if setup['isReflect']:
+                    RGF_util.reflect = True
+                    with Pool(processes=int(setup['parallel_CPU'])) as mp:
+                        RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
+                    RGF_output = np.real(RGF_output)
+                    ## sort kx position low to high
+                    RGF_output = RGF_util.sort_E(RGF_output)
+                    ## output to file ##
+                    folder = '../output/'
+                    if not os.path.exists(folder):
+                        os.mkdir(folder)
+                    file_name = "CB="+str(CB+1)
+                    IO_util.saveAsCSV(folder+file_name+'_TR_reverse.csv', RGF_output)
+                    RGF_util.reflect = False
     t_RGF = time.time() - t_start
     print('Calculate RGF:',t_RGF,'(sec)')
     print('Program finished successfully @ ',time.asctime(time.localtime(time.time())))
