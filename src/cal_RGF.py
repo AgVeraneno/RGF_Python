@@ -30,6 +30,7 @@ class CPU():
         i_state = vec[:,self.CB]
         return kx, E, i_state
     def calRGF_transmit(self, kx_idx):
+        t_mesh_start = time.time()
         '''
         calculate in forward or inverse mode 
         '''
@@ -41,7 +42,7 @@ class CPU():
         '''
         calculate RGF with assigned conduction band
         '''
-        t_mesh_start = time.time()
+        
         ## calculate incident state
         input_unit = self.unit_list[mesh_grid[0]]
         kx, E, i_state = self.setBand(input_unit, kx_idx)
@@ -57,25 +58,39 @@ class CPU():
             H = unit.H
             Pp = unit.P_plus
             Pn = unit.P_minus
-            if mesh_idx == 0:
-                ## Calculate first G00 and Gnn
-                G_inv = E_matrix - H - Pp*phase_p
-                Gnn = np.linalg.inv(G_inv)
-                Gn0 = copy.deepcopy(Gnn)
-            elif mesh_idx == len(mesh_grid)-1:
-                ## Calculate last Gnn and Gn0
-                G_inv = E_matrix - H - Pn*phase_p - np.dot(Pp, np.dot(Gnn,Pn))
-                Gnn = np.linalg.inv(G_inv)
-                Gn0 = np.dot(Gnn, np.dot(Pp,Gn0))
+            if self.reflect:
+                if mesh_idx == 0:
+                    ## Calculate first G00 and Gnn
+                    G_inv = E_matrix - H - Pn*phase_p
+                    Gnn = np.linalg.inv(G_inv)
+                elif mesh_idx == len(mesh_grid)-1:
+                    ## Calculate last Gnn and Gn0
+                    G_inv = E_matrix - H - Pp*phase_p - np.dot(Pp, np.dot(Gnn,Pn))
+                    Gnn = np.linalg.inv(G_inv)
+                else:
+                    ## Calculate Gnn and Gn0
+                    G_inv = E_matrix - H - np.dot(Pp, np.dot(Gnn,Pn))
+                    Gnn = np.linalg.inv(G_inv)
             else:
-                ## Calculate Gnn and Gn0
-                G_inv = E_matrix - H - np.dot(Pp, np.dot(Gnn,Pn))
-                Gnn = np.linalg.inv(G_inv)
-                Gn0 = np.dot(Gnn, np.dot(Pp,Gn0))
+                if mesh_idx == 0:
+                    ## Calculate first G00 and Gnn
+                    G_inv = E_matrix - H - Pp*phase_p
+                    Gnn = np.linalg.inv(G_inv)
+                    Gn0 = copy.deepcopy(Gnn)
+                elif mesh_idx == len(mesh_grid)-1:
+                    ## Calculate last Gnn and Gn0
+                    G_inv = E_matrix - H - Pn*phase_p - np.dot(Pp, np.dot(Gnn,Pn))
+                    Gnn = np.linalg.inv(G_inv)
+                    Gn0 = np.dot(Gnn, np.dot(Pp,Gn0))
+                else:
+                    ## Calculate Gnn and Gn0
+                    G_inv = E_matrix - H - np.dot(Pp, np.dot(Gnn,Pn))
+                    Gnn = np.linalg.inv(G_inv)
+                    Gn0 = np.dot(Gnn, np.dot(Pp,Gn0))
         else:
             ## calculate T
             if self.reflect:
-                T_matrix = np.eye(m_size, dtype=np.complex128)*-1 + np.dot(Gn0,Pp*P_phase)
+                T_matrix = np.eye(m_size, dtype=np.complex128)*-1 + np.dot(Gnn,Pp*P_phase)
             else:
                 T_matrix = np.dot(Gn0,Pp*P_phase)
             J0 = 1j*self.mat.ax/self.mat.h_bar*(Pn*phase_p-Pp*phase_n)
