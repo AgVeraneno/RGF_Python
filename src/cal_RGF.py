@@ -1,5 +1,6 @@
 import copy, os, time
 import numpy as np
+from scipy import linalg as LA
 import data_util, cal_band
 
 class CPU():
@@ -62,38 +63,38 @@ class CPU():
                 if mesh_idx == 0:
                     ## Calculate first G00 and Gnn
                     G_inv = E_matrix - H - Pn*phase_p
-                    Gnn = np.linalg.inv(G_inv)
+                    Gnn = LA.inv(G_inv)
                 elif mesh_idx == len(mesh_grid)-1:
                     ## Calculate last Gnn and Gn0
-                    G_inv = E_matrix - H - Pp*phase_p - np.dot(Pp, np.dot(Gnn,Pn))
-                    Gnn = np.linalg.inv(G_inv)
+                    G_inv = E_matrix - H - Pp*phase_p - np.dot(Pn, np.dot(Gnn,Pp))
+                    Gnn = LA.inv(G_inv)
                 else:
                     ## Calculate Gnn and Gn0
-                    G_inv = E_matrix - H - np.dot(Pp, np.dot(Gnn,Pn))
-                    Gnn = np.linalg.inv(G_inv)
+                    G_inv = E_matrix - H - np.dot(Pn, np.dot(Gnn,Pp))
+                    Gnn = LA.inv(G_inv)
             else:
                 if mesh_idx == 0:
                     ## Calculate first G00 and Gnn
                     G_inv = E_matrix - H - Pp*phase_p
-                    Gnn = np.linalg.inv(G_inv)
+                    Gnn = LA.inv(G_inv)
                     Gn0 = copy.deepcopy(Gnn)
                 elif mesh_idx == len(mesh_grid)-1:
                     ## Calculate last Gnn and Gn0
                     G_inv = E_matrix - H - Pn*phase_p - np.dot(Pp, np.dot(Gnn,Pn))
-                    Gnn = np.linalg.inv(G_inv)
+                    Gnn = LA.inv(G_inv)
                     Gn0 = np.dot(Gnn, np.dot(Pp,Gn0))
                 else:
                     ## Calculate Gnn and Gn0
                     G_inv = E_matrix - H - np.dot(Pp, np.dot(Gnn,Pn))
-                    Gnn = np.linalg.inv(G_inv)
+                    Gnn = LA.inv(G_inv)
                     Gn0 = np.dot(Gnn, np.dot(Pp,Gn0))
         else:
             ## calculate T
+            J0 = 1j*self.mat.ax/self.mat.h_bar*(Pn*phase_p-Pp*phase_n)
             if self.reflect:
                 T_matrix = np.eye(m_size, dtype=np.complex128)*-1 + np.dot(Gnn,Pp*P_phase)
             else:
                 T_matrix = np.dot(Gn0,Pp*P_phase)
-            J0 = 1j*self.mat.ax/self.mat.h_bar*(Pn*phase_p-Pp*phase_n)
             Jt, Ji, T = self.calTR(i_state, T_matrix, J0)
             t_mesh_stop = time.time() - t_mesh_start
             print('Mesh point @ kx=',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
