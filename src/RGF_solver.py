@@ -109,7 +109,7 @@ if __name__ == '__main__':
             file_name = key
             IO_util.saveAsCSV(folder+file_name+'_BS.csv', plot_table)
             try:
-                IO_util.saveAsFigure(setup, 0, lead_unit, plot_table, save_type='band')
+                IO_util.saveAsFigure(setup, 0, unit, plot_table, save_type='band')
             except:
                 warnings.warn("error when ploting figures. Skip and continue.")
     t_band = time.time() - t_start
