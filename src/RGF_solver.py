@@ -135,6 +135,7 @@ if __name__ == '__main__':
                 ## sort kx position low to high
                 RGF_output = RGF_util.sort_E(RGF_output)
                 ## output to file ##
+             
                 folder = '../output/'
                 if not os.path.exists(folder):
                     os.mkdir(folder)

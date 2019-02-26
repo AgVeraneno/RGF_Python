@@ -73,7 +73,7 @@ class CPU():
                     Gnn = np.linalg.inv(G_inv)
             else:
                 if mesh_idx == 0:
-                    ## Calculate first G00 and Gnn
+                    ## Calculate lead input Green's function
                     G_inv = E_matrix - H - Pp*phase_p
                     Gnn = np.linalg.inv(G_inv)
                     Gn0 = copy.deepcopy(Gnn)
@@ -94,10 +94,10 @@ class CPU():
                 T_matrix = np.eye(m_size, dtype=np.complex128)*-1 + np.dot(Gnn,Pp*P_phase)
             else:
                 T_matrix = np.dot(Gn0,Pp*P_phase)
-            Jt, Ji, T = self.calTR(i_state, T_matrix, J0)
+            T = self.calTR(i_state, T_matrix, J0)
             t_mesh_stop = time.time() - t_mesh_start
             print('Mesh point @ kx=',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
-            return kx*self.mat.ax/np.pi, E, T, Jt, Ji
+            return kx*self.mat.ax/np.pi, E, T
     def calTR(self, i_state, Tmat, J0):
         ## calculate states ##
         c0 = i_state
@@ -109,7 +109,7 @@ class CPU():
             T = Jt/Ji
         else:
             T = 0
-        return Jt, Ji, T
+        return T
     def sort_E(self, table):
         output = copy.deepcopy(table)
         E_sort = np.argsort(table[:,0], axis=0)
