@@ -91,27 +91,27 @@ if __name__ == '__main__':
     t_start = time.time()       # record band structure time
     #bs_parser = bs_GPU.BandStructure(inputs)
     if setup['isPlot_band']:
-        ## initialize ##
-        lead_unit = unit_list['lead']
-        band_parser = cal_band.CPU(setup, lead_unit)
-        sweep_mesh = range(0,int(setup['kx_mesh']),int(int(setup['kx_mesh'])/500))
-        ## calculate band structure ##
-        with Pool(processes=int(setup['parallel_CPU'])) as mp:
-            eig = mp.map(band_parser.calState,sweep_mesh)
-        plot_table = []
-        for i in eig:
-            plot_table.append([i[0]])
-            plot_table[-1].extend(list(np.real(i[1])))
-        ## output to file
-        folder = '../output/band structure/'
-        if not os.path.exists(folder):
-            os.mkdir(folder)
-        file_name = ''
-        IO_util.saveAsCSV(folder+file_name+'_BS.csv', plot_table)
-        try:
-            IO_util.saveAsFigure(setup, 0, lead_unit, plot_table, save_type='band')
-        except:
-            warnings.warn("error when ploting figures. Skip and continue.")
+        for key, unit in unit_list.items():
+            ## initialize ##
+            band_parser = cal_band.CPU(setup, unit)
+            sweep_mesh = range(0,int(setup['kx_mesh']),int(int(setup['kx_mesh'])/500))
+            ## calculate band structure ##
+            with Pool(processes=int(setup['parallel_CPU'])) as mp:
+                eig = mp.map(band_parser.calState,sweep_mesh)
+            plot_table = []
+            for i in eig:
+                plot_table.append([i[0]])
+                plot_table[-1].extend(list(np.real(i[1])))
+            ## output to file
+            folder = '../output/band structure/'
+            if not os.path.exists(folder):
+                os.mkdir(folder)
+            file_name = key
+            IO_util.saveAsCSV(folder+file_name+'_BS.csv', plot_table)
+            try:
+                IO_util.saveAsFigure(setup, 0, lead_unit, plot_table, save_type='band')
+            except:
+                warnings.warn("error when ploting figures. Skip and continue.")
     t_band = time.time() - t_start
     print('Calculate band structure:',t_band,'(sec)')
     '''
