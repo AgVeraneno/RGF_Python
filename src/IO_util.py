@@ -13,6 +13,8 @@ def importFromCSV(setup_file, job_file):
              'lattice':None,
              'direction':None,
              'brief':None,
+             'SU_type':None,
+             'SU_hopping_size':None,
              'brick_size':None,
              'kx_mesh':None,
              'mesh_start':0,

@@ -50,25 +50,28 @@ if __name__ == '__main__':
     for job in jobs:
         key = job['region']
         if key in job_list:
+            job_list[key]['type'].append(str(job['cell_type']))
             job_list[key]['shift'].append(int(job['shift']))
             job_list[key]['width'].append(int(job['width']))
             job_list[key]['Vtop'].append(float(job['Vtop']))
             job_list[key]['Vbot'].append(float(job['Vbot']))
             job_list[key]['gap'].append(float(job['gap']))
         else:
-            job['shift'] = [int(job['shift'])]
-            job['width'] = [int(job['width'])]
-            job['Vtop'] = [float(job['Vtop'])]
-            job['Vbot'] = [float(job['Vbot'])]
-            job['gap'] = [float(job['gap'])]
-            job['length'] = int(float(job['length']))
-            job_list[key] = job
+            new_job = {}
+            new_job['type'] = [str(job['cell_type'])]
+            new_job['shift'] = [int(job['shift'])]
+            new_job['width'] = [int(job['width'])]
+            new_job['Vtop'] = [float(job['Vtop'])]
+            new_job['Vbot'] = [float(job['Vbot'])]
+            new_job['gap'] = [float(job['gap'])]
+            new_job['length'] = int(float(job['length']))
+            job_list[key] = new_job
                 ###                                  ###
                 # Add new type of simulation type here #
                 ###                                  ###
     for jobid, job in job_list.items():
         if setup['brief'] == 'AGNR':
-            unit_list[job['region']] = unit_cell.AGNR(setup, job)
+            unit_list[job['region']] = unit_cell.AGNR_new(setup, job)
         elif setup['brief'] == 'AMNR':
             unit_list[job['region']] = unit_cell.AMNR(setup, job)
         else:
