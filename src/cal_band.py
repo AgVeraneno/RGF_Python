@@ -14,18 +14,13 @@ class CPU():
     def calState(self, l_idx, returnKx=False):
         kx = self.setKx(l_idx)
         H = self.unit.H
-        Pp = self.unit.P_plus
-        Pn = self.unit.P_minus
+        Pf = self.unit.Pf
+        Pb = self.unit.Pb
         Heig = H+\
-               np.exp(1j*kx*self.ax)*Pn+\
-               np.exp(-1j*kx*self.ax)*Pp
-<<<<<<< HEAD
-        val, vec = np.linalg.eig(Heig)
-        val, vec = self.__sort__(val, vec)
-=======
+               np.exp(1j*kx*self.ax)*Pf+\
+               np.exp(-1j*kx*self.ax)*Pb
         val, vec = np.linalg.eigh(Heig)
         #val, vec = self.__sort__(val, vec)
->>>>>>> c10bc9dfb2d0acabe4c965e329e561f1d73f33bc
         self.val.append({'kx':self.kx_norm,
                          'val':val})
         if returnKx:

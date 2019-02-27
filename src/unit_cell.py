@@ -355,6 +355,7 @@ class AGNR_new():
         self.ax = self.mat.ax                   # unit length
         self.__gen_Hamiltonian__(setup['lattice'])
     def __initialize__(self, setup, job):
+        self.filename = job['region']+'_'+setup['lattice']+'_'+setup['brief']
         self.mat = setup['material']                # unit cell material
         self.SU_type = setup['SU_type']             # sub unitcell type
         self.SU_size = 2*int(setup['SU_hopping_size'])
@@ -364,9 +365,9 @@ class AGNR_new():
         ## ribbon size
         for t_idx, t in enumerate(job['type']):
             if t == 'envelope':
-                job['width'][t_idx] = 2*job['width'][t_idx]+1
+                job['width'][t_idx] = job['width'][t_idx]+1
             elif t == 'wave':
-                job['width'][t_idx] = 2*job['width'][t_idx]
+                job['width'][t_idx] = job['width'][t_idx]
             else:
                 raise ValueError('Unresolved cell type:', t)
         else:
@@ -405,98 +406,44 @@ class AGNR_new():
         self.__off_diagonal__()
         self.__on_site_energy__()
     def __on_site_energy__(self):
+        W = sum(self.W)
         '''
         Gap Profile
         '''
-        gap_profile = np.ones(sum(self.W)*self.SU_size)*1000
+        gap_profile = np.eye(self.m_size, dtype=np.complex128)*1000
         for i, idx in enumerate(self.L1_start):
             gap = self.gap[i]
-            if self.SU_type == 'separate':
-                for j in range(self.W[i]):
-                    if self.gap_inv:
-                        gap_profile[idx+j] = gap-2*(idx+j)%2
-                        gap_profile[idx+j+self.W-1] = -gap+2*(idx+j)%2
-                    else:
-                        gap_profile[idx+2*j+1] = gap
-                        gap_profile[idx+j+self.W-1] = gap
-                        gap_profile[idx+j+2*self.W-1] = -gap
-                        gap_profile[idx+j+3*self.W-1] = -gap
+            for j in range(self.W[i]):
+                if self.gap_inv:        # MLG
+                    gap_profile[idx+j, idx+j] = gap*(1-(idx+j)%2*2)
+                    gap_profile[idx+j+W, idx+j+W] = gap*(1-(idx+j)%2*2)
+                else:
+                    gap_profile[idx+j, idx+j] = gap
+                    gap_profile[idx+j+W, idx+j+W] = gap
+                    gap_profile[idx+j+2*W, idx+j+2*W] = -gap
+                    gap_profile[idx+j+3*W, idx+j+3*W] = -gap
         '''
         Voltage profile
         '''
-        dv_profile = np.zeros(sum(self.W)*self.SU_size)
+        dv_profile = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
         for i, idx in enumerate(self.L1_start):
             Vtop = self.Vtop[i]
             Vbot = self.Vbot[i]
-            W = self.W[i]
-            dV = (Vtop - Vbot)/(W+1)
-            for j in range(W):
+            dV = (Vtop - Vbot)/(self.W[i]+1)
+            for j in range(self.W[i]):
                 if self.gap_inv:
-                    dv_profile[idx+j] = Vbot + dV*(j+1)
-                    dv_profile[idx+j+self.W-1] = Vbot + dV*(j+1)
+                    dv_profile[idx+j, idx+j] = Vbot + dV*(j+0.5)
+                    dv_profile[idx+j+W, idx+j+W] = Vbot + dV*(j+1)
                 else:
-                    dv_profile[idx+j] = Vbot + dV*(j+1)
-                    dv_profile[idx+j+self.W-1] = Vbot + dV*(j+1)
-                    dv_profile[idx+j+2*self.W-1] = Vbot + dV*(j+1)
-                    dv_profile[idx+j+3*self.W-1] = Vbot + dV*(j+1)
+                    dv_profile[idx+j, idx+j] = Vbot + dV*(j+0.5)
+                    dv_profile[idx+j+W, idx+j+W] = Vbot + dV*(j+1)
+                    dv_profile[idx+j+2*W, idx+j+2*W] = Vbot + dV*(j+0.5)
+                    dv_profile[idx+j+3*W, idx+j+3*W] = Vbot + dV*(j+1)
         '''
-        Generate on site energy
+        Combine
         '''
-        self.H_lead = copy.deepcopy(self.H)
-        for m in range(self.ML_size):
-            block = int(m/self.brick_size)        # get current block
-            '''
-            On site gap energy
-            '''
-            site_gap = gap_profile[block]
-            '''
-            Potential
-            '''
-            if m%4 == 0 or m%4 == 3:
-                site_V = (vbot_profile[block]+dv_profile[block])
-            else:
-                site_V = (vbot_profile[block]+dv_profile[block]-dv_raw[block])
-            ##
-            if lattice == 'MLG':
-                if block == max(self.L1_stop) and self.add_top:
-                    ## top cell ##
-                    if m%self.brick_size == 0:
-                        self.H[m,m] = 1000
-                        self.H_lead[m,m] = 1000
-                    elif m%self.brick_size == 1:
-                        self.H[m,m] = -site_gap+site_V
-                        self.H_lead[m,m] = -site_gap
-                    elif m%self.brick_size == 2:
-                        self.H[m,m] = site_gap+site_V
-                        self.H_lead[m,m] = site_gap
-                    else:
-                        self.H[m,m] = -1000
-                        self.H_lead[m,m] = -1000
-                else:
-                    if m%2 == 0:
-                        self.H[m,m] = site_gap+site_V
-                        self.H_lead[m,m] = site_gap
-                    else:
-                        self.H[m,m] = -site_gap+site_V
-                        self.H_lead[m,m] = -site_gap
-            elif lattice == 'BLG':
-                if block == max(self.L1_stop) and self.add_top:
-                    ## top cell ##
-                    if m%self.brick_size == 1 or m%self.brick_size == 2:
-                        self.H[m,m] = site_gap+site_V
-                        self.H[m+self.ML_size,m+self.ML_size] = -site_gap+site_V
-                        self.H_lead[m,m] = site_gap
-                        self.H_lead[m+self.ML_size,m+self.ML_size] = -site_gap
-                    else:
-                        self.H[m,m] = 1000
-                        self.H[m+self.ML_size,m+self.ML_size] = -1000
-                        self.H_lead[m,m] = 1000
-                        self.H_lead[m+self.ML_size,m+self.ML_size] = -1000
-                else:
-                    self.H[m,m] = site_gap+site_V
-                    self.H[m+self.ML_size,m+self.ML_size] = -site_gap+site_V
-                    self.H_lead[m,m] = site_gap
-                    self.H_lead[m+self.ML_size,m+self.ML_size] = -site_gap
+        self.H += gap_profile
+        self.H += dv_profile
     def __off_diagonal__(self):
         empty_matrix = np.zeros((self.SU_size,self.SU_size), dtype=np.complex128)
         ## unit cell H
@@ -504,103 +451,118 @@ class AGNR_new():
         Pf = []
         l1s = self.L1_start[0]
         l1e = self.L1_stop[-1]
-        blockHAA = []
         blockHAB = []
         blockHAC = []
+        blockHAD = []
         blockHBC = []
         blockHBD = []
-        blockPB = []
-        blockPD = []
-        for r in range(sum(self.W)):
-            rowHAA = []
-            rowHAB = []
+        blockPAA = []
+        blockPBB = []
+        blockPAC = []
+        blockPBD = []
+        SU = int(sum(self.W)/2)
+        SU_add = sum(self.W)%2
+        if self.SU_type == 'separate':
+            SU_sep = SU + SU_add
+            SU_ovl = SU
+        elif self.SU_type == 'overlap':
+            SU_sep = SU
+            SU_ovl = SU + SU_add
+        else:
+            raise ValueError('Unresolved type:',self.SU_type)
+        ## AA and AC matrix
+        for r in range(SU_sep):
+            rowPAA = []
             rowHAC = []
-            rowHBC = []
-            rowHBD = []
-            rowPB = []
-            rowPD = []
-            for c in range(sum(self.W)):
-                if r >= l1s and r <= l1e:
-                    if c >= l1s and c <= l1e:
-                        if r == c:
-                            rowHAA.append(self.__MAA__)
-                            rowHAB.append(self.__MAB__)
-                            rowHAC.append(self.__MAC__)
-                            rowHBC.append(self.__MBC__)
-                            rowHBD.append(self.__MBD__)
-                            rowPB.append(self.__PAAB__)
-                            rowPD.append(self.__PAAD__)
-                        elif r == c-1:
-                            rowHAA.append(self.__MnAA__)
-                            rowHAB.append(empty_matrix)
-                            rowHAC.append(self.__MnAC__)
-                            rowHBC.append(empty_matrix)
-                            rowHBD.append(empty_matrix)
-                            rowPB.append(empty_matrix)
-                            rowPD.append(empty_matrix)
-                        elif r == c+1:
-                            rowHAA.append(empty_matrix)
-                            rowHAB.append(empty_matrix)
-                            rowHAC.append(empty_matrix)
-                            rowHBC.append(empty_matrix)
-                            rowHBD.append(self.__MpBD__)
-                            rowPB.append(empty_matrix)
-                            rowPD.append(empty_matrix)
-                        else:
-                            rowHAA.append(empty_matrix)
-                            rowHAB.append(empty_matrix)
-                            rowHAC.append(empty_matrix)
-                            rowHBC.append(empty_matrix)
-                            rowHBD.append(empty_matrix)
-                            rowPB.append(empty_matrix)
-                            rowPD.append(empty_matrix)
-                    else:
-                        rowHAA.append(empty_matrix)
-                        rowHAB.append(empty_matrix)
-                        rowHAC.append(empty_matrix)
-                        rowHBC.append(empty_matrix)
-                        rowHBD.append(empty_matrix)
-                        rowPB.append(empty_matrix)
-                        rowPD.append(empty_matrix)
+            rowPAC = []
+            for c in range(SU_sep):
+                if r == c:
+                    rowPAA.append(self.__PAAA__)
+                    rowHAC.append(self.__MAC__)
+                    rowPAC.append(self.__PAAC__)
                 else:
-                    rowHAA.append(empty_matrix)
-                    rowHAB.append(empty_matrix)
+                    rowPAA.append(empty_matrix)
                     rowHAC.append(empty_matrix)
+                    rowPAC.append(empty_matrix)
+            else:
+                blockHAC.append(rowHAC)
+                blockPAA.append(rowPAA)
+                blockPAC.append(rowPAC)
+        ## AB and AD matrix
+        for r in range(SU_sep):
+            rowHAB = []
+            rowHAD = []
+            for c in range(SU_ovl):
+                if r == c:
+                    rowHAB.append(self.__MAB__)
+                    rowHAD.append(self.__MAD__)
+                elif r == c+1:
+                    rowHAB.append(self.__MpAB__)
+                    rowHAD.append(self.__MpAD__)
+                else:
+                    rowHAB.append(empty_matrix)
+                    rowHAD.append(empty_matrix)
+            else:
+                blockHAB.append(rowHAB)
+                blockHAD.append(rowHAD)
+        ## BC matrix
+        for r in range(SU_ovl):
+            rowHBC = []
+            for c in range(SU_sep):
+                if r == c:
+                    rowHBC.append(self.__MBC__)
+                elif r == c-1:
+                    rowHBC.append(self.__MnBC__)
+                else:
                     rowHBC.append(empty_matrix)
+            else:
+                blockHBC.append(rowHBC)
+        ## BD matrix
+        for r in range(SU_ovl):
+            rowHBD = []
+            rowPBB = []
+            rowPBD = []
+            for c in range(SU_ovl):
+                if r == c:
+                    rowHBD.append(self.__MBD__)
+                    rowPBB.append(self.__PAAA__)
+                    rowPBD.append(self.__PABD__)
+                else:
                     rowHBD.append(empty_matrix)
-                    rowPB.append(empty_matrix)
-                    rowPD.append(empty_matrix)
-            blockHAA.append(rowHAA)
-            blockHAB.append(rowHAB)
-            blockHAC.append(rowHAC)
-            blockHBC.append(rowHBC)
-            blockHBD.append(rowHBD)
-            blockPB.append(rowPB)
-            blockPD.append(rowPD)
-        else:
-            blockHAA = np.block(blockHAA)
-            blockHAB = np.block(blockHAB)
-            blockHAC = np.block(blockHAC)
-            blockHBC = np.block(blockHBC)
-            blockHBD = np.block(blockHBD)
-            blockPB = np.block(blockPB)
-            blockPD = np.block(blockPD)
+                    rowPBB.append(empty_matrix)
+                    rowPBD.append(empty_matrix)
+            else:
+                blockHBD.append(rowHBD)
+                blockPBB.append(rowPBB)
+                blockPBD.append(rowPBD)
+        blockHAB = np.block(blockHAB)
+        blockHAC = np.block(blockHAC)
+        blockHAD = np.block(blockHAD)
+        blockHBC = np.block(blockHBC)
+        blockHBD = np.block(blockHBD)
+        blockPAA = np.block(blockPAA)
+        blockPAC = np.block(blockPAC)
+        blockPBB = np.block(blockPBB)
+        blockPBD = np.block(blockPBD)
         ## combine matrix
-        empty_matrix = np.zeros((self.SU_size*sum(self.W),self.SU_size*sum(self.W)), dtype=np.complex128)
+        m_ss = np.zeros((self.SU_size*SU_sep,self.SU_size*SU_sep), dtype=np.complex128)
+        m_so = np.zeros((self.SU_size*SU_sep,self.SU_size*SU_ovl), dtype=np.complex128)
+        m_os = np.zeros((self.SU_size*SU_ovl,self.SU_size*SU_sep), dtype=np.complex128)
+        m_oo = np.zeros((self.SU_size*SU_ovl,self.SU_size*SU_ovl), dtype=np.complex128)
         if self.gap_inv == 1:
-            H = [[blockHAA      , blockHAB],
-                 [empty_matrix, blockHAA]]
-            P = [[empty_matrix, blockPB],
-                 [empty_matrix, empty_matrix]]
+            H = [[m_ss, blockHAB],
+                 [m_os, m_oo]]
+            P = [[blockPAA, m_so],
+                 [m_os, blockPBB]]
         else:
-            H = [[blockHAA,blockHAB,blockHAC,empty_matrix],
-                 [empty_matrix,blockHAA,blockHBC,blockHBD],
-                 [empty_matrix,empty_matrix,blockHAA,blockHAB],
-                 [empty_matrix,empty_matrix,empty_matrix,blockHAA]]
-            P = [[empty_matrix,blockPB,empty_matrix,blockPD],
-                 [empty_matrix,empty_matrix,empty_matrix,empty_matrix],
-                 [empty_matrix,empty_matrix,empty_matrix,blockPB],
-                 [empty_matrix,empty_matrix,empty_matrix,empty_matrix]]
+            H = [[m_ss,blockHAB,blockHAC,blockHAD],
+                 [m_os,m_oo,blockHBC,blockHBD],
+                 [m_ss,m_so,m_ss,blockHAB],
+                 [m_os,m_oo,m_os,m_oo]]
+            P = [[blockPAA,m_so,blockPAC,m_so],
+                 [m_os,blockPBB,m_os,blockPBD],
+                 [m_ss,m_so,blockPAA,m_so],
+                 [m_os,m_oo,m_os,blockPBB]]
         self.H = np.block(H)
         self.H = self.H + np.transpose(np.conj(self.H))
         self.Pf = np.block(P)
@@ -623,37 +585,35 @@ class AGNR_new():
         ==============================================
                                    b'  a',B'  A'
         SU type: overlap           X----0====O
-                                   A   B,C   D
+                                   B   B,D   D
         ==============================================
                                 a    A    b    B
         SU type: separate       X    O    X    O
-                                A    C    B    D
+                                A    C    A    C
         ==============================================
-        H sequence: a,b',...,b,a',...,A,B',...B,A',...
+        H sequence: a,b,...,a',b',...,A,B,...A',B',...
         '''
         empty_matrix = np.zeros((self.SU_size,self.SU_size), dtype=np.complex128)
         ## same layer hopping
-        self.__MAA__ = copy.deepcopy(empty_matrix)
-        self.__MAA__[0,1] = -self.mat.r0
-        self.__MnAA__ = copy.deepcopy(empty_matrix)
-        self.__MnAA__[1,0] = -self.mat.r0
         self.__MAB__ = copy.deepcopy(empty_matrix)
-        self.__MAB__[1,1] = -self.mat.r0
-        self.__PAAB__ = copy.deepcopy(empty_matrix)
-        self.__PAAB__[0,0] = -self.mat.r0
+        self.__MAB__[0,1] = -self.mat.r0
+        self.__MAB__[1,0] = -self.mat.r0
+        self.__MpAB__ = self.__MAB__
+        self.__PAAA__ = copy.deepcopy(empty_matrix)
+        self.__PAAA__[0,1] = -self.mat.r0
         ## inter layer hopping
         self.__MAC__ = copy.deepcopy(empty_matrix)
         self.__MAC__[1,0] = -self.mat.r3
-        self.__MnAC__ = self.__MAC__
-        self.__MBC__ = copy.deepcopy(empty_matrix)
-        self.__MBC__[0,0] = -self.mat.r3
-        self.__MBC__[1,1] = -self.mat.r1
-        self.__PAAD__ = copy.deepcopy(empty_matrix)
-        self.__PAAD__[0,0] = -self.mat.r1
-        self.__PAAD__[1,1] = -self.mat.r3
+        self.__MAD__ = self.__MAC__
+        self.__MpAD__ = self.__MAC__
+        self.__MBC__ = self.__MAC__
+        self.__MnBC__ = self.__MAC__
         self.__MBD__ = copy.deepcopy(empty_matrix)
-        self.__MBD__[0,1] = -self.mat.r3
-        self.__MpBD__ = self.__MBD__
+        self.__MBD__[0,1] = -self.mat.r1
+        self.__PAAC__ = copy.deepcopy(empty_matrix)
+        self.__PAAC__[0,1] = -self.mat.r1
+        self.__PABD__ = copy.deepcopy(empty_matrix)
+        self.__PABD__[1,0] = -self.mat.r3
 class AMNR():
     def __init__(self, setup, job):
         self.mat = setup['material']            # unit cell material

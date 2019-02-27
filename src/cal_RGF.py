@@ -52,8 +52,8 @@ class CPU():
         phase_p = np.exp(1j*kx*self.mat.ax)
         phase_n = np.exp(-1j*kx*self.mat.ax)
         P_phase = phase_n-phase_p
-        Pp = input_unit.P_plus
-        Pn = input_unit.P_minus
+        Pp = input_unit.Pf
+        Pn = input_unit.Pb
         ## calculate RGF ##
         for mesh_idx, key in enumerate(mesh_grid):
             unit = self.unit_list[key]

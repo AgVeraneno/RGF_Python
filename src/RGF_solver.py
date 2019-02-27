@@ -58,6 +58,7 @@ if __name__ == '__main__':
             job_list[key]['gap'].append(float(job['gap']))
         else:
             new_job = {}
+            new_job['region'] = str(job['region'])
             new_job['type'] = [str(job['cell_type'])]
             new_job['shift'] = [int(job['shift'])]
             new_job['width'] = [int(job['width'])]
@@ -82,10 +83,10 @@ if __name__ == '__main__':
             folder = '../output/debug/'
             if not os.path.exists(folder):
                 os.mkdir(folder)
-            file_name = unit.info['region']+'_'+unit.info['lattice']+'_'+unit.info['brief']
+            file_name = unit.filename
             IO_util.saveAsCSV(folder+file_name+'_H.csv', unit.H)
-            IO_util.saveAsCSV(folder+file_name+'_P+.csv', unit.P_plus)
-            IO_util.saveAsCSV(folder+file_name+'_P-.csv', unit.P_minus)
+            IO_util.saveAsCSV(folder+file_name+'_P+.csv', unit.Pf)
+            IO_util.saveAsCSV(folder+file_name+'_P-.csv', unit.Pb)
     t_unitGen = time.time() - t_start
     print('Generate unit cell time:',t_unitGen,'(sec)')
     '''
