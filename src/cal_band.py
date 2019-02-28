@@ -17,8 +17,8 @@ class CPU():
         Pf = self.unit.Pf
         Pb = self.unit.Pb
         Heig = H+\
-               np.exp(1j*kx*self.ax)*Pf+\
-               np.exp(-1j*kx*self.ax)*Pb
+               np.exp(1j*kx*self.ax)*Pb+\
+               np.exp(-1j*kx*self.ax)*Pf
         val, vec = np.linalg.eigh(Heig)
         #val, vec = self.__sort__(val, vec)
         self.val.append({'kx':self.kx_norm,
