@@ -59,6 +59,7 @@ if __name__ == '__main__':
         else:
             new_job = {}
             new_job['region'] = str(job['region'])
+            new_job['cell_type'] = str(job['cell_type'])
             new_job['type'] = [str(job['cell_type'])]
             new_job['shift'] = [int(job['shift'])]
             new_job['width'] = [int(job['width'])]
@@ -113,7 +114,7 @@ if __name__ == '__main__':
             file_name = key
             IO_util.saveAsCSV(folder+file_name+'_BS.csv', plot_table)
             try:
-                IO_util.saveAsFigure(setup, 0, unit, plot_table, save_type='band')
+                IO_util.saveAsFigure(setup, key, unit, plot_table, save_type='band')
             except:
                 warnings.warn("error when ploting figures. Skip and continue.")
     t_band = time.time() - t_start

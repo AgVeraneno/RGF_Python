@@ -189,9 +189,9 @@ def saveAsFigure(setup, u_idx, unit, table, save_type=None):
         kx_sweep = np.array(table)[:,0]
         for y_idx in range(np.size(eig_mat,1)):
             pyplot.plot(kx_sweep,eig_mat[:,y_idx])
-            pyplot.xlim([0,1])
+            #pyplot.xlim([0,1])
             pyplot.ylim([-10,10])
-            pyplot.xlabel("kx*ax/(2*pi)")
+            pyplot.xlabel("kx*ax/pi")
             pyplot.ylabel("E (eV)")
         ## output to figures
 
@@ -203,7 +203,7 @@ def saveAsFigure(setup, u_idx, unit, table, save_type=None):
                 pyplot.plot(kx_sweep,eig_mat[:,y_idx])
                 pyplot.xlim([0,0.4])
                 pyplot.ylim([-0.5,0.5])
-                pyplot.xlabel("kx*ax/(2*pi)")
+                pyplot.xlabel("kx*ax/pi")
                 pyplot.ylabel("E (eV)")
             pyplot.savefig('../output/'+file_name+'_zoom.png')
             pyplot.close()

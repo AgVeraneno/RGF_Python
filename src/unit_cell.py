@@ -9,6 +9,7 @@ class AGNR():
     P_minus: backward inter unit cell hopping matrix
     '''
     def __init__(self, setup, job):
+        self.filename = job['region']+'_'+setup['lattice']+'_'+setup['brief']
         self.mat = setup['material']            # unit cell material
         self.brick_size = int(setup['brick_size'])# sub unitcell size
         self.__structure__(job)                 # build unit cell geometry
@@ -34,6 +35,8 @@ class AGNR():
         self.P_plus = copy.deepcopy(empty_matrix)
         self.P_minus = copy.deepcopy(empty_matrix)
         self.__gen_Hamiltonian__(setup['lattice'])
+        self.Pf = self.P_plus
+        self.Pb = self.P_minus
     def __structure__(self, job):
         ## matrix size
         if job['cell_type'] == 'wave':
@@ -454,10 +457,11 @@ class AGNR_new():
         blockHAB = []
         blockHAC = []
         blockHAD = []
+        blockHBB = []
         blockHBC = []
         blockHBD = []
         blockPAA = []
-        blockPBB = []
+        
         blockPAC = []
         blockPBD = []
         SU = int(sum(self.W)/2)
@@ -520,29 +524,29 @@ class AGNR_new():
         ## BD matrix
         for r in range(SU_ovl):
             rowHBD = []
-            rowPBB = []
+            rowHBB = []
             rowPBD = []
             for c in range(SU_ovl):
                 if r == c:
                     rowHBD.append(self.__MBD__)
-                    rowPBB.append(self.__PAAA__)
+                    rowHBB.append(self.__PAAA__)
                     rowPBD.append(self.__PABD__)
                 else:
                     rowHBD.append(empty_matrix)
-                    rowPBB.append(empty_matrix)
+                    rowHBB.append(empty_matrix)
                     rowPBD.append(empty_matrix)
             else:
                 blockHBD.append(rowHBD)
-                blockPBB.append(rowPBB)
+                blockHBB.append(rowHBB)
                 blockPBD.append(rowPBD)
         blockHAB = np.block(blockHAB)
         blockHAC = np.block(blockHAC)
         blockHAD = np.block(blockHAD)
+        blockHBB = np.block(blockHBB)
         blockHBC = np.block(blockHBC)
         blockHBD = np.block(blockHBD)
         blockPAA = np.block(blockPAA)
         blockPAC = np.block(blockPAC)
-        blockPBB = np.block(blockPBB)
         blockPBD = np.block(blockPBD)
         ## combine matrix
         m_ss = np.zeros((self.SU_size*SU_sep,self.SU_size*SU_sep), dtype=np.complex128)
@@ -551,18 +555,18 @@ class AGNR_new():
         m_oo = np.zeros((self.SU_size*SU_ovl,self.SU_size*SU_ovl), dtype=np.complex128)
         if self.gap_inv == 1:
             H = [[m_ss, blockHAB],
-                 [m_os, m_oo]]
+                 [m_os, blockHBB]]
             P = [[blockPAA, m_so],
-                 [m_os, blockPBB]]
+                 [m_os, m_oo]]
         else:
             H = [[m_ss,blockHAB,blockHAC,blockHAD],
-                 [m_os,m_oo,blockHBC,blockHBD],
+                 [m_os,blockHBB,blockHBC,blockHBD],
                  [m_ss,m_so,m_ss,blockHAB],
-                 [m_os,m_oo,m_os,m_oo]]
+                 [m_os,m_oo,m_os,blockHBB]]
             P = [[blockPAA,m_so,blockPAC,m_so],
-                 [m_os,blockPBB,m_os,blockPBD],
+                 [m_os,m_oo,m_os,blockPBD],
                  [m_ss,m_so,blockPAA,m_so],
-                 [m_os,m_oo,m_os,blockPBB]]
+                 [m_os,m_oo,m_os,m_oo]]
         self.H = np.block(H)
         self.H = self.H + np.transpose(np.conj(self.H))
         self.Pf = np.block(P)

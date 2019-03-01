@@ -8,9 +8,7 @@ class CPU():
         self.mesh = int(setup['kx_mesh'])
         self.val = []
     def setKx(self, l_idx):
-        kx = 2*l_idx*np.pi/(self.ax*self.mesh)
-        self.kx_norm = kx*self.ax/np.pi
-        return kx
+        return 2*np.pi*l_idx/(self.ax*self.mesh)
     def calState(self, l_idx, returnKx=False):
         kx = self.setKx(l_idx)
         H = self.unit.H
@@ -20,13 +18,10 @@ class CPU():
                np.exp(1j*kx*self.ax)*Pb+\
                np.exp(-1j*kx*self.ax)*Pf
         val, vec = np.linalg.eigh(Heig)
-        #val, vec = self.__sort__(val, vec)
-        self.val.append({'kx':self.kx_norm,
-                         'val':val})
         if returnKx:
             return kx, val, vec
         else:
-            return self.kx_norm, val, vec
+            return kx*self.ax/np.pi, val, vec
     def getCBidx(self, gap, eig_val):
         #return int(np.size(self.unit.H,0)/2)
         return int(self.CB_idx)
