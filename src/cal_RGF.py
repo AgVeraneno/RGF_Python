@@ -1,5 +1,6 @@
 import copy, os, time
 import numpy as np
+from scipy import linalg as LA
 import data_util, cal_band
 
 class CPU():
@@ -42,7 +43,6 @@ class CPU():
         '''
         calculate RGF with assigned conduction band
         '''
-        
         ## calculate incident state
         input_unit = self.unit_list[mesh_grid[0]]
         kx, E, i_state = self.setBand(input_unit, kx_idx)
@@ -52,12 +52,12 @@ class CPU():
         phase_p = np.exp(1j*kx*self.mat.ax)
         phase_n = np.exp(-1j*kx*self.mat.ax)
         P_phase = phase_n-phase_p
-        Pp = input_unit.Pf
-        Pn = input_unit.Pb
         ## calculate RGF ##
         for mesh_idx, key in enumerate(mesh_grid):
             unit = self.unit_list[key]
             H = unit.H
+            Pp = unit.Pf
+            Pn = unit.Pb
             if self.reflect:
                 if mesh_idx == 0:
                     ## Calculate first G00 and Gnn
