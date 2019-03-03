@@ -409,7 +409,16 @@ class AGNR_new():
         self.__off_diagonal__()
         self.__on_site_energy__()
     def __on_site_energy__(self):
-        W = sum(self.W)
+        SU = int(sum(self.W)/2)
+        SU_add = sum(self.W)%2
+        if self.SU_type == 'separate':
+            SU_sep = SU + SU_add
+            SU_ovl = SU
+        elif self.SU_type == 'overlap':
+            SU_sep = SU
+            SU_ovl = SU + SU_add
+        else:
+            raise ValueError('Unresolved type:',self.SU_type)
         '''
         Gap Profile
         '''
@@ -461,7 +470,6 @@ class AGNR_new():
         blockHBC = []
         blockHBD = []
         blockPAA = []
-        
         blockPAC = []
         blockPBD = []
         SU = int(sum(self.W)/2)
