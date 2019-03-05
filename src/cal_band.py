@@ -1,4 +1,5 @@
 import os, copy
+from scipy import linalg as LA
 import numpy as np
 
 class CPU():
@@ -8,7 +9,7 @@ class CPU():
         self.mesh = int(setup['kx_mesh'])
         self.val = []
     def setKx(self, l_idx):
-        return 2*np.pi*l_idx/(self.ax*self.mesh)
+        return 2*np.pi*l_idx/(self.ax*(self.mesh-1))
     def calState(self, l_idx, returnKx=False):
         kx = self.setKx(l_idx)
         H = self.unit.H
@@ -17,7 +18,9 @@ class CPU():
         Heig = H+\
                np.exp(1j*kx*self.ax)*Pb+\
                np.exp(-1j*kx*self.ax)*Pf
-        val, vec = np.linalg.eigh(Heig)
+        #val, vec = np.linalg.eigh(Heig)
+        output = LA.lapack.zgeev(Heig)
+        val, vec = self.__sort__(output[0],output[1])
         if returnKx:
             return kx, val, vec
         else:
