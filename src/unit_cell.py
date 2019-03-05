@@ -701,6 +701,8 @@ class AMNR():
         self.P_plus = copy.deepcopy(empty_matrix)
         self.P_minus = copy.deepcopy(empty_matrix)
         self.__gen_Hamiltonian__(setup['lattice'])
+        self.Pf = self.P_plus
+        self.Pb = self.P_minus
     def __structure__(self, job):
         ## matrix size
         if job['cell_type'] == 'wave':
