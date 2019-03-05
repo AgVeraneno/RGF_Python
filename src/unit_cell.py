@@ -676,6 +676,7 @@ class AGNR_new():
         self.__PABD__[1,0] = -self.mat.r3
 class AMNR():
     def __init__(self, setup, job):
+        self.filename = job['region']+'_'+setup['lattice']+'_'+setup['brief']
         self.mat = setup['material']            # unit cell material
         self.brick_size = int(setup['brick_size'])# sub unitcell size
         self.__structure__(job)                 # build unit cell geometry
