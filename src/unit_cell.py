@@ -433,8 +433,8 @@ class AGNR_new():
             for j, sep in enumerate(range(SU_sep[i])):
                 m = 2*(shift+sep)
                 if self.gap_inv:        # MLG
-                    gap_profile[m,m] = gap*(1-j%2*2)
-                    gap_profile[m+1,m+1] = gap*(1-j%2*2)
+                    gap_profile[m,m] = gap
+                    gap_profile[m+1,m+1] = -gap
                 else:       # BLG
                     gap_profile[m,m] = gap
                     gap_profile[m+1,m+1] = gap
@@ -449,8 +449,8 @@ class AGNR_new():
             for j, sep in enumerate(range(SU_ovl[i])):
                 m = 2*(shift+sep)
                 if self.gap_inv:        # MLG
-                    gap_profile[m,m] = gap*(1-j%2*2)
-                    gap_profile[m+1,m+1] = gap*(1-j%2*2)
+                    gap_profile[m,m] = gap
+                    gap_profile[m+1,m+1] = -gap
                 else:       # BLG
                     gap_profile[m,m] = gap
                     gap_profile[m+1,m+1] = gap
@@ -474,11 +474,24 @@ class AGNR_new():
                     if self.SU_type == 'separate':
                         dv_profile[m,m] = Vbot+2*(j+1)*dV
                         dv_profile[m+1,m+1] = Vbot+2*(j+1)*dV
+                    elif self.SU_type == 'overlap':
+                        dv_profile[m,m] = Vbot+2*(j+1.5)*dV
+                        dv_profile[m+1,m+1] = Vbot+2*(j+1.5)*dV
+                    else:
+                        raise ValueError('Unresolved type:',self.SU_type)
                 else:       # BLG
-                    dv_profile[m,m] = Vbot+2*(j+1)*dV
-                    dv_profile[m+1,m+1] = Vbot+2*(j+1)*dV
-                    dv_profile[m+W,m+W] = Vbot+2*(j+1)*dV
-                    dv_profile[m+W+1,m+W+1] = Vbot+2*(j+1)*dV
+                    if self.SU_type == 'separate':
+                        dv_profile[m,m] = Vbot+2*(j+1)*dV
+                        dv_profile[m+1,m+1] = Vbot+2*(j+1)*dV
+                        dv_profile[m+W,m+W] = Vbot+2*(j+1)*dV
+                        dv_profile[m+W+1,m+W+1] = Vbot+2*(j+1)*dV
+                    elif self.SU_type == 'overlap':
+                        dv_profile[m,m] = Vbot+2*(j+1.5)*dV
+                        dv_profile[m+1,m+1] = Vbot+2*(j+1.5)*dV
+                        dv_profile[m+W,m+W] = Vbot+2*(j+1.5)*dV
+                        dv_profile[m+W+1,m+W+1] = Vbot+2*(j+1.5)*dV
+                    else:
+                        raise ValueError('Unresolved type:',self.SU_type)
             else:
                 shift += SU_sep[i]
         ## overlap type sub unit
@@ -490,13 +503,27 @@ class AGNR_new():
             for j, sep in enumerate(range(SU_ovl[i])):
                 m = 2*(shift+sep)
                 if self.gap_inv:        # MLG
-                    dv_profile[m,m] = Vbot+2*(j+1.5)*dV
-                    dv_profile[m+1,m+1] = Vbot+2*(j+1.5)*dV
+                    if self.SU_type == 'separate':
+                        dv_profile[m,m] = Vbot+2*(j+1.5)*dV
+                        dv_profile[m+1,m+1] = Vbot+2*(j+1.5)*dV
+                    elif self.SU_type == 'overlap':
+                        dv_profile[m,m] = Vbot+2*(j+1)*dV
+                        dv_profile[m+1,m+1] = Vbot+2*(j+1)*dV
+                    else:
+                        raise ValueError('Unresolved type:',self.SU_type)
                 else:       # BLG
-                    dv_profile[m,m] = Vbot+2*(j+1.5)*dV
-                    dv_profile[m+1,m+1] = Vbot+2*(j+1.5)*dV
-                    dv_profile[m+W,m+W] = Vbot+2*(j+1.5)*dV
-                    dv_profile[m+W+1,m+W+1] = Vbot+2*(j+1.5)*dV
+                    if self.SU_type == 'separate':
+                        dv_profile[m,m] = Vbot+2*(j+1.5)*dV
+                        dv_profile[m+1,m+1] = Vbot+2*(j+1.5)*dV
+                        dv_profile[m+W,m+W] = Vbot+2*(j+1.5)*dV
+                        dv_profile[m+W+1,m+W+1] = Vbot+2*(j+1.5)*dV
+                    elif self.SU_type == 'overlap':
+                        dv_profile[m,m] = Vbot+2*(j+1)*dV
+                        dv_profile[m+1,m+1] = Vbot+2*(j+1)*dV
+                        dv_profile[m+W,m+W] = Vbot+2*(j+1)*dV
+                        dv_profile[m+W+1,m+W+1] = Vbot+2*(j+1)*dV
+                    else:
+                        raise ValueError('Unresolved type:',self.SU_type)
             else:
                 shift += SU_ovl[i]
         '''
