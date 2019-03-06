@@ -65,11 +65,11 @@ class CPU():
                     Gnn = np.linalg.inv(G_inv)
                 elif mesh_idx == len(mesh_grid)-1:
                     ## Calculate last Gnn and Gn0
-                    G_inv = E_matrix - H - Pp*phase_p - np.dot(Pn, np.dot(Gnn,Pp))
+                    G_inv = E_matrix - H - Pp*phase_p - np.matmul(Pn, np.matmul(Gnn,Pp))
                     Gnn = np.linalg.inv(G_inv)
                 else:
                     ## Calculate Gnn and Gn0
-                    G_inv = E_matrix - H - np.dot(Pn, np.dot(Gnn,Pp))
+                    G_inv = E_matrix - H - np.matmul(Pn, np.dot(Gnn,Pp))
                     Gnn = np.linalg.inv(G_inv)
             else:
                 if mesh_idx == 0:
@@ -79,21 +79,21 @@ class CPU():
                     Gn0 = copy.deepcopy(Gnn)
                 elif mesh_idx == len(mesh_grid)-1:
                     ## Calculate last Gnn and Gn0
-                    G_inv = E_matrix - H - Pn*phase_p - np.dot(Pp, np.dot(Gnn,Pn))
+                    G_inv = E_matrix - H - Pn*phase_p - np.matmul(Pp, np.matmul(Gnn,Pn))
                     Gnn = np.linalg.inv(G_inv)
-                    Gn0 = np.dot(Gnn, np.dot(Pp,Gn0))
+                    Gn0 = np.matmul(Gnn, np.matmul(Pp,Gn0))
                 else:
                     ## Calculate Gnn and Gn0
-                    G_inv = E_matrix - H - np.dot(Pp, np.dot(Gnn,Pn))
+                    G_inv = E_matrix - H - np.matmul(Pp, np.matmul(Gnn,Pn))
                     Gnn = np.linalg.inv(G_inv)
-                    Gn0 = np.dot(Gnn, np.dot(Pp,Gn0))
+                    Gn0 = np.matmul(Gnn, np.matmul(Pp,Gn0))
         else:
             ## calculate T
-            J0 = 1j*self.mat.ax/self.mat.h_bar*(np.dot(Pn, phase_p)-np.dot(Pp, phase_n))
+            J0 = 1j*self.mat.ax/self.mat.h_bar*(Pn*phase_p-Pp*phase_n)
             if self.reflect:
-                T_matrix = np.eye(m_size, dtype=np.complex128)*-1 + np.dot(Gnn, np.dot(Pp,P_phase))
+                T_matrix = np.eye(m_size, dtype=np.complex128)*-1 + np.dot(Gnn, np.matmul(Pp,P_phase))
             else:
-                T_matrix = np.dot(Gn0, np.dot(Pp,P_phase))
+                T_matrix = np.matmul(Gn0, Pp*P_phase)
             T = self.calTR(i_state, T_matrix, J0)
             t_mesh_stop = time.time() - t_mesh_start
             print('Mesh point @ kx=',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
@@ -103,8 +103,8 @@ class CPU():
         c0 = i_state
         cn = np.dot(Tmat, i_state)
         ## calculate current ##
-        Ji = np.vdot(c0, np.dot(J0, c0))
-        Jt = np.vdot(cn, np.dot(J0, cn))
+        Ji = np.vdot(c0, np.matmul(J0, c0))
+        Jt = np.vdot(cn, np.matmul(J0, cn))
         if not np.isclose(np.real(Ji),0):
             T = Jt/Ji
         else:

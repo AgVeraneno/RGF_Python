@@ -75,7 +75,7 @@ if __name__ == '__main__':
         if setup['brief'] == 'AGNR':
             unit_list[job['region']] = unit_cell.AGNR_new(setup, job)
         elif setup['brief'] == 'AMNR':
-            unit_list[job['region']] = unit_cell.AMNR(setup, job)
+            unit_list[job['region']] = unit_cell.AMNR_new(setup, job)
         else:
             raise ValueError('Non supported setup:',setup['brief'])
     ## print out matrix. debug use ##
