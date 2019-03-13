@@ -18,7 +18,8 @@ class CPU():
         Heig = H+\
                np.exp(1j*kx*self.ax)*Pb+\
                np.exp(-1j*kx*self.ax)*Pf
-        val, vec = np.linalg.eigh(Heig)
+        val, vec = np.linalg.eig(Heig)
+        val, vec = self.__sort__(val, vec)
         #output = LA.lapack.zgeev(Heig)
         #val, vec = self.__sort__(output[0],output[1])
         if returnKx:
