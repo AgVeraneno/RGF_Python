@@ -1,7 +1,7 @@
 import copy, os, time
 import numpy as np
 from scipy import linalg as LA
-import data_util, cal_band, IO_util
+import data_util, cal_band
 
 class CPU():
     def __init__(self, setup, unit_list):
@@ -29,7 +29,6 @@ class CPU():
         kx, val, vec = band_parser.calState(kx_idx, True)
         E = val[self.CB]
         i_state = vec[:,self.CB]
-        IO_util.saveAsCSV()
         return kx, E, i_state
     def calRGF_transmit(self, kx_idx):
         t_mesh_start = time.time()
