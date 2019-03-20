@@ -59,6 +59,9 @@ class CPU():
             Pp = unit.Pf
             Pn = unit.Pb
             if self.reflect:
+                '''
+                Reflection
+                '''
                 if mesh_idx == 0:
                     ## Calculate first G00 and Gnn
                     G_inv = E_matrix - H - Pn*phase_p
@@ -72,6 +75,9 @@ class CPU():
                     G_inv = E_matrix - H - np.matmul(Pn, np.dot(Gnn,Pp))
                     Gnn = np.linalg.inv(G_inv)
             else:
+                '''
+                Transmission
+                '''
                 if mesh_idx == 0:
                     ## Calculate lead input Green's function
                     G_inv = E_matrix - H - Pp*phase_p
