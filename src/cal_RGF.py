@@ -82,6 +82,15 @@ class CPU():
                     G_inv = E_matrix - H - Pn*phase_p - np.matmul(Pp, np.matmul(Gnn,Pn))
                     Gnn = np.linalg.inv(G_inv)
                     Gn0 = np.matmul(Gnn, np.matmul(Pp,Gn0))
+                elif mesh_idx == len(mesh_grid)-2:
+                    ## Store K and K' valley incident
+                    G_inv = E_matrix - H - Pn*phase_p - np.matmul(Pp, np.matmul(Gnn,Pn))
+                    Gmm = np.linalg.inv(G_inv)
+                    Gm0 = np.matmul(Gmm, np.matmul(Pp,Gn0))
+                    ## Calculate Gnn and Gn0
+                    G_inv = E_matrix - H - np.matmul(Pp, np.matmul(Gnn,Pn))
+                    Gnn = np.linalg.inv(G_inv)
+                    Gn0 = np.matmul(Gnn, np.matmul(Pp,Gn0))
                 else:
                     ## Calculate Gnn and Gn0
                     G_inv = E_matrix - H - np.matmul(Pp, np.matmul(Gnn,Pn))
