@@ -29,7 +29,32 @@ class CPU():
         kx, val, vec = band_parser.calState(kx_idx, True)
         E = val[self.CB]
         i_state = vec[:,self.CB]
-        return kx, E, i_state
+        '''
+        derive kx of other band with same energy
+        '''
+        kx2_idx = 0
+        E2 = val[self.CB+1]
+        E_pre = 0
+        kx2 = None
+        kx_pre = None
+        while True:
+            if kx2_idx > kx_idx:
+                kx2 = None
+                break
+            elif not np.isclose(E,E2):
+                E_pre = copy.deepcopy(E2)
+                kx_pre = copy.deepcopy(kx2)
+                kx2, val, _ = band_parser.calState(kx2_idx, True)
+                E2 = val[self.CB+1]
+                kx2_idx += 1
+            else:
+                kx2 = None
+                break
+            ## apply insert method if E2 has crossed E
+            if E_pre < E and E2 > E:
+                kx2 = (E2-E)/(E2-E_pre)*(kx2-kx_pre)
+                break
+        return kx, kx2, E, i_state
     def calRGF_transmit(self, kx_idx):
         t_mesh_start = time.time()
         '''
@@ -45,7 +70,7 @@ class CPU():
         '''
         ## calculate incident state
         input_unit = self.unit_list[mesh_grid[0]]
-        kx, E, i_state = self.setBand(input_unit, kx_idx)
+        kx, kx2, E, i_state = self.setBand(input_unit, kx_idx)
         m_size = np.size(input_unit.H,0)
         E_matrix = np.eye(m_size, dtype=np.complex128)*np.real(E)
         ## phase terms
@@ -88,15 +113,6 @@ class CPU():
                     G_inv = E_matrix - H - Pn*phase_p - np.matmul(Pp, np.matmul(Gnn,Pn))
                     Gnn = np.linalg.inv(G_inv)
                     Gn0 = np.matmul(Gnn, np.matmul(Pp,Gn0))
-                elif mesh_idx == len(mesh_grid)-2:
-                    ## Store K and K' valley incident
-                    G_inv = E_matrix - H - Pn*phase_p - np.matmul(Pp, np.matmul(Gnn,Pn))
-                    Gmm = np.linalg.inv(G_inv)
-                    Gm0 = np.matmul(Gmm, np.matmul(Pp,Gn0))
-                    ## Calculate Gnn and Gn0
-                    G_inv = E_matrix - H - np.matmul(Pp, np.matmul(Gnn,Pn))
-                    Gnn = np.linalg.inv(G_inv)
-                    Gn0 = np.matmul(Gnn, np.matmul(Pp,Gn0))
                 else:
                     ## Calculate Gnn and Gn0
                     G_inv = E_matrix - H - np.matmul(Pp, np.matmul(Gnn,Pn))
@@ -109,10 +125,21 @@ class CPU():
                 T_matrix = np.eye(m_size, dtype=np.complex128)*-1 + np.dot(Gnn, np.matmul(Pp,P_phase))
             else:
                 T_matrix = np.matmul(Gn0, Pp*P_phase)
-            T = self.calTR(i_state, T_matrix, J0)
+            ## check multi-band
+            if kx2 == None:
+                T = self.calTR(i_state, T_matrix, J0)
+                T2 = 0
+            else:
+                phase_p2 = np.exp(1j*kx2*self.mat.ax)
+                KpT = Pn + phase_p*H + phase_p**2*Pp
+                KnT = Pn + phase_p2*H + phase_p2**2*Pp
+                Tmat = np.matmul((np.eye(m_size, dtype=np.complex128) - np.matmul(np.linalg.inv(phase_p2*KpT-phase_p*KnT),KpT)), T_matrix)
+                T = self.calTR(i_state, Tmat, J0)
+                Tmat = np.matmul((np.matmul(np.linalg.inv(phase_p2*KpT-phase_p*KnT),KpT)), T_matrix)
+                T2 = self.calTR(i_state, Tmat, J0)
             t_mesh_stop = time.time() - t_mesh_start
             print('Mesh point @ kx=',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
-            return kx*self.mat.ax/np.pi, E, T
+            return kx*self.mat.ax/np.pi, E, T, T2
     def calTR(self, i_state, Tmat, J0):
         ## calculate states ##
         c0 = i_state
