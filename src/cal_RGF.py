@@ -76,14 +76,10 @@ class CPU():
         kx_list, E, i_state = self.setBand(input_unit, kx_idx)
         m_size = np.size(input_unit.H,0)
         E_matrix = np.eye(m_size, dtype=np.complex128)*np.real(E)
-        Ji_list = []
-        Jt_list = []
         ## calculate RGF ##
         phase_p = []
         phase_n = []
         P_phase = []
-        KT_list = []
-        T_list = []
         for kx in kx_list:
             ## phase terms
             phase_p.append(np.exp(1j*kx*self.mat.ax))
@@ -106,6 +102,7 @@ class CPU():
                     ## Calculate last Gnn and Gn0
                     G_inv = E_matrix - H - Pp*phase_p[0] - np.matmul(Pn, np.matmul(Gnn,Pp))
                     Gnn = np.linalg.inv(G_inv)
+                    T_matrix = np.eye(m_size, dtype=np.complex128)*-1 + np.dot(Gnn, np.matmul(Pp,P_phase[0]))
                 else:
                     ## Calculate Gnn and Gn0
                     G_inv = E_matrix - H - np.matmul(Pn, np.dot(Gnn,Pp))
@@ -124,42 +121,41 @@ class CPU():
                     G_inv = E_matrix - H - Pn*phase_p[0] - np.matmul(Pp, np.matmul(Gnn,Pn))
                     Gnn = np.linalg.inv(G_inv)
                     Gn0 = np.matmul(Gnn, np.matmul(Pp,Gn0))
-                    for i in range(len(kx_list)):
-                        KT_list.append((E_matrix - H)*phase_p[i] + Pn*phase_p[i]**2+Pp)
+                    T_matrix = np.matmul(Gn0, Pp*P_phase[0])
+                    CN = np.matmul(T_matrix, i_state)
                 else:
                     ## Calculate Gnn and Gn0
                     G_inv = E_matrix - H - np.matmul(Pp, np.matmul(Gnn,Pn))
                     Gnn = np.linalg.inv(G_inv)
                     Gn0 = np.matmul(Gnn, np.matmul(Pp,Gn0))
         else:
-            ## calculate T
+            ## Calculate multiple states
+            G_inv = E_matrix - H - Pn*sum(phase_p)
+            Gnn = np.linalg.inv(G_inv)
+            CN_next = -np.dot(Gnn, np.dot(Pp-Pn*np.prod(phase_p),CN))
             J0 = 1j*self.mat.ax/self.mat.h_bar*(Pn*phase_p[0]-Pp*phase_n[0])
-            if self.reflect:
-                T_matrix = np.eye(m_size, dtype=np.complex128)*-1 + np.dot(Gnn, np.matmul(Pp,P_phase[0]))
+            ## 2 mix states
+            if len(phase_p) > 1 and not np.isclose(phase_p[0], phase_p[1]).all():
+                CN1 = (CN_next-phase_p[1]*CN)/(phase_p[0]-phase_p[1])
+                CN2 = (CN_next-phase_p[0]*CN)/(phase_p[1]-phase_p[0])
+                ## calculate T
+                T1 = self.calTR(i_state, CN1, J0)
+                T2 = self.calTR(i_state, CN2, J0)
             else:
-                T_matrix = np.matmul(Gn0, Pp*P_phase[0])
-            for i in range(len(kx_list)):
-                try:
-                    new_Tmat = -np.matmul(np.matmul(np.linalg.inv(KT_list[i%2]-KT_list[(i+1)%2]),KT_list[(i+1)%2]),T_matrix)
-                    T, Jt, Ji = self.calTR(i_state, new_Tmat, J0)
-                    T_list.append(T)
-                except:
-                    T_list.append(0)
+                ## calculate T
+                T1 = self.calTR(i_state, CN, J0)
+                T2 = self.calTR(i_state, CN, J0)
             t_mesh_stop = time.time() - t_mesh_start
             print('Mesh point @ kx=',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
-            return kx_list[0]*self.mat.ax/np.pi, E, T_list[0]
-    def calTR(self, i_state, Tmat, J0):
-        ## calculate states ##
-        c0 = i_state
-        cn = np.dot(Tmat, i_state)
-        ## calculate current ##
-        Ji = np.vdot(c0, np.matmul(J0, c0))
-        Jt = np.vdot(cn, np.matmul(J0, cn))
+            return kx_list[0]*self.mat.ax/np.pi, E, T1, T2
+    def calTR(self, i_state, o_state, J0):
+        Ji = np.vdot(i_state, np.matmul(J0, i_state))
+        Jt = np.vdot(o_state, np.matmul(J0, o_state))
         if not np.isclose(np.real(Ji),0):
             T = Jt/Ji
         else:
             T = 0
-        return T, Jt, Ji
+        return T
     def sort_E(self, table):
         output = copy.deepcopy(table)
         E_sort = np.argsort(table[:,0], axis=0)
