@@ -21,7 +21,7 @@ class CPU():
             while counter < zone.L:
                 self.mesh_grid.append(key)
                 counter += 1
-    def setBand(self, unit, kx_idx):
+    def setBand(self, unit, kx_idx, o_zone=False):
         kx_list = []
         '''
         get incident state and energy
@@ -31,32 +31,33 @@ class CPU():
         E = val[self.CB]
         i_state = vec[:,self.CB]
         kx_list.append(kx)
-        '''
-        derive kx of other band with same energy
-        '''
-        kx2_idx = 0
-        E2 = val[self.CB+1]
-        E_pre = 0
-        kx2 = kx
-        kx_pre = None
-        while True:
-            if kx2_idx > kx_idx:
-                break
-            elif not np.isclose(E,E2):
-                E_pre = copy.deepcopy(E2)
-                kx_pre = copy.deepcopy(kx2)
-                kx2, val, _ = band_parser.calState(kx2_idx, True)
-                E2 = val[self.CB+1]
-                kx2_idx += 1
-            else:
-                kx_list.append(kx2)
-                break
-            ## apply insert method if E2 has crossed E
-            if E_pre < E and E2 > E:
-                kx2_idx = (E2-E)/(E2-E_pre)
-                kx2, val, _ = band_parser.calState(kx2_idx, True)
-                kx_list.append(kx2)
-                break
+        if o_zone:
+            '''
+            derive kx of other band with same energy
+            '''
+            kx2_idx = 0
+            E2 = val[self.CB+1]
+            E_pre = 0
+            kx2 = kx
+            kx_pre = None
+            while True:
+                if kx2_idx > kx_idx:
+                    break
+                elif not np.isclose(E,E2):
+                    E_pre = copy.deepcopy(E2)
+                    kx_pre = copy.deepcopy(kx2)
+                    kx2, val, _ = band_parser.calState(kx2_idx, True)
+                    E2 = val[self.CB+1]
+                    kx2_idx += 1
+                else:
+                    kx_list.append(kx2)
+                    break
+                ## apply insert method if E2 has crossed E
+                if E_pre < E and E2 > E:
+                    kx2_idx = (E2-E)/(E2-E_pre)
+                    kx2, val, _ = band_parser.calState(kx2_idx, True)
+                    kx_list.append(kx2)
+                    break
         return kx_list, E, i_state
     def calRGF_transmit(self, kx_idx):
         t_mesh_start = time.time()
@@ -73,18 +74,18 @@ class CPU():
         '''
         ## calculate incident state
         input_unit = self.unit_list[mesh_grid[0]]
-        kx_list, E, i_state = self.setBand(input_unit, kx_idx)
+        output_unit = self.unit_list[mesh_grid[-1]]
+        kx, E, i_state = self.setBand(input_unit, kx_idx)
+        kx_list_o, _, _ = self.setBand(output_unit, kx_idx, True)
         m_size = np.size(input_unit.H,0)
         E_matrix = np.eye(m_size, dtype=np.complex128)*np.real(E)
         ## calculate RGF ##
-        phase_p = []
-        phase_n = []
-        P_phase = []
-        for kx in kx_list:
-            ## phase terms
-            phase_p.append(np.exp(1j*kx*self.mat.ax))
-            phase_n.append(np.exp(-1j*kx*self.mat.ax))
-            P_phase.append(phase_n[-1]-phase_p[-1])
+        phase_p = np.exp(1j*kx[0]*self.mat.ax)
+        phase_n = np.exp(-1j*kx[0]*self.mat.ax)
+        P_phase = phase_n-phase_p
+        phase_o = []
+        for kx_o in kx_list_o:
+            phase_o.append(np.exp(1j*kx_o*self.mat.ax))
         for mesh_idx, key in enumerate(mesh_grid):
             unit = self.unit_list[key]
             H = unit.H
@@ -113,15 +114,15 @@ class CPU():
                 '''
                 if mesh_idx == 0:
                     ## Calculate lead input Green's function
-                    G_inv = E_matrix - H - Pp*phase_p[0]
+                    G_inv = E_matrix - H - Pp*phase_p
                     Gnn = np.linalg.inv(G_inv)
                     Gn0 = copy.deepcopy(Gnn)
                 elif mesh_idx == len(mesh_grid)-1:
                     ## Calculate last Gnn and Gn0
-                    G_inv = E_matrix - H - Pn*phase_p[0] - np.matmul(Pp, np.matmul(Gnn,Pn))
+                    G_inv = E_matrix - H - Pn*phase_p - np.matmul(Pp, np.matmul(Gnn,Pn))
                     Gnn = np.linalg.inv(G_inv)
                     Gn0 = np.matmul(Gnn, np.matmul(Pp,Gn0))
-                    T_matrix = np.matmul(Gn0, Pp*P_phase[0])
+                    T_matrix = np.matmul(Gn0, Pp*P_phase)
                     CN = np.matmul(T_matrix, i_state)
                 else:
                     ## Calculate Gnn and Gn0
@@ -130,14 +131,18 @@ class CPU():
                     Gn0 = np.matmul(Gnn, np.matmul(Pp,Gn0))
         else:
             ## Calculate multiple states
-            G_inv = E_matrix - H - Pn*sum(phase_p)
+            G_inv = E_matrix - H - Pn*sum(phase_o)
             Gnn = np.linalg.inv(G_inv)
-            CN_next = -np.dot(Gnn, np.dot(Pp-Pn*np.prod(phase_p),CN))
-            J0 = 1j*self.mat.ax/self.mat.h_bar*(Pn*phase_p[0]-Pp*phase_n[0])
+            CN_next = -np.dot(Gnn, np.dot(Pp-Pn*np.prod(phase_o),CN))
+            J0 = 1j*self.mat.ax/self.mat.h_bar*(Pn*phase_p-Pp*phase_n)
             ## 2 mix states
-            if len(phase_p) > 1 and not np.isclose(phase_p[0], phase_p[1]).all():
-                CN1 = (CN_next-phase_p[1]*CN)/(phase_p[0]-phase_p[1])
-                CN2 = (CN_next-phase_p[0]*CN)/(phase_p[1]-phase_p[0])
+            if len(phase_o) > 1:
+                if kx_list_o[0] != kx_list_o[1]:
+                    CN1 = (CN_next-phase_o[1]*CN)/(phase_o[0]-phase_o[1])
+                    CN2 = (CN_next-phase_o[0]*CN)/(phase_o[1]-phase_o[0])
+                else:
+                    CN1 = 0.5*CN
+                    CN2 = 0.5*CN
                 ## calculate T
                 T1 = self.calTR(i_state, CN1, J0)
                 T2 = self.calTR(i_state, CN2, J0)
@@ -147,7 +152,7 @@ class CPU():
                 T2 = self.calTR(i_state, CN, J0)
             t_mesh_stop = time.time() - t_mesh_start
             print('Mesh point @ kx=',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
-            return kx_list[0]*self.mat.ax/np.pi, E, T1, T2
+            return kx[0]*self.mat.ax/np.pi, E, T1, T2
     def calTR(self, i_state, o_state, J0):
         Ji = np.vdot(i_state, np.matmul(J0, i_state))
         Jt = np.vdot(o_state, np.matmul(J0, o_state))
