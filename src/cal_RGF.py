@@ -1,6 +1,5 @@
 import copy, os, time
 import numpy as np
-from scipy import linalg as LA
 import data_util, cal_band
 
 class CPU():
