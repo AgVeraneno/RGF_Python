@@ -1,0 +1,2 @@
+isGPU,isParallel,isDebug,isPlot_band,isPlot_zoom,isReflect,isRGF,parallel_CPU,material,lattice,direction,brief,SU_type,SU_hopping_size,brick_size,kx_mesh,mesh_start,mesh_stop,CB_idx_start,CB_idx_stop
+0,1,0,0,0,0,1,4,MoS2,MLG,Armchair,AMNR,separate,6,2,1000,0,100,16,16
