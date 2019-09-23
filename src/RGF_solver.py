@@ -5,9 +5,13 @@ import data_util, IO_util
 import unit_cell, cal_band, cal_RGF
 
 if __name__ == '__main__':
+    t_total = 0
     '''
     This program simulates ballistic transpotation along x-axis.
     '''
+    ## build up output folder if not exist
+    output_dir = '../output/'
+    if not os.path.exists(output_dir): os.mkdir(output_dir)
     try:
         '''
         Work with command line.
@@ -40,26 +44,21 @@ if __name__ == '__main__':
         else:
             raise ValueError('Not supported type input:',input_type)
     print('Import time:', time.time() - t_start, '(sec)')
+    t_total += time.time() - t_start
     '''
     Create unit cell
     '''
     t_start = time.time()       # record unit cell generation time
+    split_list = {}             # split for jobs
     job_list = {}               # unit cell definition
     unit_list = {}              # unit cell object list
     ## combine jobs ##
     for job in jobs:
+        split_key = job['name']
         key = job['region']
-        if key in job_list:
-            job_list[key]['type'].append(str(job['cell_type']))
-            job_list[key]['shift'].append(int(job['shift']))
-            job_list[key]['width'].append(int(job['width']))
-            job_list[key]['Vtop'].append(float(job['Vtop']))
-            job_list[key]['Vbot'].append(float(job['Vbot']))
-            job_list[key]['gap'].append(float(job['gap']))
-        else:
+        if not split_key in split_list:
             new_job = {}
             new_job['region'] = str(job['region'])
-            new_job['cell_type'] = str(job['cell_type'])
             new_job['type'] = [str(job['cell_type'])]
             new_job['shift'] = [int(job['shift'])]
             new_job['width'] = [int(job['width'])]
@@ -67,99 +66,122 @@ if __name__ == '__main__':
             new_job['Vbot'] = [float(job['Vbot'])]
             new_job['gap'] = [float(job['gap'])]
             new_job['length'] = int(float(job['length']))
-            job_list[key] = new_job
-                ###                                  ###
-                # Add new type of simulation type here #
-                ###                                  ###
-    for jobid, job in job_list.items():
-        if setup['brief'] == 'AGNR':
-            unit_list[job['region']] = unit_cell.AGNR_new(setup, job)
-        elif setup['brief'] == 'AMNR':
-            unit_list[job['region']] = unit_cell.AMNR_new(setup, job)
-        else:
-            raise ValueError('Non supported setup:',setup['brief'])
-    ## print out matrix. debug use ##
-    if setup['isDebug']:
-        for u_idx,unit in unit_list.items():
-            folder = '../output/debug/'
-            if not os.path.exists(folder):
-                os.mkdir(folder)
-            file_name = unit.filename
-            IO_util.saveAsCSV(folder+file_name+'_H.csv', unit.H)
-            IO_util.saveAsCSV(folder+file_name+'_P+.csv', unit.Pf)
-            IO_util.saveAsCSV(folder+file_name+'_P-.csv', unit.Pb)
-    t_unitGen = time.time() - t_start
-    print('Generate unit cell time:',t_unitGen,'(sec)')
-    '''
-    Calculate band structure
-    '''
-    t_start = time.time()       # record band structure time
-    #bs_parser = bs_GPU.BandStructure(inputs)
-    if setup['isPlot_band']:
-        for key, unit in unit_list.items():
-            ## initialize ##
-            band_parser = cal_band.CPU(setup, unit)
-            sweep_mesh = range(0,int(setup['kx_mesh']),int(int(setup['kx_mesh'])/500))
-            ## calculate band structure ##
-            with Pool(processes=int(setup['parallel_CPU'])) as mp:
-                eig = mp.map(band_parser.calState,sweep_mesh)
-            plot_table = []
-            for i in eig:
-                plot_table.append([i[0]])
-                plot_table[-1].extend(list(np.real(i[1])))
-            ## output to file
-            folder = '../output/band structure/'
-            if not os.path.exists(folder):
-                os.mkdir(folder)
-            file_name = key
-            IO_util.saveAsCSV(folder+file_name+'_BS.csv', plot_table)
-            try:
-                IO_util.saveAsFigure(setup, key, unit, plot_table, save_type='band')
-            except:
-                warnings.warn("error when ploting figures. Skip and continue.")
-    t_band = time.time() - t_start
-    print('Calculate band structure:',t_band,'(sec)')
-    '''
-    Construct Green's matrix
-    '''
-    t_start = time.time()
-    if setup['isRGF']:
-        kx_sweep = range(int(setup['mesh_start']),int(setup['mesh_stop'])+1)
-        CB_idx = np.arange(int(setup['CB_idx_start'])-1,int(setup['CB_idx_stop']),1)
-        RGF_result = {'E':[],'T':[],'R':[]}
-        if setup['isGPU']:      # using GPU calculation
-            ## not support GPU yet
-            pass
-        else:
-            RGF_util = cal_RGF.CPU(setup, unit_list)
-            for CB in CB_idx:
-                RGF_util.CB = CB
-                with Pool(processes=int(setup['parallel_CPU'])) as mp:
-                    RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
-                RGF_output = np.real(RGF_output)
-                ## sort kx position low to high
-                RGF_output = RGF_util.sort_E(RGF_output)
-                ## output to file ##
-             
-                folder = '../output/'
+            split_list[split_key] = {key:new_job}
+        elif not key in split_list[split_key]:
+            new_job = {}
+            new_job['region'] = str(job['region'])
+            new_job['type'] = [str(job['cell_type'])]
+            new_job['shift'] = [int(job['shift'])]
+            new_job['width'] = [int(job['width'])]
+            new_job['Vtop'] = [float(job['Vtop'])]
+            new_job['Vbot'] = [float(job['Vbot'])]
+            new_job['gap'] = [float(job['gap'])]
+            new_job['length'] = int(float(job['length']))
+            split_list[split_key][key] = new_job
+        elif key in split_list[split_key]:
+            split_list[split_key][key]['type'].append(str(job['cell_type']))
+            split_list[split_key][key]['shift'].append(int(job['shift']))
+            split_list[split_key][key]['width'].append(int(job['width']))
+            split_list[split_key][key]['Vtop'].append(float(job['Vtop']))
+            split_list[split_key][key]['Vbot'].append(float(job['Vbot']))
+            split_list[split_key][key]['gap'].append(float(job['gap']))
+    ###                                  ###
+    # Add new type of simulation type here #
+    ###                                  ###
+    
+    for splitID, split in split_list.items():
+        folder = output_dir+splitID+'/'
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+        for jobid, job in split.items():
+            if setup['brief'] == 'AGNR':
+                unit_list[job['region']] = unit_cell.AGNR_new(setup, job)
+            elif setup['brief'] == 'AMNR':
+                unit_list[job['region']] = unit_cell.AMNR_new(setup, job)
+            else:
+                raise ValueError('Non supported setup:',setup['brief'])
+        ## print out matrix. debug use ##
+        if setup['isDebug']:
+            for u_idx,unit in unit_list.items():
+                folder = output_dir+splitID+'/debug/'
                 if not os.path.exists(folder):
                     os.mkdir(folder)
-                file_name = "CB="+str(CB+1)
-                IO_util.saveAsCSV(folder+file_name+'_TR.csv', RGF_output)
-                if setup['isReflect']:
-                    RGF_util.reflect = True
+                file_name = unit.filename
+                IO_util.saveAsCSV(folder+file_name+'_H.csv', unit.H)
+                IO_util.saveAsCSV(folder+file_name+'_P+.csv', unit.Pf)
+                IO_util.saveAsCSV(folder+file_name+'_P-.csv', unit.Pb)
+        t_unitGen = time.time() - t_start
+        print('\nGenerate unit cell time:',t_unitGen,'(sec)')
+        t_total += time.time() - t_start
+        '''
+        Calculate band structure
+        '''
+        t_start = time.time()       # record band structure time
+        #bs_parser = bs_GPU.BandStructure(inputs)
+        if setup['isPlot_band']:
+            for key, unit in unit_list.items():
+                ## initialize ##
+                band_parser = cal_band.CPU(setup, unit)
+                sweep_mesh = range(0,int(setup['kx_mesh']),int(int(setup['kx_mesh'])/500))
+                ## calculate band structure ##
+                with Pool(processes=int(setup['parallel_CPU'])) as mp:
+                    eig = mp.map(band_parser.calState,sweep_mesh)
+                plot_table = []
+                for i in eig:
+                    plot_table.append([i[0]])
+                    plot_table[-1].extend(list(np.real(i[1])))
+                ## output to file
+                folder = output_dir+splitID+'/band structure/'
+                if not os.path.exists(folder):
+                    os.mkdir(folder)
+                IO_util.saveAsCSV(folder+key+'_BS.csv', plot_table)
+                try:
+                    IO_util.saveAsFigure(setup, folder+key, unit, plot_table, save_type='band')
+                except:
+                    warnings.warn("error when ploting figures. Skip and continue.")
+        t_band = time.time() - t_start
+        print('Calculate band structure:',t_band,'(sec)')
+        t_total += time.time() - t_start
+        '''
+        Construct Green's matrix
+        '''
+        t_start = time.time()
+        if setup['isRGF']:
+            kx_sweep = range(int(setup['mesh_start']),int(setup['mesh_stop'])+1)
+            CB_idx = np.arange(int(setup['CB_idx_start'])-1,int(setup['CB_idx_stop']),1)
+            RGF_header = ['kx |K|','Energy (eV)','Transmission(CN1)','Transmission(CN2)']
+            if setup['isGPU']:      # using GPU calculation
+                ## not support GPU yet
+                pass
+            else:
+                RGF_util = cal_RGF.CPU(setup, unit_list)
+                for CB in CB_idx:
+                    RGF_util.CB = CB
                     with Pool(processes=int(setup['parallel_CPU'])) as mp:
                         RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
                     RGF_output = np.real(RGF_output)
                     ## sort kx position low to high
                     RGF_output = RGF_util.sort_E(RGF_output)
+                    ## add header
+                    RGF_tmp = np.zeros((np.size(RGF_output,0)+1,np.size(RGF_output,1)), dtype=np.object)
+                    RGF_tmp[0,:] = RGF_header
+                    RGF_tmp[1:,:] = RGF_output
                     ## output to file ##
-                    folder = '../output/'
-                    if not os.path.exists(folder):
-                        os.mkdir(folder)
+                    folder = output_dir+splitID+'/'
                     file_name = "CB="+str(CB+1)
-                    IO_util.saveAsCSV(folder+file_name+'_TR_reverse.csv', RGF_output)
-                    RGF_util.reflect = False
-    t_RGF = time.time() - t_start
-    print('Calculate RGF:',t_RGF,'(sec)')
+                    IO_util.saveAsCSV(folder+file_name+'_TR.csv', RGF_tmp)
+                    if setup['isReflect']:
+                        RGF_util.reflect = True
+                        with Pool(processes=int(setup['parallel_CPU'])) as mp:
+                            RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
+                        RGF_output = np.real(RGF_output)
+                        ## sort kx position low to high
+                        RGF_output = RGF_util.sort_E(RGF_output)
+                        ## output to file ##
+                        IO_util.saveAsCSV(folder+file_name+'_TR_reverse.csv', RGF_output)
+                        RGF_util.reflect = False
+        t_RGF = time.time() - t_start
+        print('Calculate RGF:',t_RGF,'(sec)')
+        t_total += time.time() - t_start
     print('Program finished successfully @ ',time.asctime(time.localtime(time.time())))
+    print('Total time: ', round(t_total,3), ' (sec)')

@@ -136,12 +136,18 @@ class CPU():
             J0 = 1j*self.mat.ax/self.mat.h_bar*(Pn*phase_p-Pp*phase_n)
             ## 2 mix states
             if len(phase_o) > 1:
-                if kx_list_o[0] != kx_list_o[1]:
-                    CN1 = (CN_next-phase_o[1]*CN)/(phase_o[0]-phase_o[1])
-                    CN2 = (CN_next-phase_o[0]*CN)/(phase_o[1]-phase_o[0])
-                else:
-                    CN1 = 0.5*CN
-                    CN2 = 0.5*CN
+                N = len(CN)
+                CN1 = copy.deepcopy(CN)
+                CN2 = copy.deepcopy(CN)
+                i_state1 = copy.deepcopy(i_state)
+                i_state2 = copy.deepcopy(i_state)
+                for i in range(N):
+                    if i%2 == 0:
+                        CN2[i] = 0
+                        i_state2[i] = 0
+                    else:
+                        CN1[i] = 0
+                        i_state1[i] = 0
                 ## calculate T
                 T1 = self.calTR(i_state, CN1, J0)
                 T2 = self.calTR(i_state, CN2, J0)
@@ -150,7 +156,7 @@ class CPU():
                 T1 = self.calTR(i_state, CN, J0)
                 T2 = self.calTR(i_state, CN, J0)
             t_mesh_stop = time.time() - t_mesh_start
-            print('Mesh point @ kx=',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
+            #print('Mesh point @ kx=',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
             return kx[0]*self.mat.ax/np.pi, E, T1, T2
     def calTR(self, i_state, o_state, J0):
         Ji = np.vdot(i_state, np.matmul(J0, i_state))

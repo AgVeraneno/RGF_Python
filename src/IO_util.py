@@ -24,7 +24,8 @@ def importFromCSV(setup_file, job_file):
              'isRGF':False,
              'CB_idx_start':None,
              'CB_idx_stop':None}
-    job = {'region':-1,
+    job = {'name':None,
+           'region':-1,
            'cell_type':1,
            'shift':0,
            'width':0,
