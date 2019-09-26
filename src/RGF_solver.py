@@ -5,13 +5,47 @@ import data_util, IO_util
 import unit_cell, cal_band, cal_RGF
 
 if __name__ == '__main__':
+    print('Start RGF solver @ ',time.asctime(time.localtime(time.time())))
     t_total = 0
     '''
-    This program simulates ballistic transpotation along x-axis.
+    This program simulates ballistic transportation along x-axis.
     '''
-    ## build up output folder if not exist
+    ############################################################
+    # Environment setup
+    # 1. build up "output" folder.
+    # 2. get user's inputs. Input type using sys.argv.
+    ############################################################
+    ## build up folder if not exist
+    input_dir = '../input/'
     output_dir = '../output/'
     if not os.path.exists(output_dir): os.mkdir(output_dir)
+    # resolve user inputs
+    if len(sys.argv) == 1:
+        job_file = input_dir+'RGF_job.csv'       # load default setup file
+    else:
+        # input file
+        if '-i' in sys.argv:
+            job_file = sys.argv[sys.argv.index('-i') +1]
+        else:
+            job_file = input_dir+'RGF_job.csv'       # load default setup file
+        # GPU assisted RGF
+        if '-gpu' in sys.argv:
+            isGPU = True
+        else:
+            isGPU = False
+        # Parallel CPU count
+        if '-turbo' in sys.argv:
+            workers = int(sys.argv[sys.argv.index('-i') +1])
+        else:
+            workers = 1
+    # check inputs
+    if not os.path.exists(job_file):
+        raise ValueError('Invalid input file: ',job_file)
+    # load setup file
+    jobs = IO_util.importFromCSV()
+    
+    
+    
     try:
         '''
         Work with command line.
