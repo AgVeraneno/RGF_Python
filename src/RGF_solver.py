@@ -42,7 +42,7 @@ if __name__ == '__main__':
     if not os.path.exists(job_file):
         raise ValueError('Invalid input file: ',job_file)
     # load setup file
-    jobs = IO_util.importFromCSV()
+    #jobs = IO_util.importFromCSV()
     
     
     
