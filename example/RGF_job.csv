@@ -1,3 +1,5 @@
-enable,region,cell_type,shift,width,length,Vtop,Vbot,gap
-o,lead,envelope,0,5,100,0,0.1,0
-o,output,envelope,0,5,100,0,0,0
+setting,value,comment,$,enable,name,region,cell_type,shift,width,length,Vtop,Vbot,gap
+material,,Current support Graphene and WeS2,,o,123,lead,envelope,0,5,100,0,0.1,0
+lattice,,MLG or BLG,,o,123,output,envelope,0,5,100,0,0,0
+direction,,ZZ for zigzag and AC for armchair,,,,,,,,,,,
+structure,,Current support AGNR and AWNR,,,,,,,,,,,
