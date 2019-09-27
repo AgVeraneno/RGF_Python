@@ -15,7 +15,7 @@ class Material():
         '''
         self.name = mat_name
         self.__parameters__(mat_name)
-    def __parameters__(self):
+    def __parameters__(self, mat_name):
         if mat_name == 'Graphene':
             '''
             Graphene const.
