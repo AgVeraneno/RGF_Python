@@ -1,66 +1,77 @@
+'''
+data manipulation utility
+updated: 2018.12.3
+'''
 import numpy as np
-
+'''
+inputs: list of data required conversion in string type
+totem: split totem
+dtype: convert datatype
+'''
+def str2float1D(inputs, totem=',', dtype='float'):
+    # split string
+    tmp_list = []
+    buf = ''
+    for c in inputs:
+        if c == totem:
+            tmp_list.append(buf)
+            buf = ''
+        else:
+            buf += c
+    else:
+        tmp_list.append(buf)
+    # convert data type:
+    output_list = []
+    for t in tmp_list:
+        try:
+            output_list.append(np.array(t).astype(dtype)+0)
+        except:
+            output_list.append(t)
+    return output_list
+def str2array2D(inputs, totem='&', dtype='float'):
+    # split string
+    tmp_list = []
+    buf = ''
+    for c in inputs:
+        if c == totem:
+            tmp_list.append(buf)
+            buf = ''
+        elif c != '(' and c != ')' and c != ' ':
+            buf += c
+    else:
+        tmp_list.append(buf)
+    # convert to 2D format
+    for idx, tmp in enumerate(tmp_list):
+        tmp_list[idx] = str2float1D(tmp)
+    return tmp_list
+'''
+find value from key
+'''
 def find(key, key_list):
     for k_idx, k in enumerate(key_list):
-        if key == k:
+        if k == key:
             return k_idx
-        else:
-            continue
     else:
         return -1
-def mfind(key, key_list):
+'''
+split string
+'''
+def str_splitter(string, cut_pts=[0]):
     output_list = []
-    for k_idx, k in enumerate(key_list):
-        if key == k:
-            output_list.append(k_idx)
-        else:
-            continue
+    p1 = 0
+    p2 = 0
+    for c in cut_pts:
+        p2 = c
+        output_list.append(string[p1:p2])
+        p1 = c
     else:
-        return output_list
-def string_splitter(string, totem=',', nobracket=False, nospace=False):
-    forbid_list_a = ['(',')','[',']','{','}']
-    forbid_list_b = [' ']
-    output = []
-    tmp_str = ''
-    for char in string:
-        if char == totem:
-            output.append(tmp_str)
-            tmp_str = ''
-        elif (nobracket and char in forbid_list_a) or \
-             (nospace and char in forbid_list_b):
-            continue
-        else:
-            tmp_str += char
-    else:
-        output.append(tmp_str)
-        return output
-def convert_datatype_1D(data_list, datatype='float'):
-    output = []
-    for data in data_list:
-        try:
-            output.append(np.array(data).astype(datatype))
-        except:
-            output.append(np.array(data))
-    else:
-        return output
-def convert_datatype_2D(data_list, datatype='float'):
-    output = []
-    for data in data_list:
-        output.append([])
-        try:
-            output[-1].append(np.array(data).astype(datatype))
-        except:
-            for subdata in data:
-                try:
-                    output[-1].append(np.array(subdata).astype(datatype))
-                except:
-                    output[-1].append(np.array(subdata))
-    else:
-        return output
-    
+        output_list.append(string[p1:len(string)])
+    return output_list
+"""
+debug
+"""
 if __name__ == '__main__':
-    output = string_splitter('asdf,456,789,55 5,[weroi]', ',', False,True)
-    print(output)
-    output = convert_datatype_2D([['123','111'],['asdf','115']], 'complex')
-    print(output)
+    print(str2float1D('asdf,123,77,4e5'))
+    print(find(1,range(2,9)))
+    print(str_splitter('asdfqwer', [1,2,3]))
     

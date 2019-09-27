@@ -19,7 +19,6 @@ class CPU():
                np.exp(-1j*kx*self.ax)*Pf
         val, vec = np.linalg.eig(Heig)
         val, vec = self.__sort__(val, vec)
-        #val, vec = self.__sort__(output[0],output[1])
         if returnKx:
             return kx, val, vec
         else:

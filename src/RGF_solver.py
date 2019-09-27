@@ -15,19 +15,20 @@ if __name__ == '__main__':
     # 1. build up "output" folder.
     # 2. get user's inputs. Input type using sys.argv.
     ############################################################
+    t_load = time.time()
     ## build up folder if not exist
     input_dir = '../input/'
     output_dir = '../output/'
     if not os.path.exists(output_dir): os.mkdir(output_dir)
     # resolve user inputs
     if len(sys.argv) == 1:
-        job_file = input_dir+'RGF_job.csv'       # load default setup file
+        setup_file = input_dir+'RGF_setup.csv'       # load default setup file
     else:
         # input file
         if '-i' in sys.argv:
-            job_file = sys.argv[sys.argv.index('-i') +1]
+            setup_file = sys.argv[sys.argv.index('-i') +1]
         else:
-            job_file = input_dir+'RGF_job.csv'       # load default setup file
+            setup_file = input_dir+'RGF_setup.csv'       # load default setup file
         # GPU assisted RGF
         if '-gpu' in sys.argv:
             isGPU = True
@@ -39,13 +40,82 @@ if __name__ == '__main__':
         else:
             workers = 1
     # check inputs
-    if not os.path.exists(job_file):
-        raise ValueError('Invalid input file: ',job_file)
+    if not os.path.exists(setup_file):
+        raise ValueError('Invalid input file: ',setup_file)
     # load setup file
-    #jobs = IO_util.importFromCSV()
-    
-    
-    
+    setup_dict, job_dict = IO_util.load_setup(setup_file)
+    print('Import time:', round(time.time() - t_load,3), '(sec)')
+    ############################################################
+    # Run simulation
+    # 1. Create splits of a single job
+    # 2. Generate unit cell
+    # 3. Calculate band diagram
+    # 4. Calculate RGF
+    ############################################################
+    for job_name, job in job_dict.items():
+        '''
+        Create splits
+        '''
+        split_table = []
+        job_sweep = {}
+        for region in job['region list']:
+            job_sweep[region] = []
+            for var_idx, var in enumerate(job[region]['sweep_var']):
+                if len(var) > 0:    # split enabled
+                    sweep_list = data_util.str2float1D(var, totem=';', dtype='str')
+                    sweep_val = data_util.str2float1D(job[region]['sweep_val'][var_idx], totem=';', dtype='str')
+                    sweep_dict = {}
+                    for val_idx, vals in enumerate(sweep_val):
+                        # split string to numbers
+                        val = data_util.str2float1D(vals,totem=',')
+                        vals = []
+                        for v in val:
+                            if isinstance(v, str):
+                                # linspace type input
+                                v = data_util.str2float1D(v,totem=':')
+                                v = np.arange(v[0],v[2],v[1])
+                                vals.extend(v)
+                            else:
+                                vals.append(v)
+                        else:
+                            sweep_dict[sweep_list[val_idx]] = vals
+                    else:
+                        job_sweep[region].append(sweep_dict)
+                else:
+                    job_sweep[region].append({})
+        else:
+            ######
+            ######
+            #####
+            # generate split table
+            for s_idx, split in job_sweep.items():
+                for key, var in split.items():
+                    for v in var:
+                        new_job = copy.deepcopy(job)
+                        new_job[key][s_idx] = v
+                        split_table.append(new_region)
+        '''
+        Generate unit cell
+        '''
+        for split in split_table:
+            unit_list = {}
+            for r_idx, region in enumerate(split['region']):
+                if setup_dict['structure'] == 'AGNR':
+                    unit_list[region] = unit_cell.AGNR_new(setup_dict, split, r_dix)
+                elif setup_dict['structure'] == 'AWNR':
+                    unit_list[region] = unit_cell.AWNR(setup_dict, split, r_idx)
+                else:
+                    raise ValueError('Non supported setup:',setup['structure'])
+            ## print out Hamiltonian in debug mode
+            if setup_dict['isDebug']:
+                for u_idx,unit in unit_list.items():
+                    folder = output_dir+splitID+'/debug/'
+                    if not os.path.exists(folder):
+                        os.mkdir(folder)
+                    file_name = unit.filename
+                    IO_util.saveAsCSV(folder+file_name+'_H.csv', unit.H)
+                    IO_util.saveAsCSV(folder+file_name+'_P+.csv', unit.Pf)
+                    IO_util.saveAsCSV(folder+file_name+'_P-.csv', unit.Pb)
     try:
         '''
         Work with command line.
@@ -54,8 +124,8 @@ if __name__ == '__main__':
         for excel input, setup file contains "__setup__" and "job" sheets.
         <job file> is not needed
         '''
-        p_name, p_type = data_util.string_splitter(sys.argv[0],'.')
-        input_file, input_type = data_util.string_splitter(sys.argv[1],'.')
+        p_name, p_type = data_util.str2float1D(sys.argv[0],'.')
+        input_file, input_type = data_util.str2float1D(sys.argv[1],'.')
         print('Program ',p_name, 'start @ ',time.asctime(time.localtime(time.time())))
         t_start = time.time()       # record import time
         if input_type == 'xlsx' or input_type == 'xls':
