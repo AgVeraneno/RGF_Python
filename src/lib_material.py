@@ -1,5 +1,4 @@
 import numpy as np
-#import cupy as cp
 
 class Material():
     def __init__(self, mat_name):
@@ -15,9 +14,9 @@ class Material():
         material parameters
         '''
         self.name = mat_name
-        self.__parameters__()
+        self.__parameters__(mat_name)
     def __parameters__(self):
-        if self.name == 'Graphene':
+        if mat_name == 'Graphene':
             '''
             Graphene const.
             '''
@@ -27,15 +26,12 @@ class Material():
             self.K_norm = 4/3*np.pi/self.acc      # m-1. normalized K vector
             self.vF = 8e5                         # m/s. Fermi velocity for graphene
             ### hopping energy
-            #self.r0 = 2.8                         # J. A1-B1 hopping energy
-            #self.r1 = 0.39                        # J. A2-B1 hopping energy
-            #self.r3 = 0.315                       # J. A1-B2 hopping energy
-            self.r0 = 3                         # J. A1-B1 hopping energy
-            self.r1 = 0.4                        # J. A2-B1 hopping energy
-            self.r3 = 0.3                       # J. A1-B2 hopping energy
-        elif self.name == 'MoS2':
+            self.r0 = 2.8                         # J. A1-B1 hopping energy
+            self.r1 = 0.39                        # J. A2-B1 hopping energy
+            self.r3 = 0.315                       # J. A1-B2 hopping energy
+        elif mat_name == 'WSe2':
             '''
-            MoS2 const.
+            WSe2 const.
             '''
             self.acc = 3.125e-10                  # m. nearest neighbor distance
             self.a = self.acc*3**0.5                # m. carbon to carbon distance
@@ -110,4 +106,4 @@ class Material():
             self.A5 = np.transpose(np.conj(self.A2))
             self.A6 = np.transpose(np.conj(self.A3))
         else:
-            raise ValueError('Material "',self.name,'" database is not bulit.')
+            raise ValueError('Material "',mat_name,'" database is not bulit.')
