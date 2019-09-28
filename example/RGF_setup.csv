@@ -1,2 +1,8 @@
-isGPU,isParallel,isDebug,isPlot_band,isPlot_zoom,isReflect,isRGF,parallel_CPU,material,lattice,direction,brief,SU_type,SU_hopping_size,brick_size,kx_mesh,mesh_start,mesh_stop,CB_idx_start,CB_idx_stop
-0,1,0,0,0,0,1,4,MoS2,MLG,Armchair,AMNR,separate,6,2,1000,0,100,16,16
+setting,value,comment,$,enable,name,kx_mesh,band,region,shift,width,length,Vtop,Vbot,gap,sweep_parameter,sweep_value
+material,WSe2,Current support Graphene and WeS2,,o,123,"1,1001","15,16",lead,0,14,100,0,0,0,,
+lattice,MLG,MLG or BLG,,o,123,"1,1001","15,16",lead,14,14,100,0,0,0,,
+direction,AC,ZZ for zigzag and AC for armchair,,o,123,"1,1001","15,16",channel,0,14,100,-0.5,0,0,Vbot,-0.5:-0.01:-0.55
+structure,AWNR,Current support AGNR and AWNR,,o,123,"1,1001","15,16",output,0,14,100,0,0,0,,
+kx_mesh,1001,kx mesh grid size from 0 to 2pi,,,,,,,,,,,,,,
+debug,TRUE,debugging mode,,,,,,,,,,,,,,
+SU_type,overlap,separate for sub unit cell without any hopping; overlap for sub unit cell with hopping,,,,,,,,,,,,,,
