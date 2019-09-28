@@ -1147,7 +1147,7 @@ class AWNR():
     P_plus: forward inter unit cell hopping matrix
     P_minus: backward inter unit cell hopping matrix
     '''
-    def __init__(self, setup, job, r_idx):
+    def __init__(self, setup, job):
         '''
         New material parameters
         SU size: number of orbits used for hopping
@@ -1156,19 +1156,19 @@ class AWNR():
         '''
         Auto generate parameters
         '''
-        self.__initialize__(setup, job, r_idx)  # build unit cell geometry
+        self.__initialize__(setup, job)  # build unit cell geometry
         self.mesh = int(setup['kx_mesh'])       # band structure mesh
         self.ax = self.mat.ax                   # unit length
         self.__gen_Hamiltonian__()
-    def __initialize__(self, setup, job, r_idx):
+    def __initialize__(self, setup, job):
         self.mat = setup['material']                # unit cell material
         self.SU_type = setup['SU_type']             # sub unitcell type
         '''
         matrix definition
         '''
         ## ribbon size
-        self.W = job['width'][r_idx]
-        self.L = job['length'][r_idx]
+        self.W = job['width']
+        self.L = max(job['length'])
         ## lattice type
         if setup['lattice'] == 'MLG':
             self.m_size = self.SU_size*sum(self.W)
@@ -1194,9 +1194,9 @@ class AWNR():
         '''
         energy definition
         '''
-        self.gap = job['gap'][r_idx]
-        self.Vtop = job['Vtop'][r_idx]
-        self.Vbot = job['Vbot'][r_idx]
+        self.gap = job['gap']
+        self.Vtop = job['Vtop']
+        self.Vbot = job['Vbot']
     def __gen_Hamiltonian__(self):
         self.__component__()
         self.__off_diagonal__()

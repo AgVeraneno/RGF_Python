@@ -26,6 +26,10 @@ def load_setup(setup_file):
                 setup['debug'] = bool(row['value'])
             elif row['setting'] == 'SU_type':
                 setup['SU_type'] = row['value']
+            elif row['setting'] == 'band':
+                setup['band'] = bool(row['value'])
+            elif row['setting'] == 'RGF':
+                setup['RGF'] = bool(row['value'])
             else:
                 pass
             '''
