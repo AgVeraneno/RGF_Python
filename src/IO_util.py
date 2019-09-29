@@ -23,13 +23,22 @@ def load_setup(setup_file):
             elif row['setting'] == 'kx_mesh':
                 setup['kx_mesh'] = row['value']
             elif row['setting'] == 'debug':
-                setup['debug'] = bool(row['value'])
+                if row['value'] == 'TRUE':
+                    setup['debug'] = True
+                else:
+                    setup['debug'] = False
             elif row['setting'] == 'SU_type':
                 setup['SU_type'] = row['value']
             elif row['setting'] == 'band':
-                setup['band'] = bool(row['value'])
+                if row['value'] == 'TRUE':
+                    setup['band'] = True
+                else:
+                    setup['band'] = False
             elif row['setting'] == 'RGF':
-                setup['RGF'] = bool(row['value'])
+                if row['value'] == 'TRUE':
+                    setup['RGF'] = True
+                else:
+                    setup['RGF'] = False
             else:
                 pass
             '''

@@ -24,7 +24,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 1:
         setup_file = input_dir+'RGF_setup.csv'       # load default setup file
         isGPU = False
-        workers = 1
+        workers = 8
     else:
         # input file
         if '-i' in sys.argv:
@@ -38,7 +38,7 @@ if __name__ == '__main__':
             isGPU = False
         # Parallel CPU count
         if '-turbo' in sys.argv:
-            workers = int(sys.argv[sys.argv.index('-i') +1])
+            workers = int(sys.argv[sys.argv.index('-turbo') +1])
         else:
             workers = 1
     # check inputs
@@ -102,7 +102,9 @@ if __name__ == '__main__':
         '''
         Calculate splits
         '''
+        split_summary = {}
         for s_idx, split in enumerate(split_table):
+            split_summary[s_idx] = []
             t_split = 0
             t_unitcell = time.time()
             ## resolve calculation condition
@@ -167,6 +169,12 @@ if __name__ == '__main__':
                         os.mkdir(folder)
                     IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_band.csv', plot_table)
                     for CB in CB_list:
+                        ## sort eigenstate
+                        for state_idx, state in enumerate(state_table[CB]):
+                            sorted_vec = band_parser.sort_vec(state[1:], unit.SU_size)
+                            new_vec = [state[0]]
+                            new_vec.extend(sorted_vec)
+                            state_table[CB][state_idx] = new_vec
                         IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_eigenstates@CB='+str(int(CB))+'.csv', state_table[int(CB)])
                     try:
                         IO_util.saveAsFigure(setup_dict, folder+key, unit, plot_table, save_type='band')
@@ -181,11 +189,14 @@ if __name__ == '__main__':
             '''
             t_RGF = time.time()
             if setup_dict['RGF']:
+                folder = job_dir+'/PTR/'
+                if not os.path.exists(folder):
+                    os.mkdir(folder)
                 kx_sweep = range(int(k0),int(kN)+1)
                 RGF_header = ['kx |pi/a|','Energy (eV)','Transmission(CN1)','Transmission(CN2)']
                 RGF_util = cal_RGF.CPU(setup_dict, unit_list)
                 for CB in CB_list:
-                    RGF_util.CB = int(CB)
+                    RGF_util.CB = int(CB)-1
                     with Pool(processes=workers) as mp:
                         RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
                     RGF_output = np.real(RGF_output)
@@ -195,11 +206,12 @@ if __name__ == '__main__':
                     RGF_tmp = np.zeros((np.size(RGF_output,0)+1,np.size(RGF_output,1)), dtype=np.object)
                     RGF_tmp[0,:] = RGF_header
                     RGF_tmp[1:,:] = RGF_output
+                    if s_idx == 0:
+                        split_summary[s_idx].append(RGF_output)
+                    else:
+                        split_summary[s_idx].append(RGF_output[:,2:])
                     ## output to file ##
-                    folder = job_dir+'/PTR/'
-                    if not os.path.exists(folder):
-                        os.mkdir(folder)
-                    IO_util.saveAsCSV(folder+str(s_idx)+'_CB='+str(int(CB)+1)+'_TR.csv', RGF_tmp)
+                    IO_util.saveAsCSV(folder+str(s_idx)+'_CB='+str(int(CB))+'_TR.csv', RGF_tmp)
                     '''
                     if setup['isReflect']:
                         RGF_util.reflect = True
@@ -216,9 +228,27 @@ if __name__ == '__main__':
                     t_RGF = time.time() - t_RGF
                     #print('Calculate RGF:',t_RGF,'(sec)')
                     t_split += t_RGF
-            print('Split'+str(s_idx)+':',t_split,'(sec)')
+            print('Split_'+str(s_idx)+':',t_split,'(sec)')
             t_total += t_split
         else:
+            '''
+            Summary table
+            '''
+            if setup_dict['RGF']:
+                ## generate header
+                for CB_idx, CB in enumerate(CB_list):
+                    RGF_header = ['kx |pi/a|','Energy (eV)']
+                    RGF_table = []
+                    for s_idx, split in enumerate(split_table):
+                        RGF_header.append('Split_'+str(s_idx)+'_T (CN1)')
+                        RGF_header.append('Split_'+str(s_idx)+'_T (CN2)')
+                        RGF_table.append(split_summary[s_idx][CB_idx])
+                    else:
+                        RGF_table = np.block(RGF_table)
+                        RGF_tmp = np.zeros((np.size(RGF_table,0)+1,np.size(RGF_table,1)), dtype=np.object)
+                        RGF_tmp[0,:] = RGF_header
+                        RGF_tmp[1:,:] = RGF_table
+                        IO_util.saveAsCSV(folder+'Split result @ CB='+str(int(CB))+'_TR.csv', RGF_tmp)
             print('Program finished successfully @ ',time.asctime(time.localtime(time.time())))
             print('Total time: ', round(t_total,3), ' (sec)')
 """

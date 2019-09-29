@@ -49,3 +49,13 @@ class CPU():
                     output_vec[:,v2_idx] = copy.deepcopy(vec[:, v1_idx])
                     break
         return sorted_val, output_vec
+    def sort_vec(self, vec, index):
+        sorted_vec = []
+        for i in range(index):
+            new_vec = []
+            for j in range(i, len(vec), index):
+                new_vec.append(vec[j])
+            else:
+                sorted_vec.extend(new_vec)
+        else:
+            return sorted_vec
