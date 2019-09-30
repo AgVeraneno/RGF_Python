@@ -135,7 +135,7 @@ class CPU():
             CN_next = -np.dot(Gnn, np.dot(Pp-Pn*np.prod(phase_o),CN))
             J0 = 1j*self.mat.ax/self.mat.h_bar*(Pn*phase_p-Pp*phase_n)
             ## 2 mix states
-            if len(phase_o) > 1:
+            if len(phase_o) > 1 or True:
                 N = len(CN)
                 CN1 = copy.deepcopy(CN)
                 CN2 = copy.deepcopy(CN)
@@ -149,8 +149,8 @@ class CPU():
                         CN1[i] = 0
                         i_state1[i] = 0
                 ## calculate T
-                T1 = self.calTR(i_state, CN1, J0)
-                T2 = self.calTR(i_state, CN2, J0)
+                T1 = self.calTR(i_state1, CN1, J0)
+                T2 = self.calTR(i_state2, CN2, J0)
             else:
                 ## calculate T
                 T1 = self.calTR(i_state, CN, J0)

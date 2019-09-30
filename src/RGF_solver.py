@@ -108,13 +108,14 @@ if __name__ == '__main__':
             t_split = 0
             t_unitcell = time.time()
             ## resolve calculation condition
-            k0, kN = data_util.str2float1D(split['kx'], totem=',')
-            CB_raw = data_util.str2float1D(split['CB'], totem=',')
+            k0, kN = data_util.str2float1D(split['kx'], totem=',', dtype='int')
+            CB_raw = data_util.str2float1D(split['CB'], totem=',', dtype='int')
+            kx_list = range(k0,kN+1)
             CB_list = []
             for idx, CB in enumerate(CB_raw):
                 if isinstance(CB, str):
                     a,b,c = data_util.str2float1D(CB, totem=':')
-                    CB_list.extend(np.arange(a,c+b,b))
+                    CB_list.extend(np.arange(a,c+b,b,dtype=int))
                 else:
                     CB_list.append(CB)
             '''
@@ -153,33 +154,40 @@ if __name__ == '__main__':
                     with Pool(processes=workers) as mp:
                         eig = mp.map(band_parser.calState,sweep_mesh)
                     ## output eigenvalues
-                    plot_table = []
+                    # build plot table header
+                    plot_table = [['kx']]
+                    for idx in range(np.size(eig[0][1])):
+                        plot_table[0].append('E'+str(idx+1)+' (eV)')
+                    # build state table header
                     state_table = {}
-                    for CB in CB_list:
-                        state_table[int(CB)] = []
+                    for kx in kx_list:
+                        state_table[kx] = [['2y/a']]
+                        for CB in CB_list:
+                            for idx in range(unit.SU_size):
+                                state_table[kx][0].append('CB='+str(CB)+',spin'+str(idx))
+                    # build data table
                     for i in eig:
                         plot_table.append([i[0]])
                         plot_table[-1].extend(list(np.real(i[1])))
-                        for CB in CB_list:
-                            state_table[int(CB)].append([i[0]])
-                            state_table[int(CB)][-1].extend(list(abs(i[2][:,int(CB)])))
+                    for kx in kx_list:
+                        num_of_item = int(len(i[2][:,0])/unit.SU_size)
+                        for idx in range(num_of_item):
+                            state_table[kx].append([idx+1])
+                            for CB in CB_list:
+                                state_table[kx][-1].extend(list(np.abs(eig[kx][2][idx*unit.SU_size:(idx+1)*unit.SU_size,CB-1])))
                     ## output to file
                     folder = job_dir+'/band/'
                     if not os.path.exists(folder):
                         os.mkdir(folder)
                     IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_band.csv', plot_table)
-                    for CB in CB_list:
-                        ## sort eigenstate
-                        for state_idx, state in enumerate(state_table[CB]):
-                            sorted_vec = band_parser.sort_vec(state[1:], unit.SU_size)
-                            new_vec = [state[0]]
-                            new_vec.extend(sorted_vec)
-                            state_table[CB][state_idx] = new_vec
-                        IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_eigenstates@CB='+str(int(CB))+'.csv', state_table[int(CB)])
+                    for kx in kx_list:
+                        IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_eigenstates@kx='+str(kx)+'.csv', state_table[kx])
+                    '''
                     try:
                         IO_util.saveAsFigure(setup_dict, folder+key, unit, plot_table, save_type='band')
                     except:
                         warnings.warn("error when ploting figures. Skip and continue.")
+                    '''
                 else:
                     t_band = round(time.time() - t_band,3)
                     #print('Band diagram:', t_band, '(sec)')
@@ -192,13 +200,12 @@ if __name__ == '__main__':
                 folder = job_dir+'/PTR/'
                 if not os.path.exists(folder):
                     os.mkdir(folder)
-                kx_sweep = range(int(k0),int(kN)+1)
                 RGF_header = ['kx |pi/a|','Energy (eV)','Transmission(CN1)','Transmission(CN2)']
                 RGF_util = cal_RGF.CPU(setup_dict, unit_list)
                 for CB in CB_list:
-                    RGF_util.CB = int(CB)-1
+                    RGF_util.CB = CB-1
                     with Pool(processes=workers) as mp:
-                        RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
+                        RGF_output = mp.map(RGF_util.calRGF_transmit,kx_list)
                     RGF_output = np.real(RGF_output)
                     ## sort kx position low to high
                     RGF_output = RGF_util.sort_E(RGF_output)
@@ -211,7 +218,7 @@ if __name__ == '__main__':
                     else:
                         split_summary[s_idx].append(RGF_output[:,2:])
                     ## output to file ##
-                    IO_util.saveAsCSV(folder+str(s_idx)+'_CB='+str(int(CB))+'_TR.csv', RGF_tmp)
+                    IO_util.saveAsCSV(folder+str(s_idx)+'_CB='+str(CB)+'_TR.csv', RGF_tmp)
                     '''
                     if setup['isReflect']:
                         RGF_util.reflect = True
@@ -248,7 +255,7 @@ if __name__ == '__main__':
                         RGF_tmp = np.zeros((np.size(RGF_table,0)+1,np.size(RGF_table,1)), dtype=np.object)
                         RGF_tmp[0,:] = RGF_header
                         RGF_tmp[1:,:] = RGF_table
-                        IO_util.saveAsCSV(folder+'Split result @ CB='+str(int(CB))+'_TR.csv', RGF_tmp)
+                        IO_util.saveAsCSV(folder+'Split result @ CB='+str(CB)+'_TR.csv', RGF_tmp)
             print('Program finished successfully @ ',time.asctime(time.localtime(time.time())))
             print('Total time: ', round(t_total,3), ' (sec)')
 """

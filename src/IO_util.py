@@ -148,7 +148,7 @@ def importFromCSV(setup_file, job_file):
     return setup, job_list
 def saveAsCSV(file_name, table):
     with open(file_name, 'w', newline='') as csv_file:
-        csv_parser = csv.writer(csv_file, delimiter=',',quotechar='|')
+        csv_parser = csv.writer(csv_file, delimiter=',')
         for i in range(np.size(np.array(table), 0)):
             try:
                 csv_parser.writerow(list(table[i,:]))
