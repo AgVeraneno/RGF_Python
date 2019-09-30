@@ -24,7 +24,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 1:
         setup_file = input_dir+'RGF_setup.csv'       # load default setup file
         isGPU = False
-        workers = 8
+        workers = 1
     else:
         # input file
         if '-i' in sys.argv:
