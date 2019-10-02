@@ -5,6 +5,7 @@ class CPU():
     def __init__(self, setup, unit):
         self.unit = unit
         self.ax = setup['material'].ax
+        self.a = setup['material'].a
         self.mesh = int(setup['kx_mesh'])
         self.val = []
     def setKx(self, l_idx):
@@ -19,11 +20,10 @@ class CPU():
                np.exp(-1j*kx*self.ax)*Pf
         val, vec = np.linalg.eig(Heig)
         val, vec = self.__sort__(val, vec)
-        val, vec = self.__sort__(output[0],output[1])
         if returnKx:
             return kx, val, vec
         else:
-            return kx*self.ax/np.pi, val, vec
+            return kx*self.a, val, vec
     def getCBidx(self, gap, eig_val):
         #return int(np.size(self.unit.H,0)/2)
         return int(self.CB_idx)
@@ -50,3 +50,13 @@ class CPU():
                     output_vec[:,v2_idx] = copy.deepcopy(vec[:, v1_idx])
                     break
         return sorted_val, output_vec
+    def sort_vec(self, vec, index):
+        sorted_vec = []
+        for i in range(index):
+            new_vec = []
+            for j in range(i, len(vec), index):
+                new_vec.append(vec[j])
+            else:
+                sorted_vec.extend(new_vec)
+        else:
+            return sorted_vec

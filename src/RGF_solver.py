@@ -5,13 +5,263 @@ import data_util, IO_util
 import unit_cell, cal_band, cal_RGF
 
 if __name__ == '__main__':
+    print('Start RGF solver @ ',time.asctime(time.localtime(time.time())))
     t_total = 0
     '''
-    This program simulates ballistic transpotation along x-axis.
+    This program simulates ballistic transportation along x-axis.
     '''
-    ## build up output folder if not exist
+    ############################################################
+    # Environment setup
+    # 1. build up "output" folder.
+    # 2. get user's inputs. Input type using sys.argv.
+    ############################################################
+    t_load = time.time()
+    ## build up folder if not exist
+    input_dir = '../input/'
     output_dir = '../output/'
     if not os.path.exists(output_dir): os.mkdir(output_dir)
+    # resolve user inputs
+    if len(sys.argv) == 1:
+        setup_file = input_dir+'RGF_setup.csv'       # load default setup file
+        isGPU = False
+        workers = 1
+    else:
+        # input file
+        if '-i' in sys.argv:
+            setup_file = sys.argv[sys.argv.index('-i') +1]
+        else:
+            setup_file = input_dir+'RGF_setup.csv'       # load default setup file
+        # GPU assisted RGF
+        if '-gpu' in sys.argv:
+            isGPU = True
+        else:
+            isGPU = False
+        # Parallel CPU count
+        if '-turbo' in sys.argv:
+            workers = int(sys.argv[sys.argv.index('-turbo') +1])
+        else:
+            workers = 1
+    # check inputs
+    if not os.path.exists(setup_file):
+        raise ValueError('Invalid input file: ',setup_file)
+    # load setup file
+    setup_dict, job_dict = IO_util.load_setup(setup_file)
+    t_load = round(time.time() - t_load,3)
+    print('Import time:', t_load, '(sec)')
+    t_total += t_load
+    ############################################################
+    # Run simulation
+    # 1. Create splits of a single job
+    # 2. Generate unit cell
+    # 3. Calculate band diagram
+    # 4. Calculate RGF
+    ############################################################
+    for job_name, job in job_dict.items():
+        ## make directory
+        job_dir = output_dir+job_name
+        if not os.path.exists(job_dir): os.mkdir(job_dir)
+        '''
+        Create splits
+        '''
+        split_table = []
+        job_sweep = {}
+        for region in job['region list']:
+            job_sweep[region] = []
+            for var_idx, var in enumerate(job[region]['sweep_var']):
+                if len(var) > 0:    # split enabled
+                    sweep_list = data_util.str2float1D(var, totem=';', dtype='str')
+                    sweep_val = data_util.str2float1D(job[region]['sweep_val'][var_idx], totem=';', dtype='str')
+                    sweep_dict = {}
+                    for val_idx, vals in enumerate(sweep_val):
+                        # split string to numbers
+                        val = data_util.str2float1D(vals,totem=',')
+                        vals = []
+                        for v in val:
+                            if isinstance(v, str):
+                                # linspace type input
+                                v = data_util.str2float1D(v,totem=':')
+                                v = np.arange(v[0],v[2],v[1])
+                                vals.extend(v)
+                            else:
+                                vals.append(v)
+                        else:
+                            sweep_dict[sweep_list[val_idx]] = vals
+                    else:
+                        job_sweep[region].append(sweep_dict)
+                else:
+                    job_sweep[region].append({})
+        else:
+            # generate split table
+            for s_key, split in job_sweep.items():
+                for r_idx, sub_unit in enumerate(split):
+                    for key, var in sub_unit.items():
+                        for v in var:
+                            new_job = copy.deepcopy(job)
+                            new_job[s_key][key][r_idx] = v
+                            split_table.append(new_job)
+        '''
+        Calculate splits
+        '''
+        split_summary = {}
+        for s_idx, split in enumerate(split_table):
+            split_summary[s_idx] = []
+            t_split = 0
+            t_unitcell = time.time()
+            ## resolve calculation condition
+            k0, kN = data_util.str2float1D(split['kx'], totem=',', dtype='int')
+            CB_raw = data_util.str2float1D(split['CB'], totem=',', dtype='int')
+            kx_list = range(k0,kN+1)
+            CB_list = []
+            for idx, CB in enumerate(CB_raw):
+                if isinstance(CB, str):
+                    a,b,c = data_util.str2float1D(CB, totem=':')
+                    CB_list.extend(np.arange(a,c+b,b,dtype=int))
+                else:
+                    CB_list.append(CB)
+            '''
+            Generate unit cell
+            '''
+            unit_list = {}
+            for r_idx, region in enumerate(split['region list']):
+                if setup_dict['structure'] == 'AGNR':
+                    unit_list[region] = unit_cell.AGNR_new(setup_dict, split, r_dix)
+                elif setup_dict['structure'] == 'ATNR':
+                    unit_list[region] = unit_cell.ATNR(setup_dict, split[region])
+                elif setup_dict['structure'] == 'ATNR10':
+                    unit_list[region] = unit_cell.ATNR10(setup_dict, split[region])
+                else:
+                    raise ValueError('Non supported setup:',setup['structure'])
+            ## print out Hamiltonian in debug mode
+            if setup_dict['debug']:
+                ## build debug folder
+                folder = job_dir+'/debug/'
+                if not os.path.exists(folder): os.mkdir(folder)
+                for r_key, region in unit_list.items():
+                    IO_util.saveAsCSV(folder+str(s_idx)+'_'+r_key+'_H.csv', region.H)
+                    IO_util.saveAsCSV(folder+str(s_idx)+'_'+r_key+'_P+.csv', region.Pf)
+                    IO_util.saveAsCSV(folder+str(s_idx)+'_'+r_key+'_P-.csv', region.Pb)
+            t_unitcell = round(time.time() - t_unitcell,3)
+            #print('Unit cell:', t_unitcell, '(sec)')
+            t_split += t_unitcell
+            '''
+            Calculate band diagram
+            '''
+            t_band = time.time()
+            if setup_dict['band']:
+                for key, unit in unit_list.items():
+                    ## initialize ##
+                    band_parser = cal_band.CPU(setup_dict, unit)
+                    sweep_mesh = range(0,int(setup_dict['kx_mesh']),1)
+                    ## calculate band structure ##
+                    with Pool(processes=workers) as mp:
+                        eig = mp.map(band_parser.calState,sweep_mesh)
+                    ## output eigenvalues
+                    # build plot table header
+                    plot_table = [['kx']]
+                    for idx in range(np.size(eig[0][1])):
+                        plot_table[0].append('E'+str(idx+1)+' (eV)')
+                    # build state table header
+                    state_table = {}
+                    for kx in kx_list:
+                        state_table[kx] = [['2y/a']]
+                        for CB in CB_list:
+                            for idx in range(unit.SU_size):
+                                state_table[kx][0].append('CB='+str(CB)+',spin'+str(idx))
+                    # build data table
+                    for i in eig:
+                        plot_table.append([i[0]])
+                        plot_table[-1].extend(list(np.real(i[1])))
+                    for kx in kx_list:
+                        num_of_item = int(len(i[2][:,0])/unit.SU_size)
+                        for idx in range(num_of_item):
+                            state_table[kx].append([idx+1])
+                            for CB in CB_list:
+                                state_table[kx][-1].extend(list(np.abs(eig[kx][2][idx*unit.SU_size:(idx+1)*unit.SU_size,CB-1])))
+                    ## output to file
+                    folder = job_dir+'/band/'
+                    if not os.path.exists(folder):
+                        os.mkdir(folder)
+                    IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_band.csv', plot_table)
+                    for kx in kx_list:
+                        IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_eigenstates@kx='+str(kx)+'.csv', state_table[kx])
+                    '''
+                    try:
+                        IO_util.saveAsFigure(setup_dict, folder+key, unit, plot_table, save_type='band')
+                    except:
+                        warnings.warn("error when ploting figures. Skip and continue.")
+                    '''
+                else:
+                    t_band = round(time.time() - t_band,3)
+                    #print('Band diagram:', t_band, '(sec)')
+                    t_split += t_band
+            '''
+            Calculate RGF
+            '''
+            t_RGF = time.time()
+            if setup_dict['RGF']:
+                folder = job_dir+'/PTR/'
+                if not os.path.exists(folder):
+                    os.mkdir(folder)
+                RGF_header = ['kx |pi/a|','Energy (eV)','Transmission(CN1)','Transmission(CN2)']
+                RGF_util = cal_RGF.CPU(setup_dict, unit_list)
+                for CB in CB_list:
+                    RGF_util.CB = CB-1
+                    with Pool(processes=workers) as mp:
+                        RGF_output = mp.map(RGF_util.calRGF_transmit,kx_list)
+                    RGF_output = np.real(RGF_output)
+                    ## sort kx position low to high
+                    RGF_output = RGF_util.sort_E(RGF_output)
+                    ## add header
+                    RGF_tmp = np.zeros((np.size(RGF_output,0)+1,np.size(RGF_output,1)), dtype=np.object)
+                    RGF_tmp[0,:] = RGF_header
+                    RGF_tmp[1:,:] = RGF_output
+                    if s_idx == 0:
+                        split_summary[s_idx].append(RGF_output)
+                    else:
+                        split_summary[s_idx].append(RGF_output[:,2:])
+                    ## output to file ##
+                    IO_util.saveAsCSV(folder+str(s_idx)+'_CB='+str(CB)+'_TR.csv', RGF_tmp)
+                    '''
+                    if setup['isReflect']:
+                        RGF_util.reflect = True
+                        with Pool(processes=int(setup['parallel_CPU'])) as mp:
+                            RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
+                        RGF_output = np.real(RGF_output)
+                        ## sort kx position low to high
+                        RGF_output = RGF_util.sort_E(RGF_output)
+                        ## output to file ##
+                        IO_util.saveAsCSV(folder+file_name+'_TR_reverse.csv', RGF_output)
+                        RGF_util.reflect = False
+                    '''
+                else:
+                    t_RGF = time.time() - t_RGF
+                    #print('Calculate RGF:',t_RGF,'(sec)')
+                    t_split += t_RGF
+            print('Split_'+str(s_idx)+':',t_split,'(sec)')
+            t_total += t_split
+        else:
+            '''
+            Summary table
+            '''
+            if setup_dict['RGF']:
+                ## generate header
+                for CB_idx, CB in enumerate(CB_list):
+                    RGF_header = ['kx |pi/a|','Energy (eV)']
+                    RGF_table = []
+                    for s_idx, split in enumerate(split_table):
+                        RGF_header.append('Split_'+str(s_idx)+'_T (CN1)')
+                        RGF_header.append('Split_'+str(s_idx)+'_T (CN2)')
+                        RGF_table.append(split_summary[s_idx][CB_idx])
+                    else:
+                        RGF_table = np.block(RGF_table)
+                        RGF_tmp = np.zeros((np.size(RGF_table,0)+1,np.size(RGF_table,1)), dtype=np.object)
+                        RGF_tmp[0,:] = RGF_header
+                        RGF_tmp[1:,:] = RGF_table
+                        IO_util.saveAsCSV(folder+'Split result @ CB='+str(CB)+'_TR.csv', RGF_tmp)
+            print('Program finished successfully @ ',time.asctime(time.localtime(time.time())))
+            print('Total time: ', round(t_total,3), ' (sec)')
+"""
+            
     try:
         '''
         Work with command line.
@@ -20,8 +270,8 @@ if __name__ == '__main__':
         for excel input, setup file contains "__setup__" and "job" sheets.
         <job file> is not needed
         '''
-        p_name, p_type = data_util.string_splitter(sys.argv[0],'.')
-        input_file, input_type = data_util.string_splitter(sys.argv[1],'.')
+        p_name, p_type = data_util.str2float1D(sys.argv[0],'.')
+        input_file, input_type = data_util.str2float1D(sys.argv[1],'.')
         print('Program ',p_name, 'start @ ',time.asctime(time.localtime(time.time())))
         t_start = time.time()       # record import time
         if input_type == 'xlsx' or input_type == 'xls':
@@ -185,3 +435,4 @@ if __name__ == '__main__':
         t_total += time.time() - t_start
     print('Program finished successfully @ ',time.asctime(time.localtime(time.time())))
     print('Total time: ', round(t_total,3), ' (sec)')
+"""

@@ -1,2 +1,11 @@
-isGPU,isParallel,isDebug,isPlot_band,isPlot_zoom,isReflect,isRGF,parallel_CPU,material,lattice,direction,brief,SU_type,SU_hopping_size,brick_size,kx_mesh,mesh_start,mesh_stop,CB_idx_start,CB_idx_stop
-0,1,0,0,0,0,1,4,MoS2,MLG,Armchair,AMNR,separate,6,2,1000,0,100,16,16
+setting,value,comment,$,enable,name,kx_mesh,band,region,shift,width,length,Vtop,Vbot,Ez,Bx,By,Bz,gap,sweep_parameter,sweep_value
+material,WSe2_M10,Current support Graphene and WeS2,,o,test,"116,116","25,26",lead,0,15,100,0,0,0,0,0,1.00E-06,0,Vbot,0
+lattice,MLG,MLG or BLG,,x,test,"116,116","25,26",channel,0,15,100,-0.45,0,0,0,0,0.00E+00,0,Vbot,-0.5
+direction,AC,ZZ for zigzag and AC for armchair,,x,test,"116,116","25,26",output,0,15,100,0,0,0,0,0,0,0,,
+structure,ATNR10,Current support AGNR and AWNR,,,,,,,,,,,,,,,,,,
+kx_mesh,1001,kx mesh grid size from 0 to 2pi,,,,,,,,,,,,,,,,,,
+debug,FALSE,debugging mode,,,,,,,,,,,,,,,,,,
+band,TRUE,plot band diagram,,,,,,,,,,,,,,,,,,
+RGF,FALSE,calculate RGF,,,,,,,,,,,,,,,,,,
+SU_type,separate,separate for sub unit cell without any hopping; overlap for sub unit cell with hopping,,,,,,,,,,,,,,,,,,
+SOI_open,TRUE,turn on SOI in ATNR_10,,,,,,,,,,,,,,,,,,

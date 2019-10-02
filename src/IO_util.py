@@ -1,8 +1,106 @@
 import sys, copy, csv
-import lib_material
+import lib_material, unit_cell
 import numpy as np
 from matplotlib import pyplot
 
+def load_setup(setup_file):
+    setup = {}
+    job = {}
+    with open(setup_file, newline='') as csv_file:
+        rows = csv.DictReader(csv_file)
+        for row in rows:
+            '''
+            setup dictionary
+            '''
+            if row['setting'] == 'material':
+                setup['material'] = lib_material.Material(row['value'])
+            elif row['setting'] == 'lattice':
+                setup['lattice'] = row['value']
+            elif row['setting'] == 'direction':
+                setup['direction'] = row['value']
+            elif row['setting'] == 'structure':
+                setup['structure'] = row['value']
+            elif row['setting'] == 'kx_mesh':
+                setup['kx_mesh'] = row['value']
+            elif row['setting'] == 'debug':
+                if row['value'] == 'TRUE':
+                    setup['debug'] = True
+                else:
+                    setup['debug'] = False
+            elif row['setting'] == 'SU_type':
+                setup['SU_type'] = row['value']
+            elif row['setting'] == 'band':
+                if row['value'] == 'TRUE':
+                    setup['band'] = True
+                else:
+                    setup['band'] = False
+            elif row['setting'] == 'RGF':
+                if row['value'] == 'TRUE':
+                    setup['RGF'] = True
+                else:
+                    setup['RGF'] = False
+            elif row['setting'] == 'SOI_open':
+                if row['value'] == 'TRUE':
+                    setup['SOI'] = True
+                else:
+                    setup['SOI'] = False
+            else:
+                pass
+            '''
+            job dictionary
+            '''
+            if row['enable'] == 'o':
+                if row['name'] not in job:      # new job. create new key entrance
+                    job[row['name']] = {'name': row['name'],
+                                        'kx': row['kx_mesh'],
+                                        'CB': row['band'],
+                                        'region list': [row['region']],
+                                        row['region']: {}}
+                    job[row['name']][row['region']]['shift'] = [int(row['shift'])]
+                    job[row['name']][row['region']]['width'] = [int(row['width'])]
+                    job[row['name']][row['region']]['length'] = [int(row['length'])]
+                    job[row['name']][row['region']]['Vtop'] = [float(row['Vtop'])]
+                    job[row['name']][row['region']]['Vbot'] = [float(row['Vbot'])]
+                    job[row['name']][row['region']]['gap'] = [float(row['gap'])]
+                    job[row['name']][row['region']]['Ez'] = [float(row['Ez'])]
+                    job[row['name']][row['region']]['Bx'] = [float(row['Bx'])]
+                    job[row['name']][row['region']]['By'] = [float(row['By'])]
+                    job[row['name']][row['region']]['Bz'] = [float(row['Bz'])]
+                    job[row['name']][row['region']]['sweep_var'] = [row['sweep_parameter']]
+                    job[row['name']][row['region']]['sweep_val'] = [row['sweep_value']]
+                else:
+                    if row['region'] not in job[row['name']].keys():
+                        job[row['name']]['region list'].append(row['region'])
+                        job[row['name']][row['region']] = {}
+                        job[row['name']][row['region']]['shift'] = [int(row['shift'])]
+                        job[row['name']][row['region']]['width'] = [int(row['width'])]
+                        job[row['name']][row['region']]['length'] = [int(row['length'])]
+                        job[row['name']][row['region']]['Vtop'] = [float(row['Vtop'])]
+                        job[row['name']][row['region']]['Vbot'] = [float(row['Vbot'])]
+                        job[row['name']][row['region']]['gap'] = [float(row['gap'])]
+                        job[row['name']][row['region']]['Ez'] = [float(row['Ez'])]
+                        job[row['name']][row['region']]['Bx'] = [float(row['Bx'])]
+                        job[row['name']][row['region']]['By'] = [float(row['By'])]
+                        job[row['name']][row['region']]['Bz'] = [float(row['Bz'])]
+                        job[row['name']][row['region']]['sweep_var'] = [row['sweep_parameter']]
+                        job[row['name']][row['region']]['sweep_val'] = [row['sweep_value']]
+                    else:
+                        job[row['name']][row['region']]['shift'].append(int(row['shift']))
+                        job[row['name']][row['region']]['width'].append(int(row['width']))
+                        job[row['name']][row['region']]['length'].append(int(row['length']))
+                        job[row['name']][row['region']]['Vtop'].append(float(row['Vtop']))
+                        job[row['name']][row['region']]['Vbot'].append(float(row['Vbot']))
+                        job[row['name']][row['region']]['gap'].append(float(row['gap']))
+                        job[row['name']][row['region']]['Ez'].append(float(row['Ez']))
+                        job[row['name']][row['region']]['Bx'].append(float(row['Bx']))
+                        job[row['name']][row['region']]['By'].append(float(row['By']))
+                        job[row['name']][row['region']]['Bz'].append(float(row['Bz']))
+                        job[row['name']][row['region']]['gap'].append(float(row['gap']))
+                        job[row['name']][row['region']]['sweep_var'].append(row['sweep_parameter'])
+                        job[row['name']][row['region']]['sweep_val'].append(row['sweep_value'])
+            else:
+                pass
+    return setup, job
 def importFromCSV(setup_file, job_file):
     setup = {'isDebug':False,
              'isGPU':False,
@@ -68,7 +166,7 @@ def importFromCSV(setup_file, job_file):
     return setup, job_list
 def saveAsCSV(file_name, table):
     with open(file_name, 'w', newline='') as csv_file:
-        csv_parser = csv.writer(csv_file, delimiter=',',quotechar='|')
+        csv_parser = csv.writer(csv_file, delimiter=',')
         for i in range(np.size(np.array(table), 0)):
             try:
                 csv_parser.writerow(list(table[i,:]))

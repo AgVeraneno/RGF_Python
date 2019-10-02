@@ -1,3 +1,0 @@
-enable,region,cell_type,shift,width,length,Vtop,Vbot,gap
-o,lead,envelope,0,5,100,0,0.1,0
-o,output,envelope,0,5,100,0,0,0
