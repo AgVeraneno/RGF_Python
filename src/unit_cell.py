@@ -1427,6 +1427,8 @@ class ATNR10():
         self.mat.Bx = job['Bx'][0]
         self.mat.By = job['By'][0]
         self.mat.Bz = job['Bz'][0]
+        if not setup['SOI']:
+            self.mat.SOI = 0
         self.mat.setATNR10()
     def __gen_Hamiltonian__(self):
         self.__component__()
@@ -1449,6 +1451,7 @@ class ATNR10():
         '''
         Gap Profile
         '''
+        """
         gap_profile = np.eye(self.m_size, dtype=np.complex128)*1000
         ## separate type sub unit
         shift = 0
@@ -1472,6 +1475,7 @@ class ATNR10():
                         gap_profile[m+k,m+k] = gap[k,k]
             else:
                 shift += SU_ovl[i]
+        """
         '''
         Voltage profile
         '''
@@ -1517,7 +1521,7 @@ class ATNR10():
         '''
         Combine
         '''
-        self.H += gap_profile
+        #self.H += gap_profile
         self.H += dv_profile
     def __off_diagonal__(self):
         empty_matrix = np.zeros((self.SU_size,self.SU_size), dtype=np.complex128)
@@ -1547,7 +1551,7 @@ class ATNR10():
                 if r == c-1:
                     rowHAA.append(self.mat.A4)
                 elif r == c:
-                    rowHAA.append(self.mat.A0)
+                    rowHAA.append(self.mat.A0/2)
                 else:
                     rowHAA.append(empty_matrix)
             else:
@@ -1576,7 +1580,7 @@ class ATNR10():
                 if r == c-1:
                     rowHBB.append(self.mat.A4)
                 elif r == c:
-                    rowHBB.append(self.mat.A0)
+                    rowHBB.append(self.mat.A0/2)
                 else:
                     rowHBB.append(empty_matrix)
             else:

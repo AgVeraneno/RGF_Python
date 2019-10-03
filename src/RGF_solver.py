@@ -99,6 +99,9 @@ if __name__ == '__main__':
                             new_job = copy.deepcopy(job)
                             new_job[s_key][key][r_idx] = v
                             split_table.append(new_job)
+            else:
+                if len(split_table) == 0:
+                    split_table.append(job)
         '''
         Calculate splits
         '''
@@ -167,6 +170,8 @@ if __name__ == '__main__':
                         for CB in CB_list:
                             for idx in range(unit.SU_size):
                                 state_table[kx][0].append('CB='+str(CB)+',spin'+str(idx))
+                            else:
+                                state_table[kx][0].append("$")
                     # build data table
                     for i in eig:
                         plot_table.append([i[0]])
@@ -177,6 +182,35 @@ if __name__ == '__main__':
                             state_table[kx].append([idx+1])
                             for CB in CB_list:
                                 state_table[kx][-1].extend(list(np.abs(eig[kx][2][idx*unit.SU_size:(idx+1)*unit.SU_size,CB-1])))
+                                state_table[kx][-1].append('')
+                        else:
+                            tmp_table = copy.deepcopy(state_table[kx])
+                            if setup_dict['SU_type'] == 'separate':
+                                n_sep = 1
+                                n_ovl = int(num_of_item/2)+num_of_item%2+1
+                                for i in range(0,num_of_item,2):
+                                    state_table[kx][i+1] = tmp_table[n_sep]
+                                    state_table[kx][i+1][0] = i+1
+                                    try:
+                                        state_table[kx][i+2] = tmp_table[n_ovl]
+                                        state_table[kx][i+2][0] = i+2
+                                    except:
+                                        pass
+                                    n_sep += 1
+                                    n_ovl += 1
+                            elif setup_dict['SU_type'] == 'overlap':
+                                n_sep = 1
+                                n_ovl = int(num_of_item/2)+1
+                                for i in range(0,num_of_item,2):
+                                    state_table[kx][i+1] = tmp_table[n_ovl]
+                                    state_table[kx][i+1][0] = i+1
+                                    try:
+                                        state_table[kx][i+2] = tmp_table[n_sep]
+                                        state_table[kx][i+2][0] = i+2
+                                    except:
+                                        pass
+                                    n_sep += 1
+                                    n_ovl += 1
                     ## output to file
                     folder = job_dir+'/band/'
                     if not os.path.exists(folder):
@@ -202,7 +236,7 @@ if __name__ == '__main__':
                 folder = job_dir+'/PTR/'
                 if not os.path.exists(folder):
                     os.mkdir(folder)
-                RGF_header = ['kx |pi/a|','Energy (eV)','Transmission(CN1)','Transmission(CN2)']
+                RGF_header = ['kx |pi/a|','Energy (eV)','Transmission(CN1,spin1)','Transmission(CN1,spin2)','Transmission(CN2,spin1)','Transmission(CN2,spin2)']
                 RGF_util = cal_RGF.CPU(setup_dict, unit_list)
                 for CB in CB_list:
                     RGF_util.CB = CB-1

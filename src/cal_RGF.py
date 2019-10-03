@@ -150,14 +150,18 @@ class CPU():
                         i_state1[i] = 0
                 ## calculate T
                 T1 = self.calTR(i_state1, CN1, J0)
-                T2 = self.calTR(i_state2, CN2, J0)
+                T2 = self.calTR(i_state1, CN2, J0)
+                T3 = self.calTR(i_state2, CN1, J0)
+                T4 = self.calTR(i_state2, CN2, J0)
             else:
                 ## calculate T
                 T1 = self.calTR(i_state, CN, J0)
-                T2 = self.calTR(i_state, CN, J0)
+                T2 = 0
+                T3 = 0
+                T4 = 0
             t_mesh_stop = time.time() - t_mesh_start
             #print('Mesh point @ kx=',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
-            return kx[0]*self.mat.ax/np.pi, E, T1, T2
+            return kx[0]*self.mat.ax/np.pi, E, T1, T2, T3, T4
     def calTR(self, i_state, o_state, J0):
         Ji = np.vdot(i_state, np.matmul(J0, i_state))
         Jt = np.vdot(o_state, np.matmul(J0, o_state))
