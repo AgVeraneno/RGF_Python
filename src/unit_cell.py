@@ -1546,6 +1546,8 @@ class ATNR10():
             for c in range(SU_sep):
                 if r == c-1:
                     rowHAA.append(self.mat.A4)
+                elif r == c:
+                    rowHAA.append(self.mat.A0)
                 else:
                     rowHAA.append(empty_matrix)
             else:
@@ -1573,6 +1575,8 @@ class ATNR10():
             for c in range(SU_ovl):
                 if r == c-1:
                     rowHBB.append(self.mat.A4)
+                elif r == c:
+                    rowHBB.append(self.mat.A0)
                 else:
                     rowHBB.append(empty_matrix)
             else:
