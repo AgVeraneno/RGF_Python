@@ -134,34 +134,28 @@ class CPU():
             Gnn = np.linalg.inv(G_inv)
             CN_next = -np.dot(Gnn, np.dot(Pp-Pn*np.prod(phase_o),CN))
             J0 = 1j*self.mat.ax/self.mat.h_bar*(Pn*phase_p-Pp*phase_n)
-            ## 2 mix states
-            if len(phase_o) > 1 or True:
-                N = len(CN)
-                CN1 = copy.deepcopy(CN)
-                CN2 = copy.deepcopy(CN)
-                i_state1 = copy.deepcopy(i_state)
-                i_state2 = copy.deepcopy(i_state)
-                for i in range(N):
-                    if i%2 == 0:
-                        CN2[i] = 0
-                        i_state2[i] = 0
-                    else:
-                        CN1[i] = 0
-                        i_state1[i] = 0
-                ## calculate T
-                T1 = self.calTR(i_state1, CN1, J0)
-                T2 = self.calTR(i_state1, CN2, J0)
-                T3 = self.calTR(i_state2, CN1, J0)
-                T4 = self.calTR(i_state2, CN2, J0)
-            else:
-                ## calculate T
-                T1 = self.calTR(i_state, CN, J0)
-                T2 = 0
-                T3 = 0
-                T4 = 0
+            ## calculate T with spin include
+            N = len(CN)
+            CN1 = copy.deepcopy(CN)
+            CN2 = copy.deepcopy(CN)
+            i_state1 = copy.deepcopy(i_state)
+            i_state2 = copy.deepcopy(i_state)
+            for i in range(N):
+                if i%2 == 0:
+                    CN2[i] = 0
+                    i_state2[i] = 0
+                else:
+                    CN1[i] = 0
+                    i_state1[i] = 0
+            ## calculate T
+            T1 = self.calTR(i_state1, CN1, J0)
+            T2 = self.calTR(i_state1, CN2, J0)
+            T3 = self.calTR(i_state2, CN1, J0)
+            T4 = self.calTR(i_state2, CN2, J0)
+            T5 = self.calTR(i_state, CN, J0)
             t_mesh_stop = time.time() - t_mesh_start
             #print('Mesh point @ kx=',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
-            return kx[0]*self.mat.ax/np.pi, E, T1, T2, T3, T4
+            return kx[0]*self.mat.ax/np.pi, E, T1, T2, T3, T4, T5
     def calTR(self, i_state, o_state, J0):
         Ji = np.vdot(i_state, np.matmul(J0, i_state))
         Jt = np.vdot(o_state, np.matmul(J0, o_state))

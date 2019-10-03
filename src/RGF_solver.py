@@ -236,7 +236,7 @@ if __name__ == '__main__':
                 folder = job_dir+'/PTR/'
                 if not os.path.exists(folder):
                     os.mkdir(folder)
-                RGF_header = ['kx |pi/a|','Energy (eV)','Transmission(CN1,spin1)','Transmission(CN1,spin2)','Transmission(CN2,spin1)','Transmission(CN2,spin2)']
+                RGF_header = ['kx |pi/a|','Energy (eV)','Transmission(CN1,spin1)','Transmission(CN1,spin2)','Transmission(CN2,spin1)','Transmission(CN2,spin2)','Transmission(Total)']
                 RGF_util = cal_RGF.CPU(setup_dict, unit_list)
                 for CB in CB_list:
                     RGF_util.CB = CB-1
@@ -280,12 +280,16 @@ if __name__ == '__main__':
             if setup_dict['RGF']:
                 ## generate header
                 for CB_idx, CB in enumerate(CB_list):
-                    RGF_header = ['kx |pi/a|','Energy (eV)']
+                    RGF_header = ['Split','kx |pi/a|','Energy (eV)']
                     RGF_table = []
                     for s_idx, split in enumerate(split_table):
-                        RGF_header.append('Split_'+str(s_idx)+'_T (CN1)')
-                        RGF_header.append('Split_'+str(s_idx)+'_T (CN2)')
-                        RGF_table.append(split_summary[s_idx][CB_idx])
+                        RGF_header.append('Transmission(CN1,spin1)')
+                        RGF_header.append('Transmission(CN1,spin2)')
+                        RGF_header.append('Transmission(CN2,spin1)')
+                        RGF_header.append('Transmission(CN2,spin2)')
+                        RGF_header.append('Transmission(Total)')
+                        RGF_table.append(['Split_'+str(s_idx)])
+                        RGF_table[-1].extend(split_summary[s_idx][CB_idx])
                     else:
                         RGF_table = np.block(RGF_table)
                         RGF_tmp = np.zeros((np.size(RGF_table,0)+1,np.size(RGF_table,1)), dtype=np.object)
