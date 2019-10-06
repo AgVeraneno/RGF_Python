@@ -1,11 +1,12 @@
 setting,value,comment,$,enable,name,kx_mesh,band,region,shift,width,length,Vtop,Vbot,Ez,Bx,By,Bz,gap,sweep_parameter,sweep_value
-material,WSe2_M10,Current support Graphene and WeS2,,o,test,"116,116","25,26",lead,0,15,100,0,0,0,0,0,1.00E-06,0,Vbot,0
-lattice,MLG,MLG or BLG,,x,test,"116,116","25,26",channel,0,15,100,-0.45,0,0,0,0,0.00E+00,0,Vbot,-0.5
-direction,AC,ZZ for zigzag and AC for armchair,,x,test,"116,116","25,26",output,0,15,100,0,0,0,0,0,0,0,,
+material,WSe2_M10,Current support Graphene and WeS2,,o,test,"115,116","25,26",lead,0,15,100,0,0,0,0,0,0,0,,
+lattice,MLG,MLG or BLG,,o,test,"115,116","25,26",channel,0,15,100,-0.45,0,0,0,0,0,0,Vbot,-0.5:-0.01:-0.55
+direction,AC,ZZ for zigzag and AC for armchair,,o,test,"115,116","25,26",output,0,15,100,0,0,0,0,0,0,0,,
 structure,ATNR10,Current support AGNR and AWNR,,,,,,,,,,,,,,,,,,
 kx_mesh,1001,kx mesh grid size from 0 to 2pi,,,,,,,,,,,,,,,,,,
-debug,TRUE,debugging mode,,,,,,,,,,,,,,,,,,
-band,FALSE,plot band diagram,,,,,,,,,,,,,,,,,,
-RGF,FALSE,calculate RGF,,,,,,,,,,,,,,,,,,
+debug,FALSE,debugging mode,,,,,,,,,,,,,,,,,,
+band,TRUE,plot band diagram,,,,,,,,,,,,,,,,,,
+RGF,TRUE,calculate RGF,,,,,,,,,,,,,,,,,,
 SU_type,separate,separate for sub unit cell without any hopping; overlap for sub unit cell with hopping,,,,,,,,,,,,,,,,,,
 SOI_open,TRUE,turn on SOI in ATNR_10,,,,,,,,,,,,,,,,,,
+spin_header,"d0,up;d0,dn;d2,up;d2,dn;d-2,up;d-2,dn;d1,up;d1,dn;d-1,up;d-1,dn",,,,,,,,,,,,,,,,,,,

@@ -1,5 +1,5 @@
 import sys, copy, csv
-import lib_material, unit_cell
+import lib_material, unit_cell, data_util
 import numpy as np
 from matplotlib import pyplot
 
@@ -44,6 +44,10 @@ def load_setup(setup_file):
                     setup['SOI'] = True
                 else:
                     setup['SOI'] = False
+            elif row['setting'] == 'spin_header':
+                setup['header'] = data_util.str2float1D(row['value'],totem=';',dtype='str')
+                setup['spin'] = [data_util.str2float1D(setup['header'][0],dtype='str')[1],
+                                 data_util.str2float1D(setup['header'][1],dtype='str')[1]]
             else:
                 pass
             '''

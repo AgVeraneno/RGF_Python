@@ -74,8 +74,8 @@ class CPU():
         ## calculate incident state
         input_unit = self.unit_list[mesh_grid[0]]
         output_unit = self.unit_list[mesh_grid[-1]]
-        kx, E, i_state = self.setBand(input_unit, kx_idx)
-        kx_list_o, _, _ = self.setBand(output_unit, kx_idx, True)
+        kx, E, i_state = self.setBand(input_unit, kx_idx-1)
+        kx_list_o, _, _ = self.setBand(output_unit, kx_idx-1, True)
         m_size = np.size(input_unit.H,0)
         E_matrix = np.eye(m_size, dtype=np.complex128)*np.real(E)
         ## calculate RGF ##
@@ -148,14 +148,12 @@ class CPU():
                     CN1[i] = 0
                     i_state1[i] = 0
             ## calculate T
-            T1 = self.calTR(i_state1, CN1, J0)
-            T2 = self.calTR(i_state1, CN2, J0)
-            T3 = self.calTR(i_state2, CN1, J0)
-            T4 = self.calTR(i_state2, CN2, J0)
-            T5 = self.calTR(i_state, CN, J0)
+            T1 = self.calTR(i_state, CN1, J0)
+            T2 = self.calTR(i_state, CN2, J0)
+            T3 = self.calTR(i_state, CN, J0)
             t_mesh_stop = time.time() - t_mesh_start
             #print('Mesh point @ kx=',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
-            return kx[0]*self.mat.ax/np.pi, E, T1, T2, T3, T4, T5
+            return kx[0]*self.mat.a, E, T1, T2, T3
     def calTR(self, i_state, o_state, J0):
         Ji = np.vdot(i_state, np.matmul(J0, i_state))
         Jt = np.vdot(o_state, np.matmul(J0, o_state))

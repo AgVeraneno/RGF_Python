@@ -166,34 +166,34 @@ if __name__ == '__main__':
                     # build state table header
                     state_table = {}
                     for kx in kx_list:
-                        state_table[kx] = [['2y/a']]
+                        state_table[kx-1] = [['2y/a']]
                         for CB in CB_list:
                             for idx in range(unit.SU_size):
-                                state_table[kx][0].append('CB='+str(CB)+',spin'+str(idx))
+                                state_table[kx-1][0].append('CB='+str(CB)+'('+setup_dict['header'][idx%unit.SU_size]+')')
                             else:
-                                state_table[kx][0].append("$")
+                                state_table[kx-1][0].append("$")
                     # build data table
                     for i in eig:
                         plot_table.append([i[0]])
                         plot_table[-1].extend(list(np.real(i[1])))
                     for kx in kx_list:
-                        num_of_item = int(len(i[2][:,0])/unit.SU_size)
+                        num_of_item = int(len(eig[0][2][:,0])/unit.SU_size)
                         for idx in range(num_of_item):
-                            state_table[kx].append([idx+1])
+                            state_table[kx-1].append([idx+1])
                             for CB in CB_list:
-                                state_table[kx][-1].extend(list(np.abs(eig[kx][2][idx*unit.SU_size:(idx+1)*unit.SU_size,CB-1])))
-                                state_table[kx][-1].append('')
+                                state_table[kx-1][-1].extend(list(np.abs(eig[kx-1][2][idx*unit.SU_size:(idx+1)*unit.SU_size,CB-1])))
+                                state_table[kx-1][-1].append('')
                         else:
-                            tmp_table = copy.deepcopy(state_table[kx])
+                            tmp_table = copy.deepcopy(state_table[kx-1])
                             if setup_dict['SU_type'] == 'separate':
                                 n_sep = 1
                                 n_ovl = int(num_of_item/2)+num_of_item%2+1
                                 for i in range(0,num_of_item,2):
-                                    state_table[kx][i+1] = tmp_table[n_sep]
-                                    state_table[kx][i+1][0] = i+1
+                                    state_table[kx-1][i+1] = tmp_table[n_sep]
+                                    state_table[kx-1][i+1][0] = i+1
                                     try:
-                                        state_table[kx][i+2] = tmp_table[n_ovl]
-                                        state_table[kx][i+2][0] = i+2
+                                        state_table[kx-1][i+2] = tmp_table[n_ovl]
+                                        state_table[kx-1][i+2][0] = i+2
                                     except:
                                         pass
                                     n_sep += 1
@@ -202,11 +202,11 @@ if __name__ == '__main__':
                                 n_sep = 1
                                 n_ovl = int(num_of_item/2)+1
                                 for i in range(0,num_of_item,2):
-                                    state_table[kx][i+1] = tmp_table[n_ovl]
-                                    state_table[kx][i+1][0] = i+1
+                                    state_table[kx-1][i+1] = tmp_table[n_ovl]
+                                    state_table[kx-1][i+1][0] = i+1
                                     try:
-                                        state_table[kx][i+2] = tmp_table[n_sep]
-                                        state_table[kx][i+2][0] = i+2
+                                        state_table[kx-1][i+2] = tmp_table[n_sep]
+                                        state_table[kx-1][i+2][0] = i+2
                                     except:
                                         pass
                                     n_sep += 1
@@ -217,7 +217,7 @@ if __name__ == '__main__':
                         os.mkdir(folder)
                     IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_band.csv', plot_table)
                     for kx in kx_list:
-                        IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_eigenstates@kx='+str(kx)+'.csv', state_table[kx])
+                        IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_eigenstates@kx='+str(kx)+'.csv', state_table[kx-1])
                     '''
                     try:
                         IO_util.saveAsFigure(setup_dict, folder+key, unit, plot_table, save_type='band')
@@ -236,7 +236,7 @@ if __name__ == '__main__':
                 folder = job_dir+'/PTR/'
                 if not os.path.exists(folder):
                     os.mkdir(folder)
-                RGF_header = ['kx |pi/a|','Energy (eV)','Transmission(CN1,spin1)','Transmission(CN1,spin2)','Transmission(CN2,spin1)','Transmission(CN2,spin2)','Transmission(Total)']
+                RGF_header = ['kx |1/a|','Energy (eV)','Transmission('+setup_dict['spin'][0]+')','Transmission('+setup_dict['spin'][1]+')','Transmission(Total)']
                 RGF_util = cal_RGF.CPU(setup_dict, unit_list)
                 for CB in CB_list:
                     RGF_util.CB = CB-1
@@ -249,10 +249,7 @@ if __name__ == '__main__':
                     RGF_tmp = np.zeros((np.size(RGF_output,0)+1,np.size(RGF_output,1)), dtype=np.object)
                     RGF_tmp[0,:] = RGF_header
                     RGF_tmp[1:,:] = RGF_output
-                    if s_idx == 0:
-                        split_summary[s_idx].append(RGF_output)
-                    else:
-                        split_summary[s_idx].append(RGF_output[:,2:])
+                    split_summary[s_idx].append(RGF_output)
                     ## output to file ##
                     IO_util.saveAsCSV(folder+str(s_idx)+'_CB='+str(CB)+'_TR.csv', RGF_tmp)
                     '''
@@ -279,23 +276,23 @@ if __name__ == '__main__':
             '''
             if setup_dict['RGF']:
                 ## generate header
+                RGF_header = ['Split', 'CB', 'kx (1/a)','Energy (eV)']
+                RGF_header.append('Transmission('+setup_dict['spin'][0]+')')
+                RGF_header.append('Transmission('+setup_dict['spin'][1]+')')
+                RGF_header.append('Transmission(Total)')
+                RGF_table = []
                 for CB_idx, CB in enumerate(CB_list):
-                    RGF_header = ['Split','kx |pi/a|','Energy (eV)']
-                    RGF_table = []
-                    for s_idx, split in enumerate(split_table):
-                        RGF_header.append('Transmission(CN1,spin1)')
-                        RGF_header.append('Transmission(CN1,spin2)')
-                        RGF_header.append('Transmission(CN2,spin1)')
-                        RGF_header.append('Transmission(CN2,spin2)')
-                        RGF_header.append('Transmission(Total)')
-                        RGF_table.append(['Split_'+str(s_idx)])
-                        RGF_table[-1].extend(split_summary[s_idx][CB_idx])
-                    else:
-                        RGF_table = np.block(RGF_table)
-                        RGF_tmp = np.zeros((np.size(RGF_table,0)+1,np.size(RGF_table,1)), dtype=np.object)
-                        RGF_tmp[0,:] = RGF_header
-                        RGF_tmp[1:,:] = RGF_table
-                        IO_util.saveAsCSV(folder+'Split result @ CB='+str(CB)+'_TR.csv', RGF_tmp)
+                    for kx_idx, kx in enumerate(kx_list):
+                        for s_idx, split in enumerate(split_table):
+                            RGF_table.append(['Split_'+str(s_idx)])
+                            RGF_table[-1].append(str(CB))
+                            RGF_table[-1].extend(split_summary[s_idx][CB_idx][kx_idx,:])
+                else:
+                    RGF_table = np.block(RGF_table)
+                    RGF_tmp = np.zeros((np.size(RGF_table,0)+1,np.size(RGF_table,1)), dtype=np.object)
+                    RGF_tmp[0,:] = RGF_header
+                    RGF_tmp[1:,:] = RGF_table
+                    IO_util.saveAsCSV(folder+'Split_summary.csv', RGF_tmp)
             print('Program finished successfully @ ',time.asctime(time.localtime(time.time())))
             print('Total time: ', round(t_total,3), ' (sec)')
 """
