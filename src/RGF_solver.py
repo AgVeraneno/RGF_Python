@@ -24,7 +24,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 1:
         setup_file = input_dir+'RGF_setup.csv'       # load default setup file
         isGPU = False
-        workers = 1
+        workers = 8
     else:
         # input file
         if '-i' in sys.argv:
@@ -238,18 +238,25 @@ if __name__ == '__main__':
                     os.mkdir(folder)
                 RGF_header = ['kx |1/a|','Energy (eV)','Transmission('+setup_dict['spin'][0]+')','Transmission('+setup_dict['spin'][1]+')','Transmission(Total)']
                 RGF_util = cal_RGF.CPU(setup_dict, unit_list)
+                CB_cache = {}
                 for CB in CB_list:
                     RGF_util.CB = CB-1
+                    RGF_util.C0 = []
+                    RGF_util.CN = []
                     with Pool(processes=workers) as mp:
                         RGF_output = mp.map(RGF_util.calRGF_transmit,kx_list)
                     RGF_output = np.real(RGF_output)
                     ## sort kx position low to high
-                    RGF_output = RGF_util.sort_E(RGF_output)
+                    RGF_output_sort = RGF_util.sort_E(RGF_output)
+                    CB_cache[CB] = copy.deepcopy(RGF_output_sort[:,2:6])
+                    RGF_output_sort[:,2] = RGF_output_sort[:,2]/RGF_output_sort[:,-1]
+                    RGF_output_sort[:,3] = RGF_output_sort[:,3]/RGF_output_sort[:,-1]
+                    RGF_output_sort[:,4] = RGF_output_sort[:,4]/RGF_output_sort[:,-1]
                     ## add header
-                    RGF_tmp = np.zeros((np.size(RGF_output,0)+1,np.size(RGF_output,1)), dtype=np.object)
+                    RGF_tmp = np.zeros((np.size(RGF_output_sort,0)+1,np.size(RGF_output_sort,1)-1), dtype=np.object)
                     RGF_tmp[0,:] = RGF_header
-                    RGF_tmp[1:,:] = RGF_output
-                    split_summary[s_idx].append(RGF_output)
+                    RGF_tmp[1:,:] = RGF_output_sort[:,:-1]
+                    split_summary[s_idx].append(RGF_output_sort[:,:-1])
                     ## output to file ##
                     IO_util.saveAsCSV(folder+str(s_idx)+'_CB='+str(CB)+'_TR.csv', RGF_tmp)
                     '''
@@ -277,9 +284,12 @@ if __name__ == '__main__':
             if setup_dict['RGF']:
                 ## generate header
                 RGF_header = ['Split', 'CB', 'kx (1/a)','Energy (eV)']
-                RGF_header.append('Transmission('+setup_dict['spin'][0]+')')
-                RGF_header.append('Transmission('+setup_dict['spin'][1]+')')
-                RGF_header.append('Transmission(Total)')
+                RGF_header.append('Local transmission('+setup_dict['spin'][0]+')')
+                RGF_header.append('Local transmission('+setup_dict['spin'][1]+')')
+                RGF_header.append('Local transmission(Total)')
+                RGF_header.append('Couple transmission('+setup_dict['spin'][0]+')')
+                RGF_header.append('Couple transmission('+setup_dict['spin'][1]+')')
+                RGF_header.append('Couple transmission(Total)')
                 RGF_table = []
                 for CB_idx, CB in enumerate(CB_list):
                     for kx_idx, kx in enumerate(kx_list):
@@ -287,6 +297,7 @@ if __name__ == '__main__':
                             RGF_table.append(['Split_'+str(s_idx)])
                             RGF_table[-1].append(str(CB))
                             RGF_table[-1].extend(split_summary[s_idx][CB_idx][kx_idx,:])
+                            RGF_table[-1].extend(CB_cache[CB_list[(CB_idx+1)%2]][kx_idx,:-1]/CB_cache[CB_list[(CB_idx)%2]][kx_idx,-1])
                 else:
                     RGF_table = np.block(RGF_table)
                     RGF_tmp = np.zeros((np.size(RGF_table,0)+1,np.size(RGF_table,1)), dtype=np.object)

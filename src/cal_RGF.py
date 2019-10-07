@@ -129,6 +129,8 @@ class CPU():
                     Gnn = np.linalg.inv(G_inv)
                     Gn0 = np.matmul(Gnn, np.matmul(Pp,Gn0))
         else:
+            self.C0.append(i_state)
+            self.CN.append(CN)
             ## Calculate multiple states
             G_inv = E_matrix - H - Pn*sum(phase_o)
             Gnn = np.linalg.inv(G_inv)
@@ -148,12 +150,16 @@ class CPU():
                     CN1[i] = 0
                     i_state1[i] = 0
             ## calculate T
+            Ji = np.vdot(i_state, np.matmul(J0, i_state))
+            Jt1 = np.vdot(CN1, np.matmul(J0, CN1))
+            Jt2 = np.vdot(CN2, np.matmul(J0, CN2))
+            Jt3 = np.vdot(CN, np.matmul(J0, CN))
             T1 = self.calTR(i_state, CN1, J0)
             T2 = self.calTR(i_state, CN2, J0)
             T3 = self.calTR(i_state, CN, J0)
             t_mesh_stop = time.time() - t_mesh_start
             #print('Mesh point @ kx=',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
-            return kx[0]*self.mat.a, E, T1, T2, T3
+            return kx[0]*self.mat.a, E, Jt1, Jt2, Jt3, Ji
     def calTR(self, i_state, o_state, J0):
         Ji = np.vdot(i_state, np.matmul(J0, i_state))
         Jt = np.vdot(o_state, np.matmul(J0, o_state))
