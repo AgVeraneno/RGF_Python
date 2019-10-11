@@ -1399,17 +1399,9 @@ class ATNR10():
         if setup['lattice'] == 'MLG':
             self.m_size = self.SU_size*sum(self.W)
             self.gap_inv = 1
-            self.L1_stop = [job['shift'][i]+W-1 for i,W in enumerate(np.cumsum(self.W))]
-            self.L1_start = [self.L1_stop[i]-W+1 for i,W in enumerate(self.W)]
-            self.L2_start = [-1 for i in range(len(self.W))]
-            self.L2_stop = [-1 for i in range(len(self.W))]
         elif setup['lattice'] == 'BLG':
             self.m_size = 2*self.SU_size*sum(self.W)
             self.gap_inv = 0
-            self.L1_stop = [job['shift'][i]+W-1 for i,W in enumerate(np.cumsum(self.W))]
-            self.L1_start = [self.L1_stop[i]-W+1 for i,W in enumerate(self.W)]
-            self.L2_start = [self.L1_start[i]+int(self.m_size/2) for i in range(len(self.W))]
-            self.L2_stop = [self.L1_stop[i]+int(self.m_size/2) for i in range(len(self.W))]
         else:
             raise ValueError('Unresolved lattice:', setup['lattice'])
         ## Hamiltonian
@@ -1436,93 +1428,56 @@ class ATNR10():
         self.__on_site_energy__()
     def __on_site_energy__(self):
         ## sub unit cell size
+
         SU = [int(W/2) for W in self.W]
         SU_add = [W%2 for W in self.W]
-        W = 2*sum(self.W)
+        W = sum(self.W)
+        '''
+        Voltage profile
+        '''
+        dv_profile = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
         if self.SU_type == 'separate':
-            SU_sep = [SU[i] + SU_add[i] for i in range(len(self.W))]
-            SU_ovl = SU
+            isSep = True
+            SU_shift = (int(W/2)+W%2)*self.SU_size
+            cnt_sep = 0
+            cnt_ovl = 0
+            for i, w in enumerate(self.W):
+                Vtop = self.Vtop[i]
+                Vbot = self.Vbot[i]
+                dV = (Vtop - Vbot)/w
+                if self.gap_inv:        # MLG
+                    for j in range(w):
+                        if isSep:
+                            m = cnt_sep*self.SU_size
+                            ## separate part
+                            for k in range(self.SU_size):
+                                dv_profile[m+k,m+k] = Vbot+(j+0.5)*dV
+                            else:
+                                isSep = False
+                                cnt_sep += 1
+                        else:
+                            m = SU_shift+cnt_ovl*self.SU_size
+                            ## overlap part
+                            for k in range(self.SU_size):
+                                dv_profile[m+k,m+k] = Vbot+(j+0.5)*dV
+                            else:
+                                isSep = True
+                                cnt_ovl += 1
+                
         elif self.SU_type == 'overlap':
             SU_sep = SU
             SU_ovl = [SU[i] + SU_add[i] for i in range(len(self.W))]
         else:
             raise ValueError('Unresolved type:',self.SU_type)
-        SU_shift = sum(SU_sep)
         '''
         Gap Profile
         '''
-        """
-        gap_profile = np.eye(self.m_size, dtype=np.complex128)*1000
-        ## separate type sub unit
-        shift = 0
-        for i in range(len(self.W)):
-            gap = self.mat.A0
-            for j, sep in enumerate(range(SU_sep[i])):
-                m = self.SU_size*(shift+sep)
-                if self.gap_inv:        # MLG
-                    for k in range(self.SU_size):
-                        gap_profile[m+k,m+k] = gap[k,k]
-            else:
-                shift += SU_sep[i]
-        ## overlap type sub unit
-        shift = sum(SU_sep)
-        for i in range(len(self.W)):
-            gap = self.mat.A0
-            for j, sep in enumerate(range(SU_ovl[i])):
-                m = self.SU_size*(shift+sep)
-                if self.gap_inv:        # MLG
-                    for k in range(self.SU_size):
-                        gap_profile[m+k,m+k] = gap[k,k]
-            else:
-                shift += SU_ovl[i]
-        """
-        '''
-        Voltage profile
-        '''
-        dv_profile = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
-        ## separate type sub unit
-        shift = 0
-        for i in range(len(self.W)):
-            Vtop = self.Vtop[i]
-            Vbot = self.Vbot[i]
-            dV = (Vtop - Vbot)/(self.W[i]+1)
-            for j, sep in enumerate(range(SU_sep[i])):
-                m = self.SU_size*(shift+sep)
-                if self.gap_inv:        # MLG
-                    if self.SU_type == 'separate':
-                        for k in range(self.SU_size):
-                            dv_profile[m+k,m+k] = Vbot+2*(j+0.5)*dV
-                    elif self.SU_type == 'overlap':
-                        for k in range(self.SU_size):
-                            dv_profile[m+k,m+k] = Vbot+2*(j+1)*dV
-                    else:
-                        raise ValueError('Unresolved type:',self.SU_type)
-            else:
-                shift += SU_sep[i]
-        ## overlap type sub unit
-        shift = sum(SU_sep)
-        for i in range(len(self.W)):
-            Vtop = self.Vtop[i]
-            Vbot = self.Vbot[i]
-            dV = (Vtop - Vbot)/(self.W[i]+1)
-            for j, sep in enumerate(range(SU_ovl[i])):
-                m = self.SU_size*(shift+sep)
-                if self.gap_inv:        # MLG
-                    if self.SU_type == 'separate':
-                        for k in range(self.SU_size):
-                            dv_profile[m+k,m+k] = Vbot+2*(j+1)*dV
-                    elif self.SU_type == 'overlap':
-                        for k in range(self.SU_size):
-                            dv_profile[m+k,m+k] = Vbot+2*(j+0.5)*dV
-                    else:
-                        raise ValueError('Unresolved type:',self.SU_type)
-            else:
-                shift += SU_ovl[i]
         '''
         Combine
         '''
         #self.H += gap_profile
         self.H += dv_profile
+        self.V = dv_profile
     def __off_diagonal__(self):
         empty_matrix = np.zeros((self.SU_size,self.SU_size), dtype=np.complex128)
         ## unit cell H
