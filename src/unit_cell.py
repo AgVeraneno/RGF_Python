@@ -1438,37 +1438,35 @@ class ATNR10():
         dv_profile = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
         if self.SU_type == 'separate':
             isSep = True
-            SU_shift = (int(W/2)+W%2)*self.SU_size
-            cnt_sep = 0
-            cnt_ovl = 0
-            for i, w in enumerate(self.W):
-                Vtop = self.Vtop[i]
-                Vbot = self.Vbot[i]
-                dV = (Vtop - Vbot)/w
-                if self.gap_inv:        # MLG
-                    for j in range(w):
-                        if isSep:
-                            m = cnt_sep*self.SU_size
-                            ## separate part
-                            for k in range(self.SU_size):
-                                dv_profile[m+k,m+k] = Vbot+(j+0.5)*dV
-                            else:
-                                isSep = False
-                                cnt_sep += 1
-                        else:
-                            m = SU_shift+cnt_ovl*self.SU_size
-                            ## overlap part
-                            for k in range(self.SU_size):
-                                dv_profile[m+k,m+k] = Vbot+(j+0.5)*dV
-                            else:
-                                isSep = True
-                                cnt_ovl += 1
-                
         elif self.SU_type == 'overlap':
-            SU_sep = SU
-            SU_ovl = [SU[i] + SU_add[i] for i in range(len(self.W))]
+            isSep = False
         else:
             raise ValueError('Unresolved type:',self.SU_type)
+        SU_shift = (int(W/2)+W%2)*self.SU_size
+        cnt_sep = 0
+        cnt_ovl = 0
+        for i, w in enumerate(self.W):
+            Vtop = self.Vtop[i]
+            Vbot = self.Vbot[i]
+            dV = (Vtop - Vbot)/w
+            if self.gap_inv:        # MLG
+                for j in range(w):
+                    if isSep:
+                        m = cnt_sep*self.SU_size
+                        ## separate part
+                        for k in range(self.SU_size):
+                            dv_profile[m+k,m+k] = Vbot+(j+0.5)*dV
+                        else:
+                            isSep = False
+                            cnt_sep += 1
+                    else:
+                        m = SU_shift+cnt_ovl*self.SU_size
+                        ## overlap part
+                        for k in range(self.SU_size):
+                            dv_profile[m+k,m+k] = Vbot+(j+0.5)*dV
+                        else:
+                            isSep = True
+                            cnt_ovl += 1
         '''
         Gap Profile
         '''
