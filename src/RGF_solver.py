@@ -2,7 +2,7 @@ import sys, os, copy, time, warnings
 import numpy as np
 from multiprocessing import Pool
 import data_util, IO_util
-import unit_cell, cal_band, cal_RGF
+import unit_cell, unit_cell_graphene, cal_band, cal_RGF
 
 if __name__ == '__main__':
     print('Start RGF solver @ ',time.asctime(time.localtime(time.time())))
@@ -127,7 +127,7 @@ if __name__ == '__main__':
             unit_list = {}
             for r_idx, region in enumerate(split['region list']):
                 if setup_dict['structure'] == 'AGNR':
-                    unit_list[region] = unit_cell.AGNR_new(setup_dict, split, r_dix)
+                    unit_list[region] = unit_cell_graphene.AGNR(setup_dict, split[region])
                 elif setup_dict['structure'] == 'ATNR':
                     unit_list[region] = unit_cell.ATNR(setup_dict, split[region])
                 elif setup_dict['structure'] == 'ATNR10':
@@ -143,7 +143,7 @@ if __name__ == '__main__':
                     IO_util.saveAsCSV(folder+str(s_idx)+'_'+r_key+'_H.csv', region.H)
                     IO_util.saveAsCSV(folder+str(s_idx)+'_'+r_key+'_P+.csv', region.Pf)
                     IO_util.saveAsCSV(folder+str(s_idx)+'_'+r_key+'_P-.csv', region.Pb)
-                    IO_util.saveAsCSV(folder+str(s_idx)+'_'+r_key+'_V.csv', region.V)
+                    #IO_util.saveAsCSV(folder+str(s_idx)+'_'+r_key+'_V.csv', region.V)
             t_unitcell = round(time.time() - t_unitcell,3)
             #print('Unit cell:', t_unitcell, '(sec)')
             t_split += t_unitcell
