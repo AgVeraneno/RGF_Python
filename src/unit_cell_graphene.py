@@ -13,7 +13,7 @@ class AGNR():
         New material parameters
         SU size: number of orbits used for hopping
         '''
-        self.SU_size = 2                        # sub unit cell size
+        self.SU_size = 1                        # sub unit cell size
         '''
         Auto generate parameters
         '''
@@ -21,12 +21,6 @@ class AGNR():
         self.mesh = int(setup['kx_mesh'])       # band structure mesh
         self.ax = self.mat.ax                   # unit length
         self.__gen_Hamiltonian__()
-        
-        
-        self.__initialize__(setup, job)         # build unit cell geometry
-        self.mesh = int(setup['kx_mesh'])       # band structure mesh
-        self.ax = self.mat.ax                   # unit length
-        self.__gen_Hamiltonian__(setup['lattice'])
     def __initialize__(self, setup, job):
         self.mat = setup['material']                # unit cell material
         self.SU_type = setup['SU_type']             # sub unitcell type
@@ -64,7 +58,7 @@ class AGNR():
         self.gap = job['gap']
         self.Vtop = job['Vtop']
         self.Vbot = job['Vbot']
-    def __gen_Hamiltonian__(self, lattice='MLG'):
+    def __gen_Hamiltonian__(self):
         self.__component__()
         self.__off_diagonal__()
         self.__on_site_energy__()
@@ -192,7 +186,7 @@ class AGNR():
         self.H += gap_profile
         self.H += dv_profile
     def __off_diagonal__(self):
-        empty_matrix = np.zeros((self.SU_size,self.SU_size), dtype=np.complex128)
+        empty_matrix = np.zeros((2*self.SU_size,2*self.SU_size), dtype=np.complex128)
         ## unit cell H
         H = []
         blockHAB = []
@@ -292,10 +286,10 @@ class AGNR():
         blockPAC = np.block(blockPAC)
         blockPBD = np.block(blockPBD)
         ## combine matrix
-        m_ss = np.zeros((self.SU_size*SU_sep,self.SU_size*SU_sep), dtype=np.complex128)
-        m_so = np.zeros((self.SU_size*SU_sep,self.SU_size*SU_ovl), dtype=np.complex128)
-        m_os = np.zeros((self.SU_size*SU_ovl,self.SU_size*SU_sep), dtype=np.complex128)
-        m_oo = np.zeros((self.SU_size*SU_ovl,self.SU_size*SU_ovl), dtype=np.complex128)
+        m_ss = np.zeros((self.SU_size*2*SU_sep,self.SU_size*2*SU_sep), dtype=np.complex128)
+        m_so = np.zeros((self.SU_size*2*SU_sep,self.SU_size*2*SU_ovl), dtype=np.complex128)
+        m_os = np.zeros((self.SU_size*2*SU_ovl,self.SU_size*2*SU_sep), dtype=np.complex128)
+        m_oo = np.zeros((self.SU_size*2*SU_ovl,self.SU_size*2*SU_ovl), dtype=np.complex128)
         if self.gap_inv == 1:
             H = [[m_ss, blockHAB],
                  [m_os, blockHBB]]
@@ -340,7 +334,7 @@ class AGNR():
         ==============================================
         H sequence: a,b,...,a',b',...,A,B,...A',B',...
         '''
-        empty_matrix = np.zeros((self.SU_size,self.SU_size), dtype=np.complex128)
+        empty_matrix = np.zeros((self.SU_size*2,self.SU_size*2), dtype=np.complex128)
         ## same layer hopping
         self.__MAB__ = copy.deepcopy(empty_matrix)
         self.__MAB__[0,1] = -self.mat.r0
