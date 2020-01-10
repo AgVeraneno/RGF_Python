@@ -26,7 +26,7 @@ class CPU():
         get incident state and energy
         '''
         band_parser = cal_band.CPU(self.setup, unit)
-        kx, val, vec = band_parser.calState(kx_idx, True)
+        kx, val, vec, _ = band_parser.calState(kx_idx, True)
         E = val[self.CB]
         i_state = vec[:,self.CB]
         kx_list.append(kx)
@@ -45,7 +45,7 @@ class CPU():
                 elif not np.isclose(E,E2):
                     E_pre = copy.deepcopy(E2)
                     kx_pre = copy.deepcopy(kx2)
-                    kx2, val, _ = band_parser.calState(kx2_idx, True)
+                    kx2, val, _, _ = band_parser.calState(kx2_idx, True)
                     E2 = val[self.CB+1]
                     kx2_idx += 1
                 else:
@@ -54,7 +54,7 @@ class CPU():
                 ## apply insert method if E2 has crossed E
                 if E_pre < E and E2 > E:
                     kx2_idx = (E2-E)/(E2-E_pre)
-                    kx2, val, _ = band_parser.calState(kx2_idx, True)
+                    kx2, val, _, _ = band_parser.calState(kx2_idx, True)
                     kx_list.append(kx2)
                     break
         return kx_list, E, i_state
@@ -88,8 +88,8 @@ class CPU():
         for mesh_idx, key in enumerate(mesh_grid):
             unit = self.unit_list[key]
             H = unit.H
-            Pp = unit.Pf
-            Pn = unit.Pb
+            Pp = unit.Pb
+            Pn = unit.Pf
             if self.reflect:
                 '''
                 Reflection
