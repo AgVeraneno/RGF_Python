@@ -1151,8 +1151,10 @@ class ATNR():
         '''
         New material parameters
         SU size: number of orbits used for hopping
+        SU count: number of atoms contained in sub unit cell
         '''
         self.SU_size = 6                        # sub unit cell size
+        self.SU_count = 1
         '''
         Auto generate parameters
         '''
@@ -1377,8 +1379,10 @@ class ATNR10():
         '''
         New material parameters
         SU size: number of orbits used for hopping
+        SU count: number of atoms contained in sub unit cell
         '''
         self.SU_size = 10                        # sub unit cell size
+        self.SU_count = 1
         '''
         Auto generate parameters
         '''

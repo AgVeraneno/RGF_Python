@@ -157,13 +157,24 @@ if __name__ == '__main__':
                     band_parser = cal_band.CPU(setup_dict, unit)
                     sweep_mesh = range(0,int(setup_dict['kx_mesh']),1)
                     ## calculate band structure ##
-                    with Pool(processes=workers) as mp:
-                        eig = mp.map(band_parser.calState,sweep_mesh)
+                    #with Pool(processes=workers) as mp:
+                    #    eig = mp.map(band_parser.calState,sweep_mesh)
+                    eig = []
+                    for i in sweep_mesh:
+                        if i == 0:
+                            eig.append(band_parser.calState(i))
+                        else:
+                            eig.append(band_parser.calState(i))
                     ## output eigenvalues
                     # build plot table header
                     plot_table = [['kx']]
                     for idx in range(np.size(eig[0][1])):
                         plot_table[0].append('E'+str(idx+1)+' (eV)')
+                    # build data table
+                    for i in eig:
+                        plot_table.append([i[0]])
+                        plot_table[-1].extend(list(np.real(i[1])))
+                    ## output eigenvectors
                     # build state table header
                     state_table = {}
                     for kx in kx_list:
@@ -173,10 +184,31 @@ if __name__ == '__main__':
                                 state_table[kx-1][0].append('CB='+str(CB)+'('+setup_dict['header'][idx%unit.SU_size]+')')
                             else:
                                 state_table[kx-1][0].append("$")
-                    # build data table
-                    for i in eig:
-                        plot_table.append([i[0]])
-                        plot_table[-1].extend(list(np.real(i[1])))
+                    # build sorted state table header
+                    sorted_state_table = {}
+                    for CB in CB_list:
+                        sorted_state_table[CB] = [['kx']]
+                        if setup_dict['lattice'] == 'MLG':
+                            for idx in range(np.size(eig[0][1],0)):
+                                sorted_state_table[CB][0].append('Re'+str(idx))
+                            for idx in range(np.size(eig[0][1],0)):
+                                sorted_state_table[CB][0].append('Im'+str(idx))
+                        elif setup_dict['lattice'] == 'BLG':
+                            for idx in range(int(np.size(eig[0][1],0)/2)):
+                                sorted_state_table[CB][0].append('L1_Re'+str(idx))
+                            for idx in range(int(np.size(eig[0][1],0)/2)):
+                                sorted_state_table[CB][0].append('L1_Im'+str(idx))
+                            for idx in range(int(np.size(eig[0][1],0)/2)):
+                                sorted_state_table[CB][0].append('L2_Re'+str(idx))
+                            for idx in range(int(np.size(eig[0][1],0)/2)):
+                                sorted_state_table[CB][0].append('L2_Im'+str(idx))
+                        for i in eig:
+                            sorted_state_table[CB].append([i[0]])
+                            sorted_state_table[CB][-1].extend(list(np.real(i[3][:,CB])))
+                            sorted_state_table[CB][-1].extend(list(np.imag(i[3][:,CB])))
+                                
+
+                    
                     for kx in kx_list:
                         num_of_item = int(len(eig[0][2][:,0])/unit.SU_size)
                         for idx in range(num_of_item):
@@ -219,6 +251,8 @@ if __name__ == '__main__':
                     IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_band.csv', plot_table)
                     for kx in kx_list:
                         IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_eigenstates@kx='+str(kx)+'.csv', state_table[kx-1])
+                    for CB in CB_list:
+                        IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_eigenstates@CB='+str(kx)+'.csv', sorted_state_table[CB])
                     '''
                     try:
                         IO_util.saveAsFigure(setup_dict, folder+key, unit, plot_table, save_type='band')

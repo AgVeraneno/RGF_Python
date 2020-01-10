@@ -12,8 +12,10 @@ class AGNR():
         '''
         New material parameters
         SU size: number of orbits used for hopping
+        SU count: number of atoms contained in sub unit cell
         '''
         self.SU_size = 1                        # sub unit cell size
+        self.SU_count = 2
         '''
         Auto generate parameters
         '''
@@ -332,7 +334,7 @@ class AGNR():
         SU type: separate       X    O    X    O
                                 A    C    A    C
         ==============================================
-        H sequence: a,b,...,a',b',...,A,B,...A',B',...
+        H sequence: a,b,...,b',a',...,A,B,...B',A',...
         '''
         empty_matrix = np.zeros((self.SU_size*2,self.SU_size*2), dtype=np.complex128)
         ## same layer hopping
