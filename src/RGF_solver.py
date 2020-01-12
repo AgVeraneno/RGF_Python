@@ -164,7 +164,7 @@ if __name__ == '__main__':
                         if i == 0:
                             eig.append(band_parser.calState(i))
                         else:
-                            eig.append(band_parser.calState(i))
+                            eig.append(band_parser.calState(i, ref_val=eig[i-1][1], ref_vec=eig[i-1][3]))
                     ## output eigenvalues
                     # build plot table header
                     plot_table = [['kx']]

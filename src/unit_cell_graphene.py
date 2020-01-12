@@ -25,7 +25,8 @@ class AGNR():
         self.__gen_Hamiltonian__()
     def __initialize__(self, setup, job):
         self.mat = setup['material']                # unit cell material
-        self.SU_type = setup['SU_type']             # sub unitcell type
+        #self.SU_type = setup['SU_type']             # sub unitcell type
+        self.SU_type = 'separate'
         '''
         matrix definition
         '''
@@ -260,7 +261,7 @@ class AGNR():
                     rowHBC.append(empty_matrix)
             else:
                 blockHBC.append(rowHBC)
-        ## BD matrix
+        ## BB and BD matrix
         for r in range(SU_ovl):
             rowHBD = []
             rowHBB = []
@@ -308,8 +309,8 @@ class AGNR():
                  [m_os,m_oo,m_os,m_oo]]
         self.H = np.block(H)
         self.H = self.H + np.transpose(np.conj(self.H))
-        self.Pf = np.block(P)
-        self.Pb = np.transpose(np.conj(self.Pf))
+        self.Pb = np.block(P)
+        self.Pf = np.transpose(np.conj(self.Pb))
     def __component__(self):
         '''
         1)
@@ -334,26 +335,28 @@ class AGNR():
         SU type: separate       X    O    X    O
                                 A    C    A    C
         ==============================================
-        H sequence: a,b,...,b',a',...,A,B,...B',A',...
+        H sequence: a,b,...,a',b',...,A,B,...A',B',...
         '''
         empty_matrix = np.zeros((self.SU_size*2,self.SU_size*2), dtype=np.complex128)
         ## same layer hopping
         self.__MAB__ = copy.deepcopy(empty_matrix)
-        self.__MAB__[0,1] = -self.mat.r0
-        self.__MAB__[1,0] = -self.mat.r0
+        self.__MAB__[0,0] = -self.mat.r0
+        self.__MAB__[1,1] = -self.mat.r0
         self.__MpAB__ = self.__MAB__
         self.__PAAA__ = copy.deepcopy(empty_matrix)
         self.__PAAA__[0,1] = -self.mat.r0
         ## inter layer hopping
         self.__MAC__ = copy.deepcopy(empty_matrix)
         self.__MAC__[1,0] = -self.mat.r3
-        self.__MAD__ = self.__MAC__
-        self.__MpAD__ = self.__MAC__
-        self.__MBC__ = self.__MAC__
-        self.__MnBC__ = self.__MAC__
+        self.__MAD__ = copy.deepcopy(empty_matrix)
+        self.__MAD__[1,1] = -self.mat.r3
+        self.__MpAD__ = self.__MAD__
+        self.__MBC__ = copy.deepcopy(empty_matrix)
+        self.__MBC__[0,0] = -self.mat.r3
+        self.__MnBC__ = self.__MBC__
         self.__MBD__ = copy.deepcopy(empty_matrix)
-        self.__MBD__[0,1] = -self.mat.r1
+        self.__MBD__[1,0] = -self.mat.r1
         self.__PAAC__ = copy.deepcopy(empty_matrix)
         self.__PAAC__[0,1] = -self.mat.r1
         self.__PABD__ = copy.deepcopy(empty_matrix)
-        self.__PABD__[1,0] = -self.mat.r3
+        self.__PABD__[0,1] = -self.mat.r3

@@ -11,7 +11,7 @@ class CPU():
         self.lattice = setup['lattice']
     def setKx(self, l_idx):
         return 2*np.pi*(l_idx-self.mesh/2)/(self.ax*(self.mesh-1))
-    def calState(self, l_idx, returnKx=False, ref_vec=None):
+    def calState(self, l_idx, returnKx=False, ref_val=None, ref_vec=None):
         kx = self.setKx(l_idx)
         H = self.unit.H
         Pf = self.unit.Pf
@@ -99,11 +99,11 @@ class CPU():
             for s in range(sep_count):
                 for i in range(self.unit.SU_size):
                     idx_list.append(2*s+i)
-                    idx_list.append(2*s+i+self.unit.SU_count)
+                    idx_list.append(2*s+i+unit_count)
             for o in range(ovl_count):
                 for i in range(self.unit.SU_size):
                     idx_list.append(2*o+1+i)
-                    idx_list.append(2*o+1+i+self.unit.SU_count)
+                    idx_list.append(2*o+1+unit_count+i)
         elif self.SU_type == 'overlap':
             ovl_count = int(unit_count/2) + unit_count%2
             sep_count = unit_count - ovl_count
