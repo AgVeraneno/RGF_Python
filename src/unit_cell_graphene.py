@@ -15,17 +15,16 @@ class AGNR():
         SU count: number of atoms contained in sub unit cell
         '''
         self.SU_size = 1                        # sub unit cell size
-        self.SU_count = 2
+        self.SU_count = 2                       # atom number for each sub unit cell
         '''
         Auto generate parameters
         '''
-        self.__initialize__(setup, job)  # build unit cell geometry
+        self.mat = setup['material']            # unit cell material
         self.mesh = int(setup['kx_mesh'])       # band structure mesh
         self.ax = self.mat.ax                   # unit length
+        self.__initialize__(setup, job)
         self.__gen_Hamiltonian__()
     def __initialize__(self, setup, job):
-        self.mat = setup['material']                # unit cell material
-        #self.SU_type = setup['SU_type']             # sub unitcell type
         self.SU_type = 'separate'
         '''
         matrix definition
@@ -37,17 +36,9 @@ class AGNR():
         if setup['lattice'] == 'MLG':
             self.m_size = 2*sum(self.W)
             self.gap_inv = 1
-            self.L1_stop = [job['shift'][i]+W-1 for i,W in enumerate(np.cumsum(self.W))]
-            self.L1_start = [self.L1_stop[i]-W+1 for i,W in enumerate(self.W)]
-            self.L2_start = [-1 for i in range(len(self.W))]
-            self.L2_stop = [-1 for i in range(len(self.W))]
         elif setup['lattice'] == 'BLG':
             self.m_size = 4*sum(self.W)
             self.gap_inv = 0
-            self.L1_stop = [job['shift'][i]+W-1 for i,W in enumerate(np.cumsum(self.W))]
-            self.L1_start = [self.L1_stop[i]-W+1 for i,W in enumerate(self.W)]
-            self.L2_start = [self.L1_start[i]+int(self.m_size/2) for i in range(len(self.W))]
-            self.L2_stop = [self.L1_stop[i]+int(self.m_size/2) for i in range(len(self.W))]
         else:
             raise ValueError('Unresolved lattice:', setup['lattice'])
         ## Hamiltonian
@@ -70,14 +61,8 @@ class AGNR():
         SU = [int(W/2) for W in self.W]
         SU_add = [W%2 for W in self.W]
         W = 2*sum(self.W)
-        if self.SU_type == 'separate':
-            SU_sep = [SU[i] + SU_add[i] for i in range(len(self.W))]
-            SU_ovl = SU
-        elif self.SU_type == 'overlap':
-            SU_sep = SU
-            SU_ovl = [SU[i] + SU_add[i] for i in range(len(self.W))]
-        else:
-            raise ValueError('Unresolved type:',self.SU_type)
+        SU_sep = [SU[i] + SU_add[i] for i in range(len(self.W))]
+        SU_ovl = SU
         SU_shift = sum(SU_sep)
         '''
         Gap Profile
@@ -204,16 +189,8 @@ class AGNR():
         blockPAC = []
         blockPBD = []
         ## sub unit cell size
-        SU = int(sum(self.W)/2)
-        SU_add = sum(self.W)%2
-        if self.SU_type == 'separate':
-            SU_sep = SU + SU_add
-            SU_ovl = SU
-        elif self.SU_type == 'overlap':
-            SU_sep = SU
-            SU_ovl = SU + SU_add
-        else:
-            raise ValueError('Unresolved type:',self.SU_type)
+        SU_ovl = int(sum(self.W)/2) # overlap sub unitcell count
+        SU_sep = sum(self.W) - SU_ovl
         ## AA and AC matrix
         for r in range(SU_sep):
             rowPAA = []

@@ -71,10 +71,14 @@ if __name__ == '__main__':
                 if len(var) > 0:    # split enabled
                     sweep_list = data_util.str2float1D(var, totem=';', dtype='str')
                     sweep_val = data_util.str2float1D(job[region]['sweep_val'][var_idx], totem=';', dtype='str')
+                    for val_idx, val in enumerate(sweep_val):
+                        swp_typ, swp_val = data_util.str2float1D(val,totem='&')
+                        sweep_val[val_idx] = [swp_typ, swp_val]
                     sweep_dict = {}
                     for val_idx, vals in enumerate(sweep_val):
                         # split string to numbers
-                        val = data_util.str2float1D(vals,totem=',')
+                        val = data_util.str2float1D(vals[1],totem=',')
+                        val_type = vals[0]
                         vals = []
                         for v in val:
                             if isinstance(v, str):
@@ -85,7 +89,8 @@ if __name__ == '__main__':
                             else:
                                 vals.append(v)
                         else:
-                            sweep_dict[sweep_list[val_idx]] = vals
+                            sweep_dict[sweep_list[val_idx]] = {'type':val_type,
+                                                               'value':vals}
                     else:
                         job_sweep[region].append(sweep_dict)
                 else:
@@ -95,10 +100,14 @@ if __name__ == '__main__':
             for s_key, split in job_sweep.items():
                 for r_idx, sub_unit in enumerate(split):
                     for key, var in sub_unit.items():
-                        for v in var:
-                            new_job = copy.deepcopy(job)
-                            new_job[s_key][key][r_idx] = v
-                            split_table.append(new_job)
+                        if var['type'] == 'var':
+                            for v in var['value']:
+                                new_job = copy.deepcopy(job)
+                                new_job[s_key][key][r_idx] = v
+                                split_table.append(new_job)
+                        elif var['type'] == 'sync':
+                            for idx, old_job in enumerate(split_table):
+                                old_job[s_key][key][r_idx] = var['value'][idx%len(var['value'])]
             else:
                 if len(split_table) == 0:
                     split_table.append(job)
