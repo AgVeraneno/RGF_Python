@@ -99,7 +99,6 @@ def load_setup(setup_file):
                         job[row['name']][row['region']]['Bx'].append(float(row['Bx']))
                         job[row['name']][row['region']]['By'].append(float(row['By']))
                         job[row['name']][row['region']]['Bz'].append(float(row['Bz']))
-                        job[row['name']][row['region']]['gap'].append(float(row['gap']))
                         job[row['name']][row['region']]['sweep_var'].append(row['sweep_parameter'])
                         job[row['name']][row['region']]['sweep_val'].append(row['sweep_value'])
             else:
