@@ -190,22 +190,15 @@ if __name__ == '__main__':
                         sorted_state_table[CB] = [['kx']]
                         if setup_dict['lattice'] == 'MLG':
                             for idx in range(np.size(eig[0][1],0)):
-                                sorted_state_table[CB][0].append('Re'+str(idx))
-                            for idx in range(np.size(eig[0][1],0)):
-                                sorted_state_table[CB][0].append('Im'+str(idx))
+                                sorted_state_table[CB][0].append('L1_'+str(idx))
                         elif setup_dict['lattice'] == 'BLG':
                             for idx in range(int(np.size(eig[0][1],0)/2)):
-                                sorted_state_table[CB][0].append('L1_Re'+str(idx))
+                                sorted_state_table[CB][0].append('L1_'+str(idx))
                             for idx in range(int(np.size(eig[0][1],0)/2)):
-                                sorted_state_table[CB][0].append('L1_Im'+str(idx))
-                            for idx in range(int(np.size(eig[0][1],0)/2)):
-                                sorted_state_table[CB][0].append('L2_Re'+str(idx))
-                            for idx in range(int(np.size(eig[0][1],0)/2)):
-                                sorted_state_table[CB][0].append('L2_Im'+str(idx))
+                                sorted_state_table[CB][0].append('L2_'+str(idx))
                         for i in eig:
                             sorted_state_table[CB].append([i[0]])
-                            sorted_state_table[CB][-1].extend(list(np.real(i[3][:,CB])))
-                            sorted_state_table[CB][-1].extend(list(np.imag(i[3][:,CB])))
+                            sorted_state_table[CB][-1].extend(list(abs(i[3][:,CB])))
                                 
 
                     
@@ -252,7 +245,7 @@ if __name__ == '__main__':
                     for kx in kx_list:
                         IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_eigenstates@kx='+str(kx)+'.csv', state_table[kx-1])
                     for CB in CB_list:
-                        IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_eigenstates@CB='+str(kx)+'.csv', sorted_state_table[CB])
+                        IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_eigenstates@CB='+str(CB)+'.csv', sorted_state_table[CB])
                     '''
                     try:
                         IO_util.saveAsFigure(setup_dict, folder+key, unit, plot_table, save_type='band')

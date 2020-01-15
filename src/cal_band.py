@@ -93,30 +93,18 @@ class CPU():
     def sort_vec(self, vec):
         idx_list = []
         unit_count = int(len(vec)/self.unit.SU_count/self.unit.SU_size)
-        if self.SU_type == 'separate':
-            sep_count = int(unit_count/2) + unit_count%2
-            ovl_count = unit_count - sep_count
-            for s in range(sep_count):
-                for i in range(self.unit.SU_size):
-                    idx_list.append(2*s+i)
-                    idx_list.append(2*s+i+unit_count)
-            for o in range(ovl_count):
-                for i in range(self.unit.SU_size):
-                    idx_list.append(2*o+1+i)
-                    idx_list.append(2*o+1+unit_count+i)
-        elif self.SU_type == 'overlap':
-            ovl_count = int(unit_count/2) + unit_count%2
-            sep_count = unit_count - ovl_count
-            for s in range(sep_count):
-                for i in range(self.unit.SU_size):
-                    idx_list.append(2*s+1+i)
-                    idx_list.append(2*s+1+i+unit_count)
-            for o in range(ovl_count):
-                for i in range(self.unit.SU_size):
-                    idx_list.append(2*o+i)
-                    idx_list.append(2*o+i+unit_count)
+        sep_count = int(unit_count/2) + unit_count%2
+        ovl_count = unit_count - sep_count
+        for s in range(sep_count):
+            for i in range(self.unit.SU_size):
+                idx_list.append(2*s+i)
+                idx_list.append(2*s+i+unit_count)
+        for o in range(ovl_count):
+            for i in range(self.unit.SU_size):
+                idx_list.append(2*o+1+i)
+                idx_list.append(2*o+1+unit_count+i)
         sorted_vec = copy.deepcopy(vec)
         for v_idx in range(len(vec)):
-            sorted_vec[idx_list[v_idx]] = vec[v_idx]
+            sorted_vec[idx_list[v_idx]] = abs(vec[v_idx])**2
         else:
             return sorted_vec
