@@ -57,117 +57,93 @@ class AGNR():
         self.__off_diagonal__()
         self.__on_site_energy__()
     def __on_site_energy__(self):
-        ## sub unit cell size
-        SU = [int(W/2) for W in self.W]
-        SU_add = [W%2 for W in self.W]
-        W = 2*sum(self.W)
-        SU_sep = [SU[i] + SU_add[i] for i in range(len(self.W))]
-        SU_ovl = SU
-        SU_shift = sum(SU_sep)
+        ## identify index
+        idx_list = []
+        sep_count = int(sum(self.W)/2) + sum(self.W)%2
+        ovl_count = sum(self.W) - sep_count
+        for s in range(sep_count):
+            for i in range(self.SU_size):
+                idx_list.append(2*s+i)
+                idx_list.append(2*s+i+sum(self.W))
+        for o in range(ovl_count):
+            for i in range(self.SU_size):
+                idx_list.append(2*o+1+i)
+                idx_list.append(2*o+1+sum(self.W)+i)
         '''
         Gap Profile
         '''
         gap_profile = np.eye(self.m_size, dtype=np.complex128)*1000
-        ## separate type sub unit
-        shift = 0
-        for i in range(len(self.W)):
-            gap = self.gap[i]
-            for j, sep in enumerate(range(SU_sep[i])):
-                m = 2*(shift+sep)
-                if self.gap_inv:        # MLG
-                    gap_profile[m,m] = gap
-                    gap_profile[m+1,m+1] = -gap
-                else:       # BLG
-                    gap_profile[m,m] = gap
-                    gap_profile[m+1,m+1] = gap
-                    gap_profile[m+W,m+W] = -gap
-                    gap_profile[m+W+1,m+W+1] = -gap
+        gap_list = []
+        counter = 0
+        for w_idx, w in enumerate(self.W):
+            if self.gap_inv:
+                for i in range(w):
+                    gap_list.append(self.gap[w_idx]*(-1)**counter)
+                    counter += 1
             else:
-                shift += SU_sep[i]
-        ## overlap type sub unit
-        shift = sum(SU_sep)
-        for i in range(len(self.W)):
-            gap = self.gap[i]
-            for j, sep in enumerate(range(SU_ovl[i])):
-                m = 2*(shift+sep)
-                if self.gap_inv:        # MLG
-                    gap_profile[m,m] = gap
-                    gap_profile[m+1,m+1] = -gap
-                else:       # BLG
-                    gap_profile[m,m] = gap
-                    gap_profile[m+1,m+1] = gap
-                    gap_profile[m+W,m+W] = -gap
-                    gap_profile[m+W+1,m+W+1] = -gap
-            else:
-                shift += SU_ovl[i]
+                for i in range(w):
+                    gap_list.append(self.gap[w_idx])
+        else:
+            gap_inv = [g*-1 for g in gap_list]
+            gap_list.extend(gap_inv)
+            for i_idx, idx in enumerate(idx_list):
+                gap = gap_list[i_idx]
+                gap_profile[idx, idx] = gap
+        ## sub unit cell size
+        SU = [int(W/2) for W in self.W]
+        sep_add = [W%2 for W in self.W]
+        ovl_add = [W%2 for W in self.W]
+        for idx in range(1,len(sep_add)):
+            sep_add[idx] *= sep_add[idx-1]
+        W = 2*sum(self.W)
+        SU_sep = [SU[i] + sep_add[i] for i in range(len(self.W))]
+        SU_ovl = [SU[i] + ovl_add[i] - sep_add[i] for i in range(len(self.W))]
+        SU_shift = sum(SU_sep)
         '''
         Voltage profile
         '''
         dv_profile = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
         ## separate type sub unit
         shift = 0
+        ovl_first = 0
         for i in range(len(self.W)):
             Vtop = self.Vtop[i]
             Vbot = self.Vbot[i]
-            dV = (Vtop - Vbot)/(self.W[i]+1)
+            dV = (Vtop - Vbot)/self.W[i]
             for j, sep in enumerate(range(SU_sep[i])):
                 m = 2*(shift+sep)
                 if self.gap_inv:        # MLG
-                    if self.SU_type == 'separate':
-                        dv_profile[m,m] = Vbot+2*(j+1)*dV
-                        dv_profile[m+1,m+1] = Vbot+2*(j+1)*dV
-                    elif self.SU_type == 'overlap':
-                        dv_profile[m,m] = Vbot+2*(j+1.5)*dV
-                        dv_profile[m+1,m+1] = Vbot+2*(j+1.5)*dV
-                    else:
-                        raise ValueError('Unresolved type:',self.SU_type)
+                    dv_profile[m,m] = Vbot+2*(j+0.5+0.5*ovl_first)*dV
+                    dv_profile[m+1,m+1] = Vbot+2*(j+0.5+0.5*ovl_first)*dV
                 else:       # BLG
-                    if self.SU_type == 'separate':
-                        dv_profile[m,m] = Vbot+2*(j+0.5)*dV
-                        dv_profile[m+1,m+1] = Vbot+2*(j+0.5)*dV
-                        dv_profile[m+W,m+W] = Vbot+2*(j+0.5)*dV
-                        dv_profile[m+W+1,m+W+1] = Vbot+2*(j+0.5)*dV
-                    elif self.SU_type == 'overlap':
-                        dv_profile[m,m] = Vbot+2*(j+1)*dV
-                        dv_profile[m+1,m+1] = Vbot+2*(j+1)*dV
-                        dv_profile[m+W,m+W] = Vbot+2*(j+1)*dV
-                        dv_profile[m+W+1,m+W+1] = Vbot+2*(j+1)*dV
-                    else:
-                        raise ValueError('Unresolved type:',self.SU_type)
+                    dv_profile[m,m] = Vbot+2*(j+0.5)*dV
+                    dv_profile[m+1,m+1] = Vbot+2*(j+0.5)*dV
+                    dv_profile[m+W,m+W] = Vbot+2*(j+0.5)*dV
+                    dv_profile[m+W+1,m+W+1] = Vbot+2*(j+0.5)*dV
             else:
                 shift += SU_sep[i]
+                ovl_first += self.W[i]%2
+                ovl_first = ovl_first%2
         ## overlap type sub unit
         shift = sum(SU_sep)
         for i in range(len(self.W)):
             Vtop = self.Vtop[i]
             Vbot = self.Vbot[i]
-            dV = (Vtop - Vbot)/(self.W[i]+1)
+            dV = (Vtop - Vbot)/self.W[i]
             for j, sep in enumerate(range(SU_ovl[i])):
                 m = 2*(shift+sep)
                 if self.gap_inv:        # MLG
-                    if self.SU_type == 'separate':
-                        dv_profile[m,m] = Vbot+2*(j+1.5)*dV
-                        dv_profile[m+1,m+1] = Vbot+2*(j+1.5)*dV
-                    elif self.SU_type == 'overlap':
-                        dv_profile[m,m] = Vbot+2*(j+1)*dV
-                        dv_profile[m+1,m+1] = Vbot+2*(j+1)*dV
-                    else:
-                        raise ValueError('Unresolved type:',self.SU_type)
+                    dv_profile[m,m] = Vbot+2*(j+1-0.5*ovl_first)*dV
+                    dv_profile[m+1,m+1] = Vbot+2*(j+1-0.5*ovl_first)*dV
                 else:       # BLG
-                    if self.SU_type == 'separate':
-                        dv_profile[m,m] = Vbot+2*(j+1)*dV
-                        dv_profile[m+1,m+1] = Vbot+2*(j+1)*dV
-                        dv_profile[m+W,m+W] = Vbot+2*(j+1)*dV
-                        dv_profile[m+W+1,m+W+1] = Vbot+2*(j+1)*dV
-                    elif self.SU_type == 'overlap':
-                        dv_profile[m,m] = Vbot+2*(j+0.5)*dV
-                        dv_profile[m+1,m+1] = Vbot+2*(j+0.5)*dV
-                        dv_profile[m+W,m+W] = Vbot+2*(j+0.5)*dV
-                        dv_profile[m+W+1,m+W+1] = Vbot+2*(j+0.5)*dV
-                    else:
-                        raise ValueError('Unresolved type:',self.SU_type)
+                    dv_profile[m,m] = Vbot+2*(j+1)*dV
+                    dv_profile[m+1,m+1] = Vbot+2*(j+1)*dV
+                    dv_profile[m+W,m+W] = Vbot+2*(j+1)*dV
+                    dv_profile[m+W+1,m+W+1] = Vbot+2*(j+1)*dV
             else:
                 shift += SU_ovl[i]
+                ovl_first += self.W[i]%2
+                ovl_first = ovl_first%2
         '''
         Combine
         '''
