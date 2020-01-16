@@ -36,9 +36,11 @@ class AGNR():
         if setup['lattice'] == 'MLG':
             self.m_size = 2*sum(self.W)
             self.gap_inv = 1
+            self.lattice = 'MLG'
         elif setup['lattice'] == 'BLG':
             self.m_size = 4*sum(self.W)
             self.gap_inv = 0
+            self.lattice = 'BLG'
         else:
             raise ValueError('Unresolved lattice:', setup['lattice'])
         ## Hamiltonian
@@ -76,7 +78,7 @@ class AGNR():
         gap_list = []
         counter = 0
         for w_idx, w in enumerate(self.W):
-            if self.gap_inv:
+            if self.lattice == 'MLG':
                 for i in range(w):
                     gap_list.append(self.gap[w_idx]*(-1)**counter)
                     counter += 1
@@ -87,63 +89,34 @@ class AGNR():
             gap_inv = [g*-1 for g in gap_list]
             gap_list.extend(gap_inv)
             for i_idx, idx in enumerate(idx_list):
-                gap = gap_list[i_idx]
-                gap_profile[idx, idx] = gap
-        ## sub unit cell size
-        SU = [int(W/2) for W in self.W]
-        sep_add = [W%2 for W in self.W]
-        ovl_add = [W%2 for W in self.W]
-        for idx in range(1,len(sep_add)):
-            sep_add[idx] *= sep_add[idx-1]
-        W = 2*sum(self.W)
-        SU_sep = [SU[i] + sep_add[i] for i in range(len(self.W))]
-        SU_ovl = [SU[i] + ovl_add[i] - sep_add[i] for i in range(len(self.W))]
-        SU_shift = sum(SU_sep)
+                if self.lattice == 'MLG':
+                    gap_profile[i_idx, i_idx] = gap_list[idx]
+                elif self.lattice == 'BLG':
+                    gap_profile[i_idx, i_idx] = gap_list[idx]
+                    gap_profile[int(i_idx+self.m_size/2), int(i_idx+self.m_size/2)] = gap_list[idx]
         '''
         Voltage profile
         '''
         dv_profile = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
-        ## separate type sub unit
-        shift = 0
-        ovl_first = 0
-        for i in range(len(self.W)):
-            Vtop = self.Vtop[i]
-            Vbot = self.Vbot[i]
-            dV = (Vtop - Vbot)/self.W[i]
-            for j, sep in enumerate(range(SU_sep[i])):
-                m = 2*(shift+sep)
-                if self.gap_inv:        # MLG
-                    dv_profile[m,m] = Vbot+2*(j+0.5+0.5*ovl_first)*dV
-                    dv_profile[m+1,m+1] = Vbot+2*(j+0.5+0.5*ovl_first)*dV
-                else:       # BLG
-                    dv_profile[m,m] = Vbot+2*(j+0.5)*dV
-                    dv_profile[m+1,m+1] = Vbot+2*(j+0.5)*dV
-                    dv_profile[m+W,m+W] = Vbot+2*(j+0.5)*dV
-                    dv_profile[m+W+1,m+W+1] = Vbot+2*(j+0.5)*dV
-            else:
-                shift += SU_sep[i]
-                ovl_first += self.W[i]%2
-                ovl_first = ovl_first%2
-        ## overlap type sub unit
-        shift = sum(SU_sep)
-        for i in range(len(self.W)):
-            Vtop = self.Vtop[i]
-            Vbot = self.Vbot[i]
-            dV = (Vtop - Vbot)/self.W[i]
-            for j, sep in enumerate(range(SU_ovl[i])):
-                m = 2*(shift+sep)
-                if self.gap_inv:        # MLG
-                    dv_profile[m,m] = Vbot+2*(j+1-0.5*ovl_first)*dV
-                    dv_profile[m+1,m+1] = Vbot+2*(j+1-0.5*ovl_first)*dV
-                else:       # BLG
-                    dv_profile[m,m] = Vbot+2*(j+1)*dV
-                    dv_profile[m+1,m+1] = Vbot+2*(j+1)*dV
-                    dv_profile[m+W,m+W] = Vbot+2*(j+1)*dV
-                    dv_profile[m+W+1,m+W+1] = Vbot+2*(j+1)*dV
-            else:
-                shift += SU_ovl[i]
-                ovl_first += self.W[i]%2
-                ovl_first = ovl_first%2
+        V_list = []
+        Vovl_list = []
+        for w_idx, w in enumerate(self.W):
+            Vtop = self.Vtop[w_idx]
+            Vbot = self.Vbot[w_idx]
+            try:
+                dV = (Vtop-Vbot)/(w-1)
+            except:
+                dV = Vbot
+            for i in range(w):
+                V_list.append(Vbot+i*dV)
+        else:
+            V_list.extend(V_list)
+            for i_idx, idx in enumerate(idx_list):
+                if self.lattice == 'MLG':
+                    dv_profile[i_idx, i_idx] = V_list[idx]
+                elif self.lattice == 'BLG':
+                    dv_profile[i_idx, i_idx] = V_list[idx]
+                    dv_profile[int(i_idx+self.m_size/2), int(i_idx+self.m_size/2)] = V_list[idx]
         '''
         Combine
         '''
@@ -246,7 +219,7 @@ class AGNR():
         m_so = np.zeros((self.SU_size*2*SU_sep,self.SU_size*2*SU_ovl), dtype=np.complex128)
         m_os = np.zeros((self.SU_size*2*SU_ovl,self.SU_size*2*SU_sep), dtype=np.complex128)
         m_oo = np.zeros((self.SU_size*2*SU_ovl,self.SU_size*2*SU_ovl), dtype=np.complex128)
-        if self.gap_inv == 1:
+        if self.lattice == 'MLG':
             H = [[m_ss, blockHAB],
                  [m_os, blockHBB]]
             P = [[blockPAA, m_so],
