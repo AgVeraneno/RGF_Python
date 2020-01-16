@@ -86,14 +86,19 @@ class AGNR():
                 for i in range(w):
                     gap_list.append(self.gap[w_idx])
         else:
-            gap_inv = [g*-1 for g in gap_list]
-            gap_list.extend(gap_inv)
-            for i_idx, idx in enumerate(idx_list):
-                if self.lattice == 'MLG':
+            if self.lattice == 'MLG':
+                gap_inv = [g*-1 for g in gap_list]
+                gap_list.extend(gap_inv)
+                for i_idx, idx in enumerate(idx_list):
                     gap_profile[i_idx, i_idx] = gap_list[idx]
-                elif self.lattice == 'BLG':
+            elif self.lattice == 'BLG':
+                gap_inv = [g*-1 for g in gap_list]
+                gap_list.extend(gap_list)
+                gap_list.extend(gap_inv)
+                gap_list.extend(gap_inv)
+                for i_idx, idx in enumerate(idx_list):
                     gap_profile[i_idx, i_idx] = gap_list[idx]
-                    gap_profile[int(i_idx+self.m_size/2), int(i_idx+self.m_size/2)] = gap_list[idx]
+                    gap_profile[int(i_idx+self.m_size/2), int(i_idx+self.m_size/2)] = gap_list[int(idx+self.m_size/2)]
         '''
         Voltage profile
         '''

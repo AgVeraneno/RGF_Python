@@ -152,7 +152,6 @@ if __name__ == '__main__':
                     IO_util.saveAsCSV(folder+str(s_idx)+'_'+r_key+'_H.csv', region.H)
                     IO_util.saveAsCSV(folder+str(s_idx)+'_'+r_key+'_P+.csv', region.Pf)
                     IO_util.saveAsCSV(folder+str(s_idx)+'_'+r_key+'_P-.csv', region.Pb)
-                    #IO_util.saveAsCSV(folder+str(s_idx)+'_'+r_key+'_V.csv', region.V)
             t_unitcell = round(time.time() - t_unitcell,3)
             #print('Unit cell:', t_unitcell, '(sec)')
             t_split += t_unitcell
