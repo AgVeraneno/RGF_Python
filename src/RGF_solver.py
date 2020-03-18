@@ -1,15 +1,19 @@
-import sys, os, copy, time, warnings
+import sys, os, copy, time, warnings, logging
 import numpy as np
 from multiprocessing import Pool
 import data_util, IO_util
-import unit_cell, unit_cell_graphene, cal_band, cal_RGF
+import unit_cell, unit_cell_graphene, unit_cell_TMDc
+import cal_band, cal_RGF
 
 if __name__ == '__main__':
-    print('Start RGF solver @ ',time.asctime(time.localtime(time.time())))
-    t_total = 0
-    '''
+    """
     This program simulates ballistic transportation along x-axis.
-    '''
+    """
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(levelname)s %(message)s',
+                        handlers=[logging.FileHandler('RGF_solver.log', 'w', 'utf-8')])
+    logging.info('Start RGF solver.\n')
+    t_total = 0
     ############################################################
     # Environment setup
     # 1. build up "output" folder.
@@ -47,7 +51,8 @@ if __name__ == '__main__':
     # load setup file
     setup_dict, job_dict = IO_util.load_setup(setup_file)
     t_load = round(time.time() - t_load,3)
-    print('Import time:', t_load, '(sec)')
+    #print('Import time:', t_load, '(sec)')
+    logging.info('Import time: '+str(t_load)+' (sec).\n')
     t_total += t_load
     ############################################################
     # Run simulation
@@ -120,8 +125,8 @@ if __name__ == '__main__':
             t_split = 0
             t_unitcell = time.time()
             ## resolve calculation condition
-            k0, kN = data_util.str2float1D(split['kx'], totem=',', dtype='int')
-            CB_raw = data_util.str2float1D(split['CB'], totem=',', dtype='int')
+            k0, kN = data_util.str2float1D(split['kx'], totem=';', dtype='int')
+            CB_raw = data_util.str2float1D(split['CB'], totem=';', dtype='int')
             kx_list = range(k0,kN+1)
             CB_list = []
             for idx, CB in enumerate(CB_raw):
@@ -138,9 +143,9 @@ if __name__ == '__main__':
                 if setup_dict['structure'] == 'AGNR':
                     unit_list[region] = unit_cell_graphene.AGNR(setup_dict, split[region])
                 elif setup_dict['structure'] == 'ATNR':
-                    unit_list[region] = unit_cell.ATNR(setup_dict, split[region])
+                    unit_list[region] = unit_cell_TMDc.ATNR6(setup_dict, split[region])
                 elif setup_dict['structure'] == 'ATNR10':
-                    unit_list[region] = unit_cell.ATNR10(setup_dict, split[region])
+                    unit_list[region] = unit_cell_TMDc.ATNR10(setup_dict, split[region])
                 else:
                     raise ValueError('Non supported setup:',setup['structure'])
             ## print out Hamiltonian in debug mode
@@ -165,14 +170,14 @@ if __name__ == '__main__':
                     band_parser = cal_band.CPU(setup_dict, unit)
                     sweep_mesh = range(0,int(setup_dict['kx_mesh']),1)
                     ## calculate band structure ##
-                    #with Pool(processes=workers) as mp:
-                    #    eig = mp.map(band_parser.calState,sweep_mesh)
-                    eig = []
-                    for i in sweep_mesh:
-                        if i == 0:
-                            eig.append(band_parser.calState(i))
-                        else:
-                            eig.append(band_parser.calState(i, ref_val=eig[i-1][1], ref_vec=eig[i-1][3]))
+                    with Pool(processes=workers) as mp:
+                        eig = mp.map(band_parser.calState,sweep_mesh)
+                    ##eig = []
+                    ##for i in sweep_mesh:
+                    ##    if i == 0:
+                    ##        eig.append(band_parser.calState(i))
+                    ##    else:
+                    ##        eig.append(band_parser.calState(i, ref_val=eig[i-1][1], ref_vec=eig[i-1][3]))
                     ## output eigenvalues
                     # build plot table header
                     plot_table = [['kx']]
@@ -254,15 +259,15 @@ if __name__ == '__main__':
                         IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_eigenstates@kx='+str(kx)+'.csv', state_table[kx-1])
                     for CB in CB_list:
                         IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_eigenstates@CB='+str(CB)+'.csv', sorted_state_table[CB])
-                    '''
+                    IO_util.saveAsFigure(setup_dict, folder+key, unit, plot_table, save_type='band')
                     try:
                         IO_util.saveAsFigure(setup_dict, folder+key, unit, plot_table, save_type='band')
                     except:
                         warnings.warn("error when ploting figures. Skip and continue.")
-                    '''
+                    
                 else:
                     t_band = round(time.time() - t_band,3)
-                    #print('Band diagram:', t_band, '(sec)')
+                    print('Band diagram:', t_band, '(sec)')
                     t_split += t_band
             '''
             Calculate RGF

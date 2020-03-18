@@ -14,7 +14,7 @@ class AGNR():
         SU size: number of orbits used for hopping
         SU count: number of atoms contained in sub unit cell
         '''
-        self.SU_size = 1                        # sub unit cell size
+        self.SU_size = 1                        # sub unit cell size (number of hopping and spin)
         self.SU_count = 2                       # atom number for each sub unit cell
         '''
         Auto generate parameters
@@ -25,7 +25,6 @@ class AGNR():
         self.__initialize__(setup, job)
         self.__gen_Hamiltonian__()
     def __initialize__(self, setup, job):
-        self.SU_type = 'separate'
         '''
         matrix definition
         '''
