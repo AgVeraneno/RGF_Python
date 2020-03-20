@@ -10,7 +10,7 @@ class CPU():
         self.SU_type = setup['SU_type']
         self.lattice = setup['lattice']
     def setKx(self, l_idx):
-        return 2*np.pi*(l_idx-self.mesh/2)/(self.ax*(self.mesh-1))
+        return 2*np.pi*(l_idx-(self.mesh-1)/2)/(self.ax*(self.mesh-1))
     def calState(self, l_idx, returnKx=False, ref_val=None, ref_vec=None):
         kx = self.setKx(l_idx)
         H = self.unit.H
@@ -20,10 +20,7 @@ class CPU():
                np.exp(1j*kx*self.ax)*Pf+\
                np.exp(-1j*kx*self.ax)*Pb
         val, vec = np.linalg.eig(Heig)
-        if l_idx == 0:
-            val, vec, sorted_vec = self.__sort__(val, vec)
-        else:
-            val, vec, sorted_vec = self.__sort__(val, vec)
+        val, vec, sorted_vec = self.__sort__(val, vec)
         if returnKx:
             return kx, val, vec, sorted_vec
         else:

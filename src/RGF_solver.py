@@ -47,7 +47,8 @@ if __name__ == '__main__':
             workers = 1
     # check inputs
     if not os.path.exists(setup_file):
-        raise ValueError('Invalid input file: ',setup_file)
+        logging.warn('Invalid input file: %s',setup_file)
+        raise ValueError('Invalid input file: %s',setup_file)
     # load setup file
     setup_dict, job_dict = IO_util.load_setup(setup_file)
     t_load = round(time.time() - t_load,3)
@@ -142,6 +143,8 @@ if __name__ == '__main__':
             for r_idx, region in enumerate(split['region list']):
                 if setup_dict['structure'] == 'AGNR':
                     unit_list[region] = unit_cell_graphene.AGNR(setup_dict, split[region])
+                elif setup_dict['structure'] == 'ZGNR':
+                    unit_list[region] = unit_cell_graphene.ZGNR(setup_dict, split[region])
                 elif setup_dict['structure'] == 'ATNR':
                     unit_list[region] = unit_cell_TMDc.ATNR6(setup_dict, split[region])
                 elif setup_dict['structure'] == 'ATNR10':
