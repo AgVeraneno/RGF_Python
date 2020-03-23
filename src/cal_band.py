@@ -7,11 +7,10 @@ class CPU():
         self.ax = setup['material'].ax
         self.a = setup['material'].a
         self.mesh = int(setup['kx_mesh'])
-        self.SU_type = setup['SU_type']
         self.lattice = setup['lattice']
     def setKx(self, l_idx):
         return 2*np.pi*(l_idx-(self.mesh-1)/2)/(self.ax*(self.mesh-1))
-    def calState(self, l_idx, returnKx=False, ref_val=None, ref_vec=None):
+    def calState(self, l_idx, returnKx=False):
         kx = self.setKx(l_idx)
         H = self.unit.H
         Pf = self.unit.Pf
@@ -20,11 +19,7 @@ class CPU():
                np.exp(1j*kx*self.ax)*Pf+\
                np.exp(-1j*kx*self.ax)*Pb
         val, vec = np.linalg.eig(Heig)
-        val, vec, sorted_vec = self.__sort__(val, vec)
-        if returnKx:
-            return kx, val, vec, sorted_vec
-        else:
-            return kx*self.a, val, vec, sorted_vec
+        return kx, val, vec
     def getCBidx(self, gap, eig_val):
         #return int(np.size(self.unit.H,0)/2)
         return int(self.CB_idx)
@@ -33,6 +28,24 @@ class CPU():
             if v >= 0:
                 return v_idx
         '''
+    def sort_eigenstate(self, val, vec, ref_vec=[]):
+        sorted_val = np.sort(val)
+        sorted_vec = copy.deepcopy(vec)
+        if not len(ref_vec)==0:     # match with previous data (beta)
+            ref_vec_head = ref_vec[0,:]
+            vec_head = vec[0,:]
+            for v1_idx in range(len(val)):
+                for v2_idx in range(len(val)):
+                    if abs(sum(vec[:,v1_idx] - ref_vec[:,v2_idx])) < 1e-6:
+                        sorted_val[v2_idx] = val[v1_idx]
+                        sorted_vec[:,v2_idx] = vec[:,v1_idx]
+                        
+        else:                   # auto sort from small to large
+            for v1_idx, v1 in enumerate(val):
+                for v2_idx, v2 in enumerate(sorted_val):
+                    if v1 == v2: sorted_vec[:,v2_idx] = copy.deepcopy(vec[:,v1_idx])
+            else:
+                return sorted_val, sorted_vec
     def __sort__(self, val, vec, ref_vec=np.zeros(0)):
         """
         What: Sort eigenstate with small to large sequence
