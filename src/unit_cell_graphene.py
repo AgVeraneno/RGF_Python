@@ -1,6 +1,94 @@
 import copy, os
 import numpy as np
 
+class test():
+    '''
+    Unit cell object contain essential information of a unit cell
+    H: Hamiltonian of the unit cell containing on site energy & interhopping.
+    P_plus: forward inter unit cell hopping matrix
+    P_minus: backward inter unit cell hopping matrix
+    SU size: number of orbits used for hopping
+    SU count: number of atoms contained in sub unit cell
+    Any new material should contain these 5 parameters correctly
+    '''
+    def __init__(self, setup, job):
+        self.SU_size = 1                        # sub unit cell size (number of hopping and spin)
+        self.SU_count = 1                       # atom number for each sub unit cell
+        '''
+        Auto generate parameters
+        '''
+        self.mat = setup['material']            # unit cell material
+        self.mesh = int(setup['kx_mesh'])       # band structure mesh
+        self.ax = self.mat.ax                   # unit length
+        self.__initialize__(setup, job)
+        self.__gen_Hamiltonian__()
+    def __initialize__(self, setup, job):
+        '''
+        matrix definition
+        '''
+        ## ribbon size
+        self.W = job['width']
+        self.L = max(job['length'])
+        ## lattice type
+        self.m_size = sum(self.W)
+        ## Hamiltonian
+        empty_matrix = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
+        self.H = copy.deepcopy(empty_matrix)
+        self.Pf = copy.deepcopy(empty_matrix)
+        self.Pb = copy.deepcopy(empty_matrix)
+        '''
+        energy definition
+        '''
+        self.gap = job['gap']
+        self.Vtop = job['Vtop']
+        self.Vbot = job['Vbot']
+    def __gen_Hamiltonian__(self):
+        self.__component__()
+        self.__off_diagonal__()
+        self.__on_site_energy__()
+    def __on_site_energy__(self):
+        W_sum = sum(self.W)
+        ## Gap assign
+        gap = np.eye(self.m_size, dtype=np.complex128)*1000
+        w_shift = 0
+        for w_idx, W in enumerate(self.W):
+            for i in range(W):
+                gap[w_shift+i,w_shift+i] = self.gap[w_idx]
+            else:
+                w_shift += W
+        ## Voltage assign
+        volt = np.eye(self.m_size, dtype=np.complex128)*1000
+        w_shift = 0
+        for w_idx, W in enumerate(self.W):
+            Vt = self.Vtop[w_idx]
+            Vb = self.Vbot[w_idx]
+            if W > 1: dV = (Vt-Vb)/(W-1)
+            else: dV = 0
+            for i in range(W):
+                volt[w_shift+i,w_shift+i] = Vb + i*dV
+            else:
+                w_shift += W
+        ## combine with Hamiltonian
+        self.H += gap
+        self.H += volt
+    def __off_diagonal__(self):
+        W = sum(self.W)
+        z_mat = np.zeros((W,W), dtype=np.complex128)
+        H = self.__on_chain__
+        self.H = H + np.transpose(np.conj(H))
+        Pb = self.__inter_chainP__
+        self.Pb = np.block(Pb)
+        self.Pf = np.transpose(np.conj(self.Pb))
+    def __component__(self):
+        W = sum(self.W)
+        self.__on_chain__ = np.zeros((W,W),dtype=np.complex128)
+        self.__inter_chain__ = np.zeros((W,W),dtype=np.complex128)
+        self.__inter_chainP__ = np.zeros((W,W),dtype=np.complex128)
+        for i in range(W):
+            # build on chain matrix
+            if i < W-1: self.__on_chain__[i,i+1] = -self.mat.r0
+            # build inter chain matrix (same layer)
+            self.__inter_chainP__[i,i] = -self.mat.r0
 class AGNR():
     '''
     Unit cell object contain essential information of a unit cell

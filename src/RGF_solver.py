@@ -230,6 +230,10 @@ class RGF_solver():
         logging.info('  Calculate RGF (DC):'+str(t_RGF)+'(sec)')
         self.t_total += t_RGF
         return CB_cache, split_summary
+    def cal_TDNEGF(self, setup_dict, unit_list, split_summary):
+        t = time.time()
+        if setup_dict['TD']:
+            pass
     def gen_summary(self, setup_dict, CB_cache, split_summary):
         if setup_dict['RGF']:
             folder = self.job_dir+'/PTR/'
@@ -314,6 +318,10 @@ if __name__ == '__main__':
             Calculate RGF
             '''
             CB_cache, split_summary = RGF_parser.cal_RGF_transmission(setup_dict, unit_list, split_summary)
+            '''
+            Calculate time-dependent strucutre
+            '''
+            
             logging.info('Split_'+str(s_idx)+' complete!!\n')
         else:
             '''
