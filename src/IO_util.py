@@ -1,7 +1,7 @@
 import sys, copy, csv
 import lib_material, unit_cell, data_util
 import numpy as np
-from matplotlib import pyplot
+#from matplotlib import pyplot
 
 def load_setup(setup_file):
     setup = {}
@@ -99,7 +99,6 @@ def load_setup(setup_file):
                         job[row['name']][row['region']]['Bx'].append(float(row['Bx']))
                         job[row['name']][row['region']]['By'].append(float(row['By']))
                         job[row['name']][row['region']]['Bz'].append(float(row['Bz']))
-                        job[row['name']][row['region']]['gap'].append(float(row['gap']))
                         job[row['name']][row['region']]['sweep_var'].append(row['sweep_parameter'])
                         job[row['name']][row['region']]['sweep_val'].append(row['sweep_value'])
             else:
@@ -282,10 +281,11 @@ def saveAsExcel(inputs, u_idx, unit, input_array=None, save_type=None):
         excel_parser.save()
 '''
 def saveAsFigure(setup, u_idx, unit, table, save_type=None):
+    from matplotlib import pyplot
     lattice = setup['lattice']
     mat = setup['material'].name
     dir = setup['direction']
-    file_name = str(u_idx)+"_"+save_type+"_"+setup['brief']+"_"+"lead"
+    file_name = str(u_idx)+"_"+save_type+"_"+"lead"
     if save_type == 'band':
         ## construct vectors
         eig_mat = np.array(table)[:,1:]

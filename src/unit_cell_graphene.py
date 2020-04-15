@@ -1,20 +1,106 @@
 import copy, os
 import numpy as np
 
+class test():
+    '''
+    Unit cell object contain essential information of a unit cell
+    H: Hamiltonian of the unit cell containing on site energy & interhopping.
+    P_plus: forward inter unit cell hopping matrix
+    P_minus: backward inter unit cell hopping matrix
+    SU size: number of orbits used for hopping
+    SU count: number of atoms contained in sub unit cell
+    Any new material should contain these 5 parameters correctly
+    '''
+    def __init__(self, setup, job):
+        self.SU_size = 1                        # sub unit cell size (number of hopping and spin)
+        self.SU_count = 1                       # atom number for each sub unit cell
+        '''
+        Auto generate parameters
+        '''
+        self.mat = setup['material']            # unit cell material
+        self.mesh = int(setup['kx_mesh'])       # band structure mesh
+        self.ax = self.mat.ax                   # unit length
+        self.__initialize__(setup, job)
+        self.__gen_Hamiltonian__()
+    def __initialize__(self, setup, job):
+        '''
+        matrix definition
+        '''
+        ## ribbon size
+        self.W = job['width']
+        self.L = max(job['length'])
+        ## lattice type
+        self.m_size = sum(self.W)
+        ## Hamiltonian
+        empty_matrix = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
+        self.H = copy.deepcopy(empty_matrix)
+        self.Pf = copy.deepcopy(empty_matrix)
+        self.Pb = copy.deepcopy(empty_matrix)
+        '''
+        energy definition
+        '''
+        self.gap = job['gap']
+        self.Vtop = job['Vtop']
+        self.Vbot = job['Vbot']
+    def __gen_Hamiltonian__(self):
+        self.__component__()
+        self.__off_diagonal__()
+        self.__on_site_energy__()
+    def __on_site_energy__(self):
+        W_sum = sum(self.W)
+        ## Gap assign
+        gap = np.eye(self.m_size, dtype=np.complex128)*1000
+        w_shift = 0
+        for w_idx, W in enumerate(self.W):
+            for i in range(W):
+                gap[w_shift+i,w_shift+i] = self.gap[w_idx]
+            else:
+                w_shift += W
+        ## Voltage assign
+        volt = np.eye(self.m_size, dtype=np.complex128)*1000
+        w_shift = 0
+        for w_idx, W in enumerate(self.W):
+            Vt = self.Vtop[w_idx]
+            Vb = self.Vbot[w_idx]
+            if W > 1: dV = (Vt-Vb)/(W-1)
+            else: dV = 0
+            for i in range(W):
+                volt[w_shift+i,w_shift+i] = Vb + i*dV
+            else:
+                w_shift += W
+        ## combine with Hamiltonian
+        self.H += gap
+        self.H += volt
+    def __off_diagonal__(self):
+        W = sum(self.W)
+        z_mat = np.zeros((W,W), dtype=np.complex128)
+        H = self.__on_chain__
+        self.H = H + np.transpose(np.conj(H))
+        Pb = self.__inter_chainP__
+        self.Pb = np.block(Pb)
+        self.Pf = np.transpose(np.conj(self.Pb))
+    def __component__(self):
+        W = sum(self.W)
+        self.__on_chain__ = np.zeros((W,W),dtype=np.complex128)
+        self.__inter_chain__ = np.zeros((W,W),dtype=np.complex128)
+        self.__inter_chainP__ = np.zeros((W,W),dtype=np.complex128)
+        for i in range(W):
+            # build on chain matrix
+            if i < W-1: self.__on_chain__[i,i+1] = -self.mat.r0
+            # build inter chain matrix (same layer)
+            self.__inter_chainP__[i,i] = -self.mat.r0
 class AGNR():
     '''
     Unit cell object contain essential information of a unit cell
     H: Hamiltonian of the unit cell containing on site energy & interhopping.
     P_plus: forward inter unit cell hopping matrix
     P_minus: backward inter unit cell hopping matrix
+    SU size: number of orbits used for hopping
+    SU count: number of atoms contained in sub unit cell
+    Any new material should contain these 5 parameters correctly
     '''
     def __init__(self, setup, job):
-        '''
-        New material parameters
-        SU size: number of orbits used for hopping
-        SU count: number of atoms contained in sub unit cell
-        '''
-        self.SU_size = 1                        # sub unit cell size
+        self.SU_size = 1                        # sub unit cell size (number of hopping and spin)
         self.SU_count = 2                       # atom number for each sub unit cell
         '''
         Auto generate parameters
@@ -25,7 +111,6 @@ class AGNR():
         self.__initialize__(setup, job)
         self.__gen_Hamiltonian__()
     def __initialize__(self, setup, job):
-        self.SU_type = 'separate'
         '''
         matrix definition
         '''
@@ -35,10 +120,10 @@ class AGNR():
         ## lattice type
         if setup['lattice'] == 'MLG':
             self.m_size = 2*sum(self.W)
-            self.gap_inv = 1
+            self.lattice = 'MLG'
         elif setup['lattice'] == 'BLG':
             self.m_size = 4*sum(self.W)
-            self.gap_inv = 0
+            self.lattice = 'BLG'
         else:
             raise ValueError('Unresolved lattice:', setup['lattice'])
         ## Hamiltonian
@@ -57,283 +142,291 @@ class AGNR():
         self.__off_diagonal__()
         self.__on_site_energy__()
     def __on_site_energy__(self):
-        ## sub unit cell size
-        SU = [int(W/2) for W in self.W]
-        SU_add = [W%2 for W in self.W]
-        W = 2*sum(self.W)
-        SU_sep = [SU[i] + SU_add[i] for i in range(len(self.W))]
-        SU_ovl = SU
-        SU_shift = sum(SU_sep)
-        '''
-        Gap Profile
-        '''
-        gap_profile = np.eye(self.m_size, dtype=np.complex128)*1000
-        ## separate type sub unit
-        shift = 0
-        for i in range(len(self.W)):
-            gap = self.gap[i]
-            for j, sep in enumerate(range(SU_sep[i])):
-                m = 2*(shift+sep)
-                if self.gap_inv:        # MLG
-                    gap_profile[m,m] = gap
-                    gap_profile[m+1,m+1] = -gap
-                else:       # BLG
-                    gap_profile[m,m] = gap
-                    gap_profile[m+1,m+1] = gap
-                    gap_profile[m+W,m+W] = -gap
-                    gap_profile[m+W+1,m+W+1] = -gap
-            else:
-                shift += SU_sep[i]
-        ## overlap type sub unit
-        shift = sum(SU_sep)
-        for i in range(len(self.W)):
-            gap = self.gap[i]
-            for j, sep in enumerate(range(SU_ovl[i])):
-                m = 2*(shift+sep)
-                if self.gap_inv:        # MLG
-                    gap_profile[m,m] = gap
-                    gap_profile[m+1,m+1] = -gap
-                else:       # BLG
-                    gap_profile[m,m] = gap
-                    gap_profile[m+1,m+1] = gap
-                    gap_profile[m+W,m+W] = -gap
-                    gap_profile[m+W+1,m+W+1] = -gap
-            else:
-                shift += SU_ovl[i]
-        '''
-        Voltage profile
-        '''
-        dv_profile = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
-        ## separate type sub unit
-        shift = 0
-        for i in range(len(self.W)):
-            Vtop = self.Vtop[i]
-            Vbot = self.Vbot[i]
-            dV = (Vtop - Vbot)/(self.W[i]+1)
-            for j, sep in enumerate(range(SU_sep[i])):
-                m = 2*(shift+sep)
-                if self.gap_inv:        # MLG
-                    if self.SU_type == 'separate':
-                        dv_profile[m,m] = Vbot+2*(j+1)*dV
-                        dv_profile[m+1,m+1] = Vbot+2*(j+1)*dV
-                    elif self.SU_type == 'overlap':
-                        dv_profile[m,m] = Vbot+2*(j+1.5)*dV
-                        dv_profile[m+1,m+1] = Vbot+2*(j+1.5)*dV
-                    else:
-                        raise ValueError('Unresolved type:',self.SU_type)
-                else:       # BLG
-                    if self.SU_type == 'separate':
-                        dv_profile[m,m] = Vbot+2*(j+0.5)*dV
-                        dv_profile[m+1,m+1] = Vbot+2*(j+0.5)*dV
-                        dv_profile[m+W,m+W] = Vbot+2*(j+0.5)*dV
-                        dv_profile[m+W+1,m+W+1] = Vbot+2*(j+0.5)*dV
-                    elif self.SU_type == 'overlap':
-                        dv_profile[m,m] = Vbot+2*(j+1)*dV
-                        dv_profile[m+1,m+1] = Vbot+2*(j+1)*dV
-                        dv_profile[m+W,m+W] = Vbot+2*(j+1)*dV
-                        dv_profile[m+W+1,m+W+1] = Vbot+2*(j+1)*dV
-                    else:
-                        raise ValueError('Unresolved type:',self.SU_type)
-            else:
-                shift += SU_sep[i]
-        ## overlap type sub unit
-        shift = sum(SU_sep)
-        for i in range(len(self.W)):
-            Vtop = self.Vtop[i]
-            Vbot = self.Vbot[i]
-            dV = (Vtop - Vbot)/(self.W[i]+1)
-            for j, sep in enumerate(range(SU_ovl[i])):
-                m = 2*(shift+sep)
-                if self.gap_inv:        # MLG
-                    if self.SU_type == 'separate':
-                        dv_profile[m,m] = Vbot+2*(j+1.5)*dV
-                        dv_profile[m+1,m+1] = Vbot+2*(j+1.5)*dV
-                    elif self.SU_type == 'overlap':
-                        dv_profile[m,m] = Vbot+2*(j+1)*dV
-                        dv_profile[m+1,m+1] = Vbot+2*(j+1)*dV
-                    else:
-                        raise ValueError('Unresolved type:',self.SU_type)
-                else:       # BLG
-                    if self.SU_type == 'separate':
-                        dv_profile[m,m] = Vbot+2*(j+1)*dV
-                        dv_profile[m+1,m+1] = Vbot+2*(j+1)*dV
-                        dv_profile[m+W,m+W] = Vbot+2*(j+1)*dV
-                        dv_profile[m+W+1,m+W+1] = Vbot+2*(j+1)*dV
-                    elif self.SU_type == 'overlap':
-                        dv_profile[m,m] = Vbot+2*(j+0.5)*dV
-                        dv_profile[m+1,m+1] = Vbot+2*(j+0.5)*dV
-                        dv_profile[m+W,m+W] = Vbot+2*(j+0.5)*dV
-                        dv_profile[m+W+1,m+W+1] = Vbot+2*(j+0.5)*dV
-                    else:
-                        raise ValueError('Unresolved type:',self.SU_type)
-            else:
-                shift += SU_ovl[i]
-        '''
-        Combine
-        '''
-        self.H += gap_profile
-        self.H += dv_profile
+        W_sum = sum(self.W)
+        ## Gap assign
+        gap = np.eye(self.m_size, dtype=np.complex128)*1000
+        w_shift = 0
+        if self.lattice == 'MLG':
+            for w_idx, W in enumerate(self.W):
+                for i in range(W):
+                    gap[w_shift+i,w_shift+i] = self.gap[w_idx] * (-1)**(i%2)
+                    gap[W_sum+w_shift+i,W_sum+w_shift+i] = self.gap[w_idx] * (-1)**(1-i%2)
+                else:
+                    w_shift += W
+        elif self.lattice == 'BLG':
+            for w_idx, W in enumerate(self.W):
+                for i in range(W):
+                    gap[w_shift+i,w_shift+i] = self.gap[w_idx]
+                    gap[W_sum+w_shift+i,W_sum+w_shift+i] = self.gap[w_idx]
+                    gap[2*W_sum+w_shift+i,2*W_sum+w_shift+i] = -self.gap[w_idx]
+                    gap[3*W_sum+w_shift+i,3*W_sum+w_shift+i] = -self.gap[w_idx]
+                else:
+                    w_shift += W
+        ## Voltage assign
+        volt = np.eye(self.m_size, dtype=np.complex128)*1000
+        w_shift = 0
+        if self.lattice == 'MLG':
+            for w_idx, W in enumerate(self.W):
+                Vt = self.Vtop[w_idx]
+                Vb = self.Vbot[w_idx]
+                if W > 1: dV = (Vt-Vb)/(W-1)
+                else: dV = 0
+                for i in range(W):
+                    volt[w_shift+i,w_shift+i] = Vb + i*dV
+                    volt[W_sum+w_shift+i,W_sum+w_shift+i] = Vb + i*dV
+                else:
+                    w_shift += W
+        elif self.lattice == 'BLG':
+            for w_idx, W in enumerate(self.W):
+                Vt = self.Vtop[w_idx]
+                Vb = self.Vbot[w_idx]
+                if W > 1: dV = (Vt-Vb)/(W-1)
+                else: dV = 0
+                for i in range(W):
+                    volt[w_shift+i,w_shift+i] = Vb + i*dV
+                    volt[W_sum+w_shift+i,W_sum+w_shift+i] = Vb + i*dV
+                    volt[2*W_sum+w_shift+i,2*W_sum+w_shift+i] = Vb + i*dV
+                    volt[3*W_sum+w_shift+i,3*W_sum+w_shift+i] = Vb + i*dV
+                else:
+                    w_shift += W
+        ## combine with Hamiltonian
+        if self.lattice == 'MLG':
+            self.H = self.H[:self.m_size,:self.m_size]
+            self.Pf = self.Pf[:self.m_size,:self.m_size]
+            self.Pb = self.Pb[:self.m_size,:self.m_size]
+        self.H += gap
+        self.H += volt
     def __off_diagonal__(self):
-        empty_matrix = np.zeros((2*self.SU_size,2*self.SU_size), dtype=np.complex128)
-        ## unit cell H
-        H = []
-        blockHAB = []
-        blockHAC = []
-        blockHAD = []
-        blockHBB = []
-        blockHBC = []
-        blockHBD = []
-        ## forward hopping matrix Pf
-        Pf = []
-        blockPAA = []
-        blockPAC = []
-        blockPBD = []
-        ## sub unit cell size
-        SU_ovl = int(sum(self.W)/2) # overlap sub unitcell count
-        SU_sep = sum(self.W) - SU_ovl
-        ## AA and AC matrix
-        for r in range(SU_sep):
-            rowPAA = []
-            rowHAC = []
-            rowPAC = []
-            for c in range(SU_sep):
-                if r == c:
-                    rowPAA.append(self.__PAAA__)
-                    rowHAC.append(self.__MAC__)
-                    rowPAC.append(self.__PAAC__)
-                else:
-                    rowPAA.append(empty_matrix)
-                    rowHAC.append(empty_matrix)
-                    rowPAC.append(empty_matrix)
-            else:
-                blockHAC.append(rowHAC)
-                blockPAA.append(rowPAA)
-                blockPAC.append(rowPAC)
-        ## AB and AD matrix
-        for r in range(SU_sep):
-            rowHAB = []
-            rowHAD = []
-            for c in range(SU_ovl):
-                if r == c:
-                    rowHAB.append(self.__MAB__)
-                    rowHAD.append(self.__MAD__)
-                elif r == c+1:
-                    rowHAB.append(self.__MpAB__)
-                    rowHAD.append(self.__MpAD__)
-                else:
-                    rowHAB.append(empty_matrix)
-                    rowHAD.append(empty_matrix)
-            else:
-                blockHAB.append(rowHAB)
-                blockHAD.append(rowHAD)
-        ## BC matrix
-        for r in range(SU_ovl):
-            rowHBC = []
-            for c in range(SU_sep):
-                if r == c:
-                    rowHBC.append(self.__MBC__)
-                elif r == c-1:
-                    rowHBC.append(self.__MnBC__)
-                else:
-                    rowHBC.append(empty_matrix)
-            else:
-                blockHBC.append(rowHBC)
-        ## BB and BD matrix
-        for r in range(SU_ovl):
-            rowHBD = []
-            rowHBB = []
-            rowPBD = []
-            for c in range(SU_ovl):
-                if r == c:
-                    rowHBD.append(self.__MBD__)
-                    rowHBB.append(self.__PAAA__)
-                    rowPBD.append(self.__PABD__)
-                else:
-                    rowHBD.append(empty_matrix)
-                    rowHBB.append(empty_matrix)
-                    rowPBD.append(empty_matrix)
-            else:
-                blockHBD.append(rowHBD)
-                blockHBB.append(rowHBB)
-                blockPBD.append(rowPBD)
-        blockHAB = np.block(blockHAB)
-        blockHAC = np.block(blockHAC)
-        blockHAD = np.block(blockHAD)
-        blockHBB = np.block(blockHBB)
-        blockHBC = np.block(blockHBC)
-        blockHBD = np.block(blockHBD)
-        blockPAA = np.block(blockPAA)
-        blockPAC = np.block(blockPAC)
-        blockPBD = np.block(blockPBD)
-        ## combine matrix
-        m_ss = np.zeros((self.SU_size*2*SU_sep,self.SU_size*2*SU_sep), dtype=np.complex128)
-        m_so = np.zeros((self.SU_size*2*SU_sep,self.SU_size*2*SU_ovl), dtype=np.complex128)
-        m_os = np.zeros((self.SU_size*2*SU_ovl,self.SU_size*2*SU_sep), dtype=np.complex128)
-        m_oo = np.zeros((self.SU_size*2*SU_ovl,self.SU_size*2*SU_ovl), dtype=np.complex128)
-        if self.gap_inv == 1:
-            H = [[m_ss, blockHAB],
-                 [m_os, blockHBB]]
-            P = [[blockPAA, m_so],
-                 [m_os, m_oo]]
-        else:
-            H = [[m_ss,blockHAB,blockHAC,blockHAD],
-                 [m_os,blockHBB,blockHBC,blockHBD],
-                 [m_ss,m_so,m_ss,blockHAB],
-                 [m_os,m_oo,m_os,blockHBB]]
-            P = [[blockPAA,m_so,blockPAC,m_so],
-                 [m_os,m_oo,m_os,blockPBD],
-                 [m_ss,m_so,blockPAA,m_so],
-                 [m_os,m_oo,m_os,m_oo]]
-        self.H = np.block(H)
-        self.H = self.H + np.transpose(np.conj(self.H))
-        self.Pb = np.block(P)
+        W = sum(self.W)
+        z_mat = np.zeros((W,W), dtype=np.complex128)
+        H = [[self.__on_chain__, self.__inter_chain__, self.__C1c1__    , z_mat               ],
+             [z_mat            , self.__on_chain__   , self.__C2c1__    , self.__C2c2__       ],
+             [z_mat            , z_mat               , self.__on_chain__, self.__inter_chain__],
+             [z_mat            , z_mat               , z_mat            , self.__on_chain__   ]]
+        H = np.block(H)
+        self.H = H + np.transpose(np.conj(H))
+        Pb = [[z_mat            , self.__inter_chainP__, z_mat            , self.__C1c2__        ],
+              [z_mat            , z_mat                , z_mat            , z_mat                ],
+              [z_mat            , z_mat                , z_mat            , self.__inter_chainP__],
+              [z_mat            , z_mat                , z_mat            , z_mat                ]]
+        self.Pb = np.block(Pb)
         self.Pf = np.transpose(np.conj(self.Pb))
     def __component__(self):
-        '''
+        """
         1)
         matrix element definition
-        |---------------------------|
-        |   PRn   |   Mn  |   PAn   |
-        |---------------------------|
-        |   PR    |   M   |   PA    |
-        |---------------------------|
-        |   PRp   |   Mp  |   PAp   |
-        |---------------------------|
+        |-----------------------------------|
+        |   C1   |  C1C2  |   C1c1 |   C1c2 |
+        |-----------------------------------|
+        |   C2C1 |  C2    |   C2c1 |  C2c2  |
+        |-----------------------------------|
+        |   c1C1 |  c1C2  |   c1   |  c1c2  |
+        |-----------------------------------|
+        |   c2C1 |  c2C2  |   c2c1 |  c2    |
+        |-----------------------------------|
         2)
-        M define
-        '''
-        '''
         ==============================================
-                                   b'  a',B'  A'
-        SU type: overlap           X----0====O
-                                   B   B,D   D
-        ==============================================
-                                a    A    b    B
-        SU type: separate       X    O    X    O
-                                A    C    A    C
-        ==============================================
-        H sequence: a,b,...,a',b',...,A,B,...A',B',...
+            A3   B3,a3   b3
+            X------0======O       
+           /      > \      <
+          /      >   \      <
+         B2    b2    A2      a2
+         X     O     X       O
+          \     <   /       >
+           \     < /       >
+           X------0======O
+           A1   B1,a1   b1
+           
+           ^    ^    ^   ^
+           C1   c1  C2   c2
+        ==============================================     
+        """
+        W = sum(self.W)
+        self.__on_chain__ = np.zeros((W,W),dtype=np.complex128)
+        self.__inter_chain__ = np.zeros((W,W),dtype=np.complex128)
+        self.__inter_chainP__ = np.zeros((W,W),dtype=np.complex128)
+        self.__C1c1__ = np.zeros((W,W),dtype=np.complex128)
+        self.__C1c2__ = np.zeros((W,W),dtype=np.complex128)
+        self.__C2c1__ = np.zeros((W,W),dtype=np.complex128)
+        self.__C2c2__ = np.zeros((W,W),dtype=np.complex128)
+        for i in range(W):
+            # build on chain matrix
+            if i < W-1: self.__on_chain__[i,i+1] = -self.mat.r0
+            # build inter chain matrix (same layer)
+            self.__inter_chain__[i,i] = -self.mat.r0 * (1-i%2)
+            self.__inter_chainP__[i,i] = -self.mat.r0 * (i%2)
+            # build inter chain matrix (C1 to c1)
+            if i < W-1: self.__C1c1__[i,i+1] = -self.mat.r3 * (1-i%2)
+            if i > 0: self.__C1c1__[i,i-1] = -self.mat.r3 * (1-i%2)
+            # build inter chain matrix (C1 to c2)
+            self.__C1c2__[i,i] = -self.mat.r3 * (1-i%2) - self.mat.r1 * (i%2)
+            # build inter chain matrix (C2 to c1)
+            self.__C2c1__[i,i] = -self.mat.r1 * (1-i%2) - self.mat.r3 * (i%2)
+            # build inter chain matrix (C2 to c2)
+            if i < W-1: self.__C2c2__[i,i+1] = -self.mat.r3 * (i%2)
+            if i > 0: self.__C2c2__[i,i-1] = -self.mat.r3 * (i%2)
+
+class ZGNR():
+    '''
+    Unit cell object contain essential information of a unit cell
+    H: Hamiltonian of the unit cell containing on site energy & interhopping.
+    P_plus: forward inter unit cell hopping matrix
+    P_minus: backward inter unit cell hopping matrix
+    SU size: number of orbits used for hopping
+    SU count: number of atoms contained in sub unit cell
+    Any new material should contain these 5 parameters correctly
+    '''
+    def __init__(self, setup, job):
+        self.SU_size = 1                        # sub unit cell size (number of hopping and spin)
+        self.SU_count = 2                       # atom number for each sub unit cell
         '''
-        empty_matrix = np.zeros((self.SU_size*2,self.SU_size*2), dtype=np.complex128)
-        ## same layer hopping
-        self.__MAB__ = copy.deepcopy(empty_matrix)
-        self.__MAB__[0,0] = -self.mat.r0
-        self.__MAB__[1,1] = -self.mat.r0
-        self.__MpAB__ = self.__MAB__
-        self.__PAAA__ = copy.deepcopy(empty_matrix)
-        self.__PAAA__[0,1] = -self.mat.r0
-        ## inter layer hopping
-        self.__MAC__ = copy.deepcopy(empty_matrix)
-        self.__MAC__[1,0] = -self.mat.r3
-        self.__MAD__ = copy.deepcopy(empty_matrix)
-        self.__MAD__[1,1] = -self.mat.r3
-        self.__MpAD__ = self.__MAD__
-        self.__MBC__ = copy.deepcopy(empty_matrix)
-        self.__MBC__[0,0] = -self.mat.r3
-        self.__MnBC__ = self.__MBC__
-        self.__MBD__ = copy.deepcopy(empty_matrix)
-        self.__MBD__[1,0] = -self.mat.r1
-        self.__PAAC__ = copy.deepcopy(empty_matrix)
-        self.__PAAC__[0,1] = -self.mat.r1
-        self.__PABD__ = copy.deepcopy(empty_matrix)
-        self.__PABD__[0,1] = -self.mat.r3
+        Auto generate parameters
+        '''
+        self.mat = setup['material']            # unit cell material
+        self.mesh = int(setup['kx_mesh'])       # band structure mesh
+        self.ax = self.mat.ax                   # unit length
+        self.__initialize__(setup, job)
+        self.__gen_Hamiltonian__()
+    def __initialize__(self, setup, job):
+        '''
+        matrix definition
+        '''
+        ## ribbon size
+        self.W = [w*2 for w in job['width']]
+        self.L = max(job['length'])
+        ## lattice type
+        if setup['lattice'] == 'MLG':
+            self.m_size = sum(self.W)
+            self.lattice = 'MLG'
+        elif setup['lattice'] == 'BLG':
+            self.m_size = 2*sum(self.W)
+            self.lattice = 'BLG'
+        else:
+            raise ValueError('Unresolved lattice:', setup['lattice'])
+        ## Hamiltonian
+        empty_matrix = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
+        self.H = copy.deepcopy(empty_matrix)
+        self.Pf = copy.deepcopy(empty_matrix)
+        self.Pb = copy.deepcopy(empty_matrix)
+        '''
+        energy definition
+        '''
+        self.gap = job['gap']
+        self.Vtop = job['Vtop']
+        self.Vbot = job['Vbot']
+    def __gen_Hamiltonian__(self):
+        self.__component__()
+        self.__off_diagonal__()
+        self.__on_site_energy__()
+    def __on_site_energy__(self):
+        W_sum = sum(self.W)
+        ## Gap assign
+        gap = np.eye(self.m_size, dtype=np.complex128)*1000
+        w_shift = 0
+        if self.lattice == 'MLG':
+            for w_idx, W in enumerate(self.W):
+                for i in range(W):
+                    gap[w_shift+i,w_shift+i] = self.gap[w_idx] * (-1)**(i%2)
+                else:
+                    w_shift += W
+        elif self.lattice == 'BLG':
+            for w_idx, W in enumerate(self.W):
+                for i in range(W):
+                    gap[w_shift+i,w_shift+i] = self.gap[w_idx]
+                    gap[W_sum+w_shift+i,W_sum+w_shift+i] = -self.gap[w_idx]
+                else:
+                    w_shift += W
+        ## Voltage assign
+        volt = np.eye(self.m_size, dtype=np.complex128)*1000
+        w_shift = 0
+        if self.lattice == 'MLG':
+            for w_idx, W in enumerate(self.W):
+                Vt = self.Vtop[w_idx]
+                Vb = self.Vbot[w_idx]
+                if W > 1: dV = (Vt-Vb)/(3*W/2-2)
+                else: dV = 0
+                for i in range(W):
+                    volt[w_shift+i,w_shift+i] = Vb + i*dV + dV*int(i/2)
+                else:
+                    w_shift += W
+        elif self.lattice == 'BLG':
+            for w_idx, W in enumerate(self.W):
+                Vt = self.Vtop[w_idx]
+                Vb = self.Vbot[w_idx]
+                if W > 1: dV = (Vt-Vb)/(W-1)
+                else: dV = 0
+                for i in range(W):
+                    volt[w_shift+i,w_shift+i] = Vb+dV + i*dV + i*dV*(i%2)
+                    volt[W_sum+w_shift+i,W_sum+w_shift+i] = Vb+dV + i*dV + i*dV*(i%2)
+                else:
+                    w_shift += W
+        ## combine with Hamiltonian
+        if self.lattice == 'MLG':
+            self.H = self.H[:self.m_size,:self.m_size]
+            self.Pf = self.Pf[:self.m_size,:self.m_size]
+            self.Pb = self.Pb[:self.m_size,:self.m_size]
+        self.H += gap
+        self.H += volt
+    def __off_diagonal__(self):
+        W = sum(self.W)
+        z_mat = np.zeros((W,W), dtype=np.complex128)
+        H = [[self.__on_chain__, self.__C1c1__],
+             [z_mat            , self.__on_chain__]]
+        H = np.block(H)
+        self.H = H + np.transpose(np.conj(H))
+        Pb = [[self.__on_chainP__, self.__C1c1P__    ],
+              [z_mat             , self.__on_chainP__]]
+        self.Pb = np.block(Pb)
+        self.Pf = np.transpose(np.conj(self.Pb))
+    def __component__(self):
+        """
+        1)
+        matrix element definition
+        |-----------------|
+        |   C1   |  C1c1  |
+        |-----------------|
+        |   c1C1 |  c1    |
+        |-----------------|
+        2)
+        ==============================================
+              B6 0 a5
+                /|
+              /  |
+        A5  O    |
+            |    X b4
+            |     <
+            |      <
+            |       < 
+        B4  O        X a3
+               \       ^
+                \      ^
+              A3  O    ^
+                  |    ^
+                  |    ^
+                  |    X b2
+                  |   >
+                  | >
+              B2  0 a1
+                /
+              /
+        A1  O
+
+           
+           ^    ^ 
+           C1   c1
+        ==============================================     
+        """
+        W = sum(self.W)
+        self.__on_chain__ = np.zeros((W,W),dtype=np.complex128)
+        self.__on_chainP__ = np.zeros((W,W),dtype=np.complex128)
+        self.__C1c1__ = np.zeros((W,W),dtype=np.complex128)
+        self.__C1c1P__ = np.zeros((W,W),dtype=np.complex128)
+        for i in range(W):
+            # build on chain matrix
+            if i < W-1: self.__on_chain__[i,i+1] = -self.mat.r0
+            if i < W-1 and i%4 == 0: self.__on_chainP__[i,i+1] = -self.mat.r0
+            if i < W-1 and i%4 == 2: self.__on_chainP__[i+1,i] = -self.mat.r0
+            # build inter chain matrix (C1 to c1)
+            if i < W-1 and i%4 == 0: self.__C1c1P__[i,i+1] = -self.mat.r3
+            if i > 0 and i%4 != 3: self.__C1c1__[i,i-1] = -self.mat.r3 * (1-i%2) - self.mat.r1 * (i%2)
+            if i > 0 and i%4 == 3: self.__C1c1__[i,i-1] = -self.mat.r1
