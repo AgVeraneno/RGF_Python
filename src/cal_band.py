@@ -9,13 +9,8 @@ class CPU():
         self.mesh = int(setup['kx_mesh'])
         self.lattice = setup['lattice']
     def setKx(self, l_idx):
-<<<<<<< HEAD
-        return 2*np.pi*(l_idx)/(self.ax*(self.mesh-1))
-    def calState(self, l_idx, returnKx=False, ref_val=None, ref_vec=None):
-=======
         return 2*np.pi*(l_idx-(self.mesh-1)/2)/(self.ax*(self.mesh-1))
     def calState(self, l_idx, returnKx=False):
->>>>>>> d75135e35cfbf053255af95e2528e40b094f60f1
         kx = self.setKx(l_idx)
         H = self.unit.H
         Pf = self.unit.Pf
