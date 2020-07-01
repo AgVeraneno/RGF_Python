@@ -9,7 +9,7 @@ class RGF_solver():
     def __init__(self):
         ## start time counter
         self.t_total = 0
-        ## construct folders
+        ## default input/output folders
         self.input_dir = '../input/'
         self.output_dir = '../output/'
         if not os.path.exists(self.output_dir): os.mkdir(self.output_dir)
@@ -18,30 +18,27 @@ class RGF_solver():
         self.kx_list = []
         self.CB_list = []
         ## resolve system inputs
-        if len(sys.argv) == 1:  # using IDE to open the program
-            self.setup_file = self.input_dir+'RGF_setup.csv'       # load default setup file
-            self.isGPU = False
-            self.workers = 12
-        else:
+        if len(sys.argv) >= 1:  # using command input
             # input file
             if '-i' in sys.argv: self.setup_file = sys.argv[sys.argv.index('-i') +1]
-            else: self.setup_file = input_dir+'RGF_setup.csv'       # load default setup file
+            else: self.setup_file = self.input_dir+'template.xlsx'       # load default setup file
             # GPU assisted RGF
             if '-gpu' in sys.argv: self.isGPU = True
             else: self.isGPU = False
             # Parallel CPU count
             if '-turbo' in sys.argv: self.workers = int(sys.argv[sys.argv.index('-turbo') +1])
-            else: self.workers = 1
+            else: self.workers = 24
         ## check input file
         if not os.path.exists(self.setup_file):
-            logging.warn('Invalid input file: %s',self.setup_file)
+            logging.error('Invalid input file: %s',self.setup_file)
             raise ValueError('Invalid input file: %s',self.setup_file)
-    def load_inputs(self, setup_file=None):
+    def load_inputs(self):
         t_load = time.time()
-        if setup_file == None: setup_dict, job_dict = IO_util.load_setup(self.setup_file)
-        else: setup_dict, job_dict = IO_util.load_setup(setup_file)
-        t_load = round(time.time() - t_load,3)
-        logging.info('Import time: '+str(t_load)+' (sec).\n')
+        if '.csv' in self.setup_file:
+            setup_dict, job_dict = IO_util.load_setup(self.setup_file)
+        elif '.xlsx' in self.setup_file:
+            setup_dict, job_dict = IO_util.importFromExcel(self.setup_file)
+        logging.info('Import time: '+str(round(time.time() - t_load,3))+' (sec).\n')
         self.t_total += t_load
         return setup_dict, job_dict
     def create_splits(self, job):

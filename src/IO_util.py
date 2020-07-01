@@ -1,5 +1,5 @@
 import sys, copy, csv
-import lib_material, unit_cell, data_util
+import lib_material, lib_excel, unit_cell, data_util
 import numpy as np
 #from matplotlib import pyplot
 
@@ -175,63 +175,58 @@ def saveAsCSV(file_name, table):
                 csv_parser.writerow(list(table[i,:]))
             except:
                 csv_parser.writerow(table[i])
-'''
-def importFromExcel(filename=None):
-    inputs = {'material': None,
-              'lattice': None,
-              'direction': None,
-              'mesh': [0, 0],
-              'kx_mesh': 0,
-              'Vbias': [0.0, 0.0],
-              'Unit cell': [],
-              'function':{'isPlotBand':False,
-                          'isPlotZoom':False},
-              'CPU':{'p_enable':False,
-                     'p_num':1},
-              'GPU':{'enable': False,
-                     'Max matrix':0}}
-    with lib_excel.excel(filename) as excel_parser:
-        for row in excel_parser.readSheet('__setup__'):
-            if row[0].value == 'Using GPU':
-                inputs['GPU']['enable'] = bool(row[1].value)
-                inputs['GPU']['Max matrix'] = int(row[2].value)
-            elif row[0].value == 'Using Parallel':
-                inputs['CPU']['p_enable'] = bool(row[1].value)
-                inputs['CPU']['p_num'] = int(row[2].value)
-            elif row[0].value == 'Material':
-                if str(row[1].value) == 'Graphene':
-                    inputs['material'] = lib_material.Graphene()
-            elif row[0].value == 'Lattice':
-                inputs['lattice'] = str(row[1].value)
-            elif row[0].value == 'Direction':
-                inputs['direction'] = str(row[1].value)
-            elif row[0].value == 'kx mesh':
-                inputs['kx_mesh'] = int(row[1].value)
-            elif row[0].value == 'mesh':
-                inputs['mesh'][0] = int(row[1].value)
-                inputs['mesh'][1] = int(row[2].value)
-            elif row[0].value == 'Bias(V)':
-                inputs['Vbias'][0] = float(row[1].value)
-                inputs['Vbias'][1] = float(row[2].value)
-            elif row[0].value == 'Plot band structure':
-                inputs['function']['isPlotBand'] = bool(row[1].value)
-                inputs['function']['isPlotZoom'] = bool(row[2].value)
-            elif row[0].value == 'o':
-                new_unit = {'Region': int(row[1].value),
-                            'Type': int(row[2].value),
-                            'Shift': int(row[3].value),
-                            'W': int(row[4].value),
-                            'L': int(row[5].value),
-                            'Vtop': float(row[6].value),
-                            'Vbot': float(row[7].value),
-                            'delta': float(row[8].value),
-                            'Barrier':{'top width':int(row[9].value),
-                                       'top gap':float(row[10].value),
-                                       'bot width':int(row[11].value),
-                                       'bot gap':float(row[12].value)}}
-                inputs['Unit cell'].append(new_unit)
-    return inputs
 
+def importFromExcel(filename=None):
+    with lib_excel.excel(file=filename) as excel_parser:
+        '''
+        Load __setup__ sheet
+        '''
+        setup = {}
+        for row in excel_parser.readSheet('__setup__'):
+            if row[0].value == 'Value':
+                setup['Material'] = row[1].value
+                setup['Lattice'] = row[2].value
+                setup['Direction'] = row[3].value
+                setup['mesh'] = int(row[4].value)
+            else:
+                continue
+        '''
+        Load structure sheet
+        '''
+        structure = {}
+        for row in excel_parser.readSheet('structure'):
+            if row[0].value == 'o':
+                ## create new region
+                this_region = {}
+                this_region['Job'] = row[1].value
+                this_region['Name'] = row[2].value
+                this_region['Width'] = [int(row[3].value)]
+                this_region['Length'] = int(row[4].value)
+                this_region['Vdrop'] = [row[5].value]
+                this_region['Vtop'] = float(row[6].value)
+                this_region['Vbot'] = float(row[7].value)
+                this_region['gap'] = [float(row[8].value)]
+                this_region['E'] = {}
+                this_region['E']['z'] = [float(row[9].value)]
+                this_region['B'] = {}
+                this_region['B']['x'] = [float(row[10].value)]
+                this_region['B']['y'] = [float(row[11].value)]
+                this_region['B']['z'] = [float(row[12].value)]
+                if row[1].value not in structure: structure[row[1].value] = {}
+                structure[row[1].value][row[2].value] = this_region
+            elif row[0].value == '>':
+                this_region = structure[row[1].value][row[2].value]
+                this_region['Width'].append(int(row[3].value))
+                this_region['Vdrop'].append(row[5].value)
+                this_region['gap'].append(float(row[8].value))
+                this_region['E']['z'].append(float(row[9].value))
+                this_region['B']['x'].append(float(row[10].value))
+                this_region['B']['y'].append(float(row[11].value))
+                this_region['B']['z'].append(float(row[12].value))
+            else:
+                continue
+    return setup, structure
+'''
 def saveAsExcel(inputs, u_idx, unit, input_array=None, save_type=None):
     lattice = inputs['lattice']
     mat = inputs['material'].name
