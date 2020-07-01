@@ -94,6 +94,67 @@ class RGF_solver():
             else:
                 if len(split_table) == 0: split_table.append(job)   # no splits condition
                 return split_table
+    def create_splits_from_dict(self, sweep_dict):
+        job_sweep = {}
+        '''
+        Resolve dictionary
+        '''
+        for key, val in sweep_dict.items():
+            job_sweep[key] = []
+            for sweep in val['Sweep_list']:
+                ## identify region
+                r, r_idx = data_util.str2float1D(sweep['Region'], totem='>', dtype='int')
+                ## identify variable
+                v, v_idx = data_util.str2float1D(sweep['var'], totem='>', dtype='str')
+                ## identify value
+                swp_val = data_util.str2float1D(sweep['val'], totem=',')
+                val_list = []
+                for val in swp_val:
+                    if isinstance(val, str):
+                        n0, dn, nn = data_util.str2float1D(val, totem=':')
+                        for data in np.arange(n0,nn+dn,dn): val_list.append(data)
+                    else:
+                        val_list.append(float(val))
+                new_split = {'Region': r,
+                             'Layer': r_idx,
+                             'type': v,
+                             'sweep var': v_idx,
+                             'sweep val': val_list}
+                job_sweep[key].append(new_split)
+        '''
+        Generate split table
+        '''
+        job_sweep['split_table'] = {}
+        for key, val in job_sweep.items():
+            if key == 'split_table': continue
+            split_table = []
+            var_counter = 0
+            for split in val:
+                split_table.append([])
+                if split['type'] == 'var':
+                    ## variable type sweep
+                    var_counter += 1
+                    for v in split['sweep val']:
+                        for v2 in range(var_counter):
+                            split_table[-1].append(v)
+                elif split['type'] == 'sync':
+                    ## sync type sweep
+                    for v in split['sweep val']:
+                        for v2 in range(var_counter):
+                            split_table[-1].append(v)
+                elif split['type'] == 'fix':
+                    for v2 in range(len(split_table[-2])):
+                        split_table[-1].append(split['sweep val'][0])
+                else:
+                    logging.error('Invalid sweep type: %s', split['type'])
+            else:
+                job_sweep['split_table'][key] = split_table
+        else:
+            return job_sweep
+                
+                    
+                    
+                        
     def resolve_mesh(self, mesh_list):
         m_list = data_util.str2float1D(mesh_list, totem=';', dtype='int')
         new_list = []
@@ -272,7 +333,7 @@ if __name__ == '__main__':
     # 2. get user's inputs. Input type using sys.argv.
     ############################################################
     RGF_parser = RGF_solver()
-    setup_dict, job_dict = RGF_parser.load_inputs()
+    setup_dict, job_dict, sweep_dict = RGF_parser.load_inputs()
     ############################################################
     # Run simulation
     # 1. Create splits of a single job
@@ -287,7 +348,8 @@ if __name__ == '__main__':
         '''
         Create splits
         '''
-        split_table = RGF_parser.create_splits(job)
+        if sweep_dict == {}: split_table = RGF_parser.create_splits(job)
+        else: split_table = RGF_parser.create_splits_from_dict(sweep_dict)
         '''
         Calculate splits
         '''
