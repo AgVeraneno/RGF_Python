@@ -35,12 +35,12 @@ class RGF_solver():
     def load_inputs(self):
         t_load = time.time()
         if '.csv' in self.setup_file:
-            setup_dict, job_dict = IO_util.load_setup(self.setup_file)
+            setup_dict, job_dict, sweep_dict = IO_util.load_setup(self.setup_file)
         elif '.xlsx' in self.setup_file:
-            setup_dict, job_dict = IO_util.importFromExcel(self.setup_file)
+            setup_dict, job_dict, sweep_dict = IO_util.importFromExcel(self.setup_file)
         logging.info('Import time: '+str(round(time.time() - t_load,3))+' (sec).\n')
         self.t_total += t_load
-        return setup_dict, job_dict
+        return setup_dict, job_dict, sweep_dict
     def create_splits(self, job):
         split_table = []
         job_sweep = {}
@@ -282,9 +282,8 @@ if __name__ == '__main__':
     ############################################################
     for job_name, job in job_dict.items():
         ## make directory
-        job_dir = RGF_parser.output_dir+job_name
-        if not os.path.exists(job_dir): os.mkdir(job_dir)
-        RGF_parser.job_dir = job_dir
+        RGF_parser.job_dir = RGF_parser.output_dir+job_name
+        if not os.path.exists(RGF_parser.job_dir): os.mkdir(RGF_parser.job_dir)
         '''
         Create splits
         '''

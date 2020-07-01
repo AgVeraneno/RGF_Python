@@ -103,7 +103,7 @@ def load_setup(setup_file):
                         job[row['name']][row['region']]['sweep_val'].append(row['sweep_value'])
             else:
                 pass
-    return setup, job
+    return setup, job, {}
 def importFromCSV(setup_file, job_file):
     setup = {'isDebug':False,
              'isGPU':False,
@@ -225,7 +225,28 @@ def importFromExcel(filename=None):
                 this_region['B']['z'].append(float(row[12].value))
             else:
                 continue
-    return setup, structure
+        '''
+        Load sweep sheet
+        '''
+        sweep = {}
+        for row in excel_parser.readSheet('sweep'):
+            if row[0].value == 'o':
+                ## create new sweep
+                this_sweep = {}
+                this_sweep['Name'] = row[1].value
+                this_sweep['Ref_job'] = row[2].value
+                this_sweep['Sweep_list'] = []
+                for i in range(int((len(row)-3)/3)):
+                    new_split = {}
+                    new_split['Region'] = row[3+3*i].value
+                    new_split['var'] = row[4+3*i].value
+                    new_split['val'] = row[5+3*i].value
+                    this_sweep['Sweep_list'].append(new_split)
+                else:
+                    sweep[row[1].value] = this_sweep
+            else:
+                continue
+    return setup, structure, sweep
 '''
 def saveAsExcel(inputs, u_idx, unit, input_array=None, save_type=None):
     lattice = inputs['lattice']
