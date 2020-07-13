@@ -188,6 +188,8 @@ def importFromExcel(filename=None):
                 setup['Lattice'] = row[2].value
                 setup['Direction'] = row[3].value
                 setup['mesh'] = int(row[4].value)
+                setup['Band diagram'] = bool(row[5].value)
+                setup['Magnetic moment'] = bool(row[6].value)
             else:
                 continue
         '''

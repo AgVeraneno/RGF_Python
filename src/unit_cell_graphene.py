@@ -89,6 +89,18 @@ class test():
             if i < W-1: self.__on_chain__[i,i+1] = -self.mat.r0
             # build inter chain matrix (same layer)
             self.__inter_chainP__[i,i] = -self.mat.r0
+class ZGNR_magnet():
+    '''
+    Unit cell object contain essential information of a unit cell
+    H: Hamiltonian of the unit cell containing on site energy & interhopping.
+    P_plus: forward inter unit cell hopping matrix
+    P_minus: backward inter unit cell hopping matrix
+    SU size: number of orbits used for hopping
+    SU count: number of atoms contained in sub unit cell
+    Any new material should contain these 5 parameters correctly
+    '''
+    def __init__(self, setup, job):
+        pass
 class AGNR():
     '''
     Unit cell object contain essential information of a unit cell

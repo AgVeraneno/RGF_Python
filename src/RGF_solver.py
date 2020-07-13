@@ -240,6 +240,8 @@ class RGF_solver():
         t_band = round(time.time() - t_band,3)
         logging.info('  Calculate band structure:'+str(t_band)+'(sec)')
         self.t_total += t_band
+    def cal_magneticMoment(self, setup_dict, unit_list):
+        pass
     def cal_RGF_transmission(self, setup_dict, unit_list, split_summary):
         t_RGF = time.time()
         if setup_dict['RGF']:
@@ -320,8 +322,7 @@ if __name__ == '__main__':
     """
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s %(levelname)s %(message)s',
-                        handlers=[logging.FileHandler('RGF_solver_'+\
-                                                      time.strftime("%Y-%m-%d %H=%M=%S", time.localtime())+'.log', 'w', 'utf-8')])
+                        handlers=[logging.FileHandler('RGF_solver.log', 'w', 'utf-8')])
     logging.info('Start RGF solver.\n')
     ############################################################
     # Environment setup
@@ -390,26 +391,41 @@ if __name__ == '__main__':
             split_summary = {}
             for key, split in split_table.items():
                 logging.info("Calculating split: "+key)
-                split_summary[s_idx] = []
-                ## resolve calculation condition
-                # get kx list
-                kx_list = RGF_parser.resolve_mesh(split['kx'])
-                RGF_parser.kx_list = kx_list
-                # get band list
-                CB_list = RGF_parser.resolve_mesh(split['CB'])
-                RGF_parser.CB_list = CB_list
+                split_summary[key] = []
                 '''
-                Generate unit cell
+                Small functions
                 '''
-                unit_list = RGF_parser.gen_unitCell(setup_dict)
-                '''
-                Calculate band diagram
-                '''
-                RGF_parser.cal_bandStructure(setup_dict, unit_list)
-                '''
-                Calculate RGF
-                '''
-                CB_cache, split_summary = RGF_parser.cal_RGF_transmission(setup_dict, unit_list, split_summary)
+                if setup_dict['Band diagram']:
+                    '''
+                    Generate unit cell
+                    '''
+                    unit_list = RGF_parser.gen_unitCell(setup_dict)
+                    '''
+                    Calculate band diagram
+                    '''
+                    RGF_parser.cal_bandStructure(setup_dict, unit_list)
+                elif setup_dict['Magnetic moment']:
+                    '''
+                    Generate unit cell
+                    '''
+                    unit_list = RGF_parser.gen_unitCell(setup_dict)
+                    '''
+                    Calculate magnetic moment
+                    '''
+                    RGF_parser.cal_magneticMoment(setup_dict, unit_list)
+                elif setup_dict['DC RGF']:
+                    '''
+                    Calculate RGF
+                    '''
+                    CB_cache, split_summary = RGF_parser.cal_RGF_transmission(setup_dict, unit_list, split_summary)
+                elif setup_dict['AC RGF']:
+                    '''
+                    Calculate RGF
+                    '''
+                    pass
+                else:
+                    pass
+
                 '''
                 Calculate time-dependent strucutre
                 '''
