@@ -151,10 +151,6 @@ class RGF_solver():
                 job_sweep['split_table'][key] = split_table
         else:
             return job_sweep
-                
-                    
-                    
-                        
     def resolve_mesh(self, mesh_list):
         m_list = data_util.str2float1D(mesh_list, totem=';', dtype='int')
         new_list = []
@@ -348,44 +344,83 @@ if __name__ == '__main__':
         '''
         Create splits
         '''
-        if sweep_dict == {}: split_table = RGF_parser.create_splits(job)
-        else: split_table = RGF_parser.create_splits_from_dict(sweep_dict)
-        '''
-        Calculate splits
-        '''
-        split_summary = {}
-        for s_idx, split in enumerate(split_table):
-            logging.info("Calculating split: "+str(s_idx))
-            split_summary[s_idx] = []
-            ## resolve calculation condition
-            # get kx list
-            kx_list = RGF_parser.resolve_mesh(split['kx'])
-            RGF_parser.kx_list = kx_list
-            # get band list
-            CB_list = RGF_parser.resolve_mesh(split['CB'])
-            RGF_parser.CB_list = CB_list
+        if sweep_dict == {}:
+            split_table = RGF_parser.create_splits(job)
             '''
-            Generate unit cell
+            Calculate splits
             '''
-            unit_list = RGF_parser.gen_unitCell(setup_dict)
-            '''
-            Calculate band diagram
-            '''
-            RGF_parser.cal_bandStructure(setup_dict, unit_list)
-            '''
-            Calculate RGF
-            '''
-            CB_cache, split_summary = RGF_parser.cal_RGF_transmission(setup_dict, unit_list, split_summary)
-            '''
-            Calculate time-dependent strucutre
-            '''
-            
-            logging.info('Split_'+str(s_idx)+' complete!!\n')
+            split_summary = {}
+            for s_idx, split in enumerate(split_table):
+                logging.info("Calculating split: "+str(s_idx))
+                split_summary[s_idx] = []
+                ## resolve calculation condition
+                # get kx list
+                kx_list = RGF_parser.resolve_mesh(split['kx'])
+                RGF_parser.kx_list = kx_list
+                # get band list
+                CB_list = RGF_parser.resolve_mesh(split['CB'])
+                RGF_parser.CB_list = CB_list
+                '''
+                Generate unit cell
+                '''
+                unit_list = RGF_parser.gen_unitCell(setup_dict)
+                '''
+                Calculate band diagram
+                '''
+                RGF_parser.cal_bandStructure(setup_dict, unit_list)
+                '''
+                Calculate RGF
+                '''
+                CB_cache, split_summary = RGF_parser.cal_RGF_transmission(setup_dict, unit_list, split_summary)
+                '''
+                Calculate time-dependent strucutre
+                '''
+                
+                logging.info('Split_'+str(s_idx)+' complete!!\n')
+            else:
+                '''
+                Summary table
+                '''
+                RGF_parser.gen_summary(setup_dict, CB_cache, split_summary)
         else:
+            split_table = RGF_parser.create_splits_from_dict(sweep_dict)
             '''
-            Summary table
+            Calculate splits
             '''
-            RGF_parser.gen_summary(setup_dict, CB_cache, split_summary)
+            split_summary = {}
+            for key, split in split_table.items():
+                logging.info("Calculating split: "+key)
+                split_summary[s_idx] = []
+                ## resolve calculation condition
+                # get kx list
+                kx_list = RGF_parser.resolve_mesh(split['kx'])
+                RGF_parser.kx_list = kx_list
+                # get band list
+                CB_list = RGF_parser.resolve_mesh(split['CB'])
+                RGF_parser.CB_list = CB_list
+                '''
+                Generate unit cell
+                '''
+                unit_list = RGF_parser.gen_unitCell(setup_dict)
+                '''
+                Calculate band diagram
+                '''
+                RGF_parser.cal_bandStructure(setup_dict, unit_list)
+                '''
+                Calculate RGF
+                '''
+                CB_cache, split_summary = RGF_parser.cal_RGF_transmission(setup_dict, unit_list, split_summary)
+                '''
+                Calculate time-dependent strucutre
+                '''
+                
+                logging.info('Split_'+str(s_idx)+' complete!!\n')
+            else:
+                '''
+                Summary table
+                '''
+                RGF_parser.gen_summary(setup_dict, CB_cache, split_summary)
+
     else:
         logging.info('Total time: '+str(round(RGF_parser.t_total,3))+' (sec)')
         logging.info('Program finished successfully')
