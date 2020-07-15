@@ -4,10 +4,10 @@ import numpy as np
 class CPU():
     def __init__(self, setup, unit):
         self.unit = unit
-        self.ax = setup['material'].ax
-        self.a = setup['material'].a
-        self.mesh = int(setup['kx_mesh'])
-        self.lattice = setup['lattice']
+        self.ax = setup['Material'].ax
+        self.a = setup['Material'].a
+        self.mesh = int(setup['mesh'])
+        self.lattice = setup['Lattice']
     def setKx(self, l_idx):
         return 2*np.pi*(l_idx-(self.mesh-1)/2)/(self.ax*(self.mesh-1))
     def calState(self, l_idx, returnKx=False):

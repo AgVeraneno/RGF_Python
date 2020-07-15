@@ -38,6 +38,7 @@ class RGF_solver():
             setup_dict, job_dict, sweep_dict = IO_util.load_setup(self.setup_file)
         elif '.xlsx' in self.setup_file:
             setup_dict, job_dict, sweep_dict = IO_util.importFromExcel(self.setup_file)
+            setup_dict['structure'] = setup_dict['Direction'][0]+setup_dict['Material name'][0]+'NR'
         logging.info('Import time: '+str(round(time.time() - t_load,3))+' (sec).\n')
         self.t_total += t_load
         return setup_dict, job_dict, sweep_dict
@@ -101,26 +102,29 @@ class RGF_solver():
         '''
         for key, val in sweep_dict.items():
             job_sweep[key] = []
-            for sweep in val['Sweep_list']:
-                ## identify region
-                r, r_idx = data_util.str2float1D(sweep['Region'], totem='>', dtype='int')
-                ## identify variable
-                v, v_idx = data_util.str2float1D(sweep['var'], totem='>', dtype='str')
-                ## identify value
-                swp_val = data_util.str2float1D(sweep['val'], totem=',')
-                val_list = []
-                for val in swp_val:
-                    if isinstance(val, str):
-                        n0, dn, nn = data_util.str2float1D(val, totem=':')
-                        for data in np.arange(n0,nn+dn,dn): val_list.append(data)
-                    else:
-                        val_list.append(float(val))
-                new_split = {'Region': r,
-                             'Layer': r_idx,
-                             'type': v,
-                             'sweep var': v_idx,
-                             'sweep val': val_list}
-                job_sweep[key].append(new_split)
+            if key == 'POR':
+                continue
+            else:
+                for sweep in val['Sweep_list']:
+                    ## identify region
+                    r, r_idx = data_util.str2float1D(sweep['Region'], totem='>', dtype='int')
+                    ## identify variable
+                    v, v_idx = data_util.str2float1D(sweep['var'], totem='>', dtype='str')
+                    ## identify value
+                    swp_val = data_util.str2float1D(sweep['val'], totem=',')
+                    val_list = []
+                    for val in swp_val:
+                        if isinstance(val, str):
+                            n0, dn, nn = data_util.str2float1D(val, totem=':')
+                            for data in np.arange(n0,nn+dn,dn): val_list.append(data)
+                        else:
+                            val_list.append(float(val))
+                    new_split = {'Region': r,
+                                 'Layer': r_idx,
+                                 'type': v,
+                                 'sweep var': v_idx,
+                                 'sweep val': val_list}
+                    job_sweep[key].append(new_split)
         '''
         Generate split table
         '''
@@ -163,80 +167,82 @@ class RGF_solver():
                 new_list.append(m)
         else:
             return new_list
-    def gen_unitCell(self, setup_dict):
+    def gen_unitCell(self, setup_dict, job, option=''):
         t_unitcell = time.time()
         unit_list = {}
-        for r_idx, region in enumerate(split['region list']):
-            if setup_dict['structure'] == 'AGNR':
-                unit_list[region] = unit_cell_graphene.AGNR(setup_dict, split[region])
-            elif setup_dict['structure'] == 'ZGNR':
-                unit_list[region] = unit_cell_graphene.ZGNR(setup_dict, split[region])
-            elif setup_dict['structure'] == 'ATNR':
-                unit_list[region] = unit_cell_TMDc.ATNR6(setup_dict, split[region])
-            elif setup_dict['structure'] == 'ATNR10':
-                unit_list[region] = unit_cell_TMDc.ATNR10(setup_dict, split[region])
+        for r_name, region in job.items():
+            if setup_dict['structure']+option == 'AGNR':
+                unit_list[r_name] = unit_cell_graphene.AGNR(setup_dict, region)
+            elif setup_dict['structure']+option == 'ZGNR':
+                unit_list[r_name] = unit_cell_graphene.ZGNR(setup_dict, region)
+            elif setup_dict['structure']+option == 'ZGNR_magnetic':
+                unit_list[r_name] = unit_cell_graphene.ZGNR_magnet(setup_dict, region)
+            elif setup_dict['structure']+option == 'ATNR':
+                unit_list[r_name] = unit_cell_TMDc.ATNR6(setup_dict, region)
+            elif setup_dict['structure']+option == 'ATNR10':
+                unit_list[r_name] = unit_cell_TMDc.ATNR10(setup_dict, region)
             else:
                 logging.error('Non supported structure:'+setup_dict['structure'])
                 raise ValueError('Non supported structure:',setup_dict['structure'])
+        else:
+            job_name = region['Job']
         ## print out Hamiltonian in debug mode
-        if setup_dict['debug']:
-            ## build debug folder
-            folder = self.job_dir+'/debug/'
-            if not os.path.exists(folder): os.mkdir(folder)
-            for r_key, region in unit_list.items():
-                IO_util.saveAsCSV(folder+str(s_idx)+'_'+r_key+'_H.csv', region.H)
-                IO_util.saveAsCSV(folder+str(s_idx)+'_'+r_key+'_P+.csv', region.Pf)
-                IO_util.saveAsCSV(folder+str(s_idx)+'_'+r_key+'_P-.csv', region.Pb)
+        ## build debug folder
+        folder = self.job_dir+'/debug/'
+        if not os.path.exists(folder): os.mkdir(folder)
+        for r_key, region in unit_list.items():
+            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_H.csv', region.H)
+            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_P+.csv', region.Pf)
+            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_P-.csv', region.Pb)
         t_unitcell = round(time.time() - t_unitcell,3)
         logging.info('  Generate unit cell:'+str(t_unitcell)+'(sec)')
         self.t_total += t_unitcell
         return unit_list
     def cal_bandStructure(self, setup_dict, unit_list):
         t_band = time.time()
-        if setup_dict['band']:
-            for key, unit in unit_list.items():
-                ## initialize ##
-                band_parser = cal_band.CPU(setup_dict, unit)
-                sweep_mesh = range(0,int(setup_dict['kx_mesh']),1)
-                ## calculate band structure ##
-                with Pool(processes=self.workers) as mp:
-                    eig = mp.map(band_parser.calState,sweep_mesh)
-                ## sort eigenvalues
-                band_table = [['kx*a']]
-                weight_table = [['kx*a','Band']]
-                for i in range(len(eig[0][1])):
-                    band_table[0].append('Band'+str(i)+' (eV)')
-                    weight_table[0].append('Site'+str(i+1))
-                for e_idx, e in enumerate(eig):
-                    kx = e[0]*band_parser.a
-                    val = e[1]
-                    vec = e[2]
-                    if e_idx == 0:
-                        sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec)
-                        band_table.append([kx])
-                        band_table[-1].extend(np.real(sorted_val))
-                        if e_idx in self.kx_list:
-                            for CB in self.CB_list:
-                                weight_table.append([kx])
-                                weight_table[-1].append(CB)
-                                weight_table[-1].extend(abs(sorted_vec[:,CB])**2)
-                        pre_vec = copy.deepcopy(sorted_vec)
-                    else:
-                        sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec)
-                        band_table.append([kx])
-                        band_table[-1].extend(np.real(sorted_val))
-                        if e_idx in self.kx_list:
-                            for CB in self.CB_list:
-                                weight_table.append([kx])
-                                weight_table[-1].append(CB)
-                                weight_table[-1].extend(abs(sorted_vec[:,CB])**2)
-                        pre_vec = copy.deepcopy(sorted_vec)
+        for key, unit in unit_list.items():
+            ## initialize ##
+            band_parser = cal_band.CPU(setup_dict, unit)
+            sweep_mesh = range(0,int(setup_dict['mesh']),1)
+            ## calculate band structure ##
+            with Pool(processes=self.workers) as mp:
+                eig = mp.map(band_parser.calState,sweep_mesh)
+            ## sort eigenvalues
+            band_table = [['kx*a']]
+            weight_table = [['kx*a','Band']]
+            for i in range(len(eig[0][1])):
+                band_table[0].append('Band'+str(i)+' (eV)')
+                weight_table[0].append('Site'+str(i+1))
+            for e_idx, e in enumerate(eig):
+                kx = e[0]*band_parser.a
+                val = e[1]
+                vec = e[2]
+                if e_idx == 0:
+                    sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec)
+                    band_table.append([kx])
+                    band_table[-1].extend(np.real(sorted_val))
+                    if e_idx in self.kx_list:
+                        for CB in self.CB_list:
+                            weight_table.append([kx])
+                            weight_table[-1].append(CB)
+                            weight_table[-1].extend(abs(sorted_vec[:,CB])**2)
+                    pre_vec = copy.deepcopy(sorted_vec)
                 else:
-                    ## print out report
-                    folder = self.output_dir+self.job_dir+'/band/'
-                    if not os.path.exists(folder): os.mkdir(folder)
-                    IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_band.csv', band_table)
-                    IO_util.saveAsCSV(folder+str(s_idx)+'_'+key+'_weight.csv', weight_table)
+                    sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec)
+                    band_table.append([kx])
+                    band_table[-1].extend(np.real(sorted_val))
+                    if e_idx in self.kx_list:
+                        for CB in self.CB_list:
+                            weight_table.append([kx])
+                            weight_table[-1].append(CB)
+                            weight_table[-1].extend(abs(sorted_vec[:,CB])**2)
+                    pre_vec = copy.deepcopy(sorted_vec)
+            else:
+                ## print out report
+                folder = self.output_dir+self.job_dir+'/band/'
+                if not os.path.exists(folder): os.mkdir(folder)
+                IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_band.csv', band_table)
+                IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_weight.csv', weight_table)
         t_band = round(time.time() - t_band,3)
         logging.info('  Calculate band structure:'+str(t_band)+'(sec)')
         self.t_total += t_band
@@ -341,6 +347,7 @@ if __name__ == '__main__':
     for job_name, job in job_dict.items():
         ## make directory
         RGF_parser.job_dir = RGF_parser.output_dir+job_name
+        RGF_parser.job_name = job_name
         if not os.path.exists(RGF_parser.job_dir): os.mkdir(RGF_parser.job_dir)
         '''
         Create splits
@@ -384,58 +391,54 @@ if __name__ == '__main__':
                 '''
                 RGF_parser.gen_summary(setup_dict, CB_cache, split_summary)
         else:
-            split_table = RGF_parser.create_splits_from_dict(sweep_dict)
             '''
             Calculate splits
             '''
+            split_table = RGF_parser.create_splits_from_dict(sweep_dict)
             split_summary = {}
-            for key, split in split_table.items():
+            for key, val in split_table.items():
                 logging.info("Calculating split: "+key)
                 split_summary[key] = []
-                '''
-                Small functions
-                '''
                 if setup_dict['Band diagram']:
                     '''
                     Generate unit cell
                     '''
-                    unit_list = RGF_parser.gen_unitCell(setup_dict)
+                    unit_list = RGF_parser.gen_unitCell(setup_dict, job)
                     '''
                     Calculate band diagram
                     '''
                     RGF_parser.cal_bandStructure(setup_dict, unit_list)
-                elif setup_dict['Magnetic moment']:
+                if setup_dict['Magnetic moment']:
                     '''
                     Generate unit cell
                     '''
-                    unit_list = RGF_parser.gen_unitCell(setup_dict)
+                    unit_list = RGF_parser.gen_unitCell(setup_dict, job, option='_magnetic')
                     '''
                     Calculate magnetic moment
                     '''
                     RGF_parser.cal_magneticMoment(setup_dict, unit_list)
-                elif setup_dict['DC RGF']:
+                if setup_dict['RGF']:
                     '''
                     Calculate RGF
                     '''
                     CB_cache, split_summary = RGF_parser.cal_RGF_transmission(setup_dict, unit_list, split_summary)
-                elif setup_dict['AC RGF']:
+                if setup_dict['TDGF']:
                     '''
                     Calculate RGF
                     '''
-                    pass
-                else:
                     pass
 
                 '''
                 Calculate time-dependent strucutre
                 '''
                 
-                logging.info('Split_'+str(s_idx)+' complete!!\n')
+                logging.info('Split_'+key+' complete!!\n')
             else:
                 '''
                 Summary table
                 '''
-                RGF_parser.gen_summary(setup_dict, CB_cache, split_summary)
+                #RGF_parser.gen_summary(setup_dict, CB_cache, split_summary)
+                pass
 
     else:
         logging.info('Total time: '+str(round(RGF_parser.t_total,3))+' (sec)')

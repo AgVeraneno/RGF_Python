@@ -184,18 +184,22 @@ def importFromExcel(filename=None):
         setup = {}
         for row in excel_parser.readSheet('__setup__'):
             if row[0].value == 'Value':
-                setup['Material'] = row[1].value
+                setup['Material'] = lib_material.Material(row[1].value)
+                setup['Material name'] = row[1].value
                 setup['Lattice'] = row[2].value
                 setup['Direction'] = row[3].value
                 setup['mesh'] = int(row[4].value)
                 setup['Band diagram'] = bool(row[5].value)
                 setup['Magnetic moment'] = bool(row[6].value)
+                setup['RGF'] = bool(row[7].value)
+                setup['TDGF'] = bool(row[8].value)
             else:
                 continue
         '''
         Load structure sheet
         '''
         structure = {}
+        sweep = {'POR':[]}
         for row in excel_parser.readSheet('structure'):
             if row[0].value == 'o':
                 ## create new region
@@ -216,6 +220,7 @@ def importFromExcel(filename=None):
                 this_region['B']['z'] = [float(row[12].value)]
                 if row[1].value not in structure: structure[row[1].value] = {}
                 structure[row[1].value][row[2].value] = this_region
+                if row[1].value not in sweep['POR']: sweep['POR'].append(row[1].value)
             elif row[0].value == '>':
                 this_region = structure[row[1].value][row[2].value]
                 this_region['Width'].append(int(row[3].value))
@@ -230,7 +235,6 @@ def importFromExcel(filename=None):
         '''
         Load sweep sheet
         '''
-        sweep = {}
         for row in excel_parser.readSheet('sweep'):
             if row[0].value == 'o':
                 ## create new sweep
