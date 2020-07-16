@@ -445,24 +445,25 @@ class ZGNR():
     SU count: number of atoms contained in sub unit cell
     Any new material should contain these 5 parameters correctly
     '''
-    def __init__(self, setup, job):
+    def __init__(self, setup, region):
         self.SU_size = 1                        # sub unit cell size (number of hopping and spin)
         self.SU_count = 2                       # atom number for each sub unit cell
         '''
         Auto generate parameters
         '''
         self.mat = setup['Material']            # unit cell material
+        self.region = region                          # current job setting
         self.mesh = int(setup['mesh'])       # band structure mesh
         self.ax = self.mat.ax                   # unit length
-        self.__initialize__(setup, job)
+        self.__initialize__(setup, region)
         self.__gen_Hamiltonian__()
-    def __initialize__(self, setup, job):
+    def __initialize__(self, setup, region):
         '''
         matrix definition
         '''
         ## ribbon size
-        self.W = [w*2 for w in job['Width']]
-        self.L = job['Length']
+        self.W = [w*2 for w in region['Width']]
+        self.L = region['Length']
         ## lattice type
         if setup['Lattice'] == 'M':
             self.m_size = sum(self.W)
@@ -480,17 +481,17 @@ class ZGNR():
         '''
         energy definition
         '''
-        self.gap = job['gap']
+        self.gap = region['gap']
         self.Vtop = []
         self.Vbot = []
-        dV = job['Vtop']-job['Vbot']
-        for Vdrop in job['Vdrop']:
+        dV = region['Vtop']-region['Vbot']
+        for Vdrop in region['Vdrop']:
             if Vdrop == 'x':
-                self.Vtop.append(job['Vbot'])
-                self.Vbot.append(job['Vbot'])
+                self.Vtop.append(region['Vbot'])
+                self.Vbot.append(region['Vbot'])
             elif Vdrop == 'o':
-                self.Vtop.append(job['Vtop'])
-                self.Vbot.append(job['Vbot'])
+                self.Vtop.append(region['Vtop'])
+                self.Vbot.append(region['Vbot'])
     def __gen_Hamiltonian__(self):
         self.__component__()
         self.__off_diagonal__()
@@ -555,6 +556,10 @@ class ZGNR():
               [z_mat             , self.__on_chainP__]]
         self.Pb = np.block(Pb)
         self.Pf = np.transpose(np.conj(self.Pb))
+        '''
+        Magnetic Hamiltonian
+        '''
+        
     def __component__(self):
         """
         1)
@@ -598,15 +603,27 @@ class ZGNR():
         self.__on_chainP__ = np.zeros((W,W),dtype=np.complex128)
         self.__C1c1__ = np.zeros((W,W),dtype=np.complex128)
         self.__C1c1P__ = np.zeros((W,W),dtype=np.complex128)
+        self.__Xop__ = np.zeros((W,W),dtype=np.complex128)
+        self.__Yop__ = np.zeros((W,W),dtype=np.complex128)
         for i in range(W):
             # build on chain matrix
-            if i < W-1: self.__on_chain__[i,i+1] = -self.mat.r0
+            if i < W-1:
+                self.__on_chain__[i,i+1] = -self.mat.r0
+                if i%4 == 0: self.__Xop__[i,i+1] = self.mat.a/2
+                elif i%4 == 2: self.__Xop__[i,i+1] = -self.mat.a/2
+                else: self.__Xop__[i,i+1] = 0
+                if i%2 == 0: self.__Yop__[i,i+1] = self.mat.acc/4 + self.mat.acc*1.5*int(i/2)
+                elif i%2 == 1: self.__Xop__[i,i+1] = -self.mat.a/2
+                else: self.__Xop__[i,i+1] = 0
+                self.__Yop__[i,i+1] = self.mat.acc/2*i + self.mat.acc/2*(i%2)
             if i < W-1 and i%4 == 0: self.__on_chainP__[i,i+1] = -self.mat.r0
             if i < W-1 and i%4 == 2: self.__on_chainP__[i+1,i] = -self.mat.r0
             # build inter chain matrix (C1 to c1)
             if i < W-1 and i%4 == 0: self.__C1c1P__[i,i+1] = -self.mat.r3
             if i > 0 and i%4 != 3: self.__C1c1__[i,i-1] = -self.mat.r3 * (1-i%2) - self.mat.r1 * (i%2)
             if i > 0 and i%4 == 3: self.__C1c1__[i,i-1] = -self.mat.r1
+        else:
+            print()
 if __name__ == '__main__':
     '''
     module debug entry
