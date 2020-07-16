@@ -189,10 +189,16 @@ def importFromExcel(filename=None):
                 setup['Lattice'] = row[2].value
                 setup['Direction'] = row[3].value
                 setup['mesh'] = int(row[4].value)
-                setup['Band diagram'] = bool(row[5].value)
-                setup['Magnetic moment'] = bool(row[6].value)
-                setup['RGF'] = bool(row[7].value)
-                setup['TDGF'] = bool(row[8].value)
+                setup['POR enable'] = bool(row[5].value)
+                setup['POR Band structure'] = bool(row[6].value)
+                setup['POR Magnetic moment'] = bool(row[7].value)
+                setup['POR RGF'] = bool(row[8].value)
+                setup['POR TDGF'] = bool(row[9].value)
+                setup['Split enable'] = bool(row[10].value)
+                setup['Split Band structure'] = bool(row[11].value)
+                setup['Split Magnetic moment'] = bool(row[12].value)
+                setup['Split RGF'] = bool(row[13].value)
+                setup['Split TDGF'] = bool(row[14].value)
             else:
                 continue
         '''
@@ -205,31 +211,34 @@ def importFromExcel(filename=None):
                 ## create new region
                 this_region = {}
                 this_region['Job'] = row[1].value
-                this_region['Name'] = row[2].value
-                this_region['Width'] = [int(row[3].value)]
-                this_region['Length'] = int(row[4].value)
-                this_region['Vdrop'] = [row[5].value]
-                this_region['Vtop'] = float(row[6].value)
-                this_region['Vbot'] = float(row[7].value)
-                this_region['gap'] = [float(row[8].value)]
+                this_region['Name'] = row[4].value
+                this_region['Width'] = [int(row[5].value)]
+                this_region['Length'] = int(row[6].value)
+                this_region['Vdrop'] = [row[7].value]
+                this_region['Vtop'] = float(row[8].value)
+                this_region['Vbot'] = float(row[9].value)
+                this_region['gap'] = [float(row[10].value)]
                 this_region['E'] = {}
-                this_region['E']['z'] = [float(row[9].value)]
+                this_region['E']['z'] = [float(row[11].value)]
                 this_region['B'] = {}
-                this_region['B']['x'] = [float(row[10].value)]
-                this_region['B']['y'] = [float(row[11].value)]
-                this_region['B']['z'] = [float(row[12].value)]
-                if row[1].value not in structure: structure[row[1].value] = {}
-                structure[row[1].value][row[2].value] = this_region
+                this_region['B']['x'] = [float(row[12].value)]
+                this_region['B']['y'] = [float(row[13].value)]
+                this_region['B']['z'] = [float(row[14].value)]
+                if row[1].value not in structure:
+                    structure[row[1].value] = {}
+                    this_region['E_idx'] = row[2].value
+                    this_region['S_idx'] = row[3].value
+                structure[row[1].value][row[4].value] = this_region
                 if row[1].value not in sweep['POR']: sweep['POR'].append(row[1].value)
             elif row[0].value == '>':
-                this_region = structure[row[1].value][row[2].value]
-                this_region['Width'].append(int(row[3].value))
-                this_region['Vdrop'].append(row[5].value)
-                this_region['gap'].append(float(row[8].value))
-                this_region['E']['z'].append(float(row[9].value))
-                this_region['B']['x'].append(float(row[10].value))
-                this_region['B']['y'].append(float(row[11].value))
-                this_region['B']['z'].append(float(row[12].value))
+                this_region = structure[row[1].value][row[4].value]
+                this_region['Width'].append(int(row[5].value))
+                this_region['Vdrop'].append(row[7].value)
+                this_region['gap'].append(float(row[10].value))
+                this_region['E']['z'].append(float(row[11].value))
+                this_region['B']['x'].append(float(row[12].value))
+                this_region['B']['y'].append(float(row[13].value))
+                this_region['B']['z'].append(float(row[14].value))
             else:
                 continue
         '''

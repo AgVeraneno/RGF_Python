@@ -30,7 +30,7 @@ class RGF_solver():
             else: self.workers = 24
         ## check input file
         if not os.path.exists(self.setup_file):
-            logging.error('Invalid input file: %s',self.setup_file)
+            logger.error('Invalid input file: %s',self.setup_file)
             raise ValueError('Invalid input file: %s',self.setup_file)
     def load_inputs(self):
         t_load = time.time()
@@ -39,8 +39,7 @@ class RGF_solver():
         elif '.xlsx' in self.setup_file:
             setup_dict, job_dict, sweep_dict = IO_util.importFromExcel(self.setup_file)
             setup_dict['structure'] = setup_dict['Direction'][0]+setup_dict['Material name'][0]+'NR'
-        logging.info('Import time: '+str(round(time.time() - t_load,3))+' (sec).\n')
-        self.t_total += t_load
+        logger.info('Import time: '+str(round(time.time() - t_load,3))+' (sec).')
         return setup_dict, job_dict, sweep_dict
     def create_splits(self, job):
         split_table = []
@@ -150,7 +149,7 @@ class RGF_solver():
                     for v2 in range(len(split_table[-2])):
                         split_table[-1].append(split['sweep val'][0])
                 else:
-                    logging.error('Invalid sweep type: %s', split['type'])
+                    logger.error('Invalid sweep type: %s', split['type'])
             else:
                 job_sweep['split_table'][key] = split_table
         else:
@@ -182,7 +181,7 @@ class RGF_solver():
             elif setup_dict['structure']+option == 'ATNR10':
                 unit_list[r_name] = unit_cell_TMDc.ATNR10(setup_dict, region)
             else:
-                logging.error('Non supported structure:'+setup_dict['structure'])
+                logger.critical('Non supported structure:'+setup_dict['structure'])
                 raise ValueError('Non supported structure:',setup_dict['structure'])
         else:
             job_name = region['Job']
@@ -195,7 +194,7 @@ class RGF_solver():
             IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_P+.csv', region.Pf)
             IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_P-.csv', region.Pb)
         t_unitcell = round(time.time() - t_unitcell,3)
-        logging.info('  Generate unit cell:'+str(t_unitcell)+'(sec)')
+        logger.info('Generate unit cell:'+str(t_unitcell)+'(sec)')
         self.t_total += t_unitcell
         return unit_list
     def cal_bandStructure(self, setup_dict, unit_list):
@@ -244,7 +243,7 @@ class RGF_solver():
                 IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_band.csv', band_table)
                 IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_weight.csv', weight_table)
         t_band = round(time.time() - t_band,3)
-        logging.info('  Calculate band structure:'+str(t_band)+'(sec)')
+        logger.info('  Calculate band structure:'+str(t_band)+'(sec)')
         self.t_total += t_band
     def cal_magneticMoment(self, setup_dict, unit_list):
         pass
@@ -289,7 +288,7 @@ class RGF_solver():
                     RGF_util.reflect = False
                 '''
         t_RGF = round(time.time() - t_RGF,3)
-        logging.info('  Calculate RGF (DC):'+str(t_RGF)+'(sec)')
+        logger.info('  Calculate RGF (DC):'+str(t_RGF)+'(sec)')
         self.t_total += t_RGF
         return CB_cache, split_summary
     def cal_TDNEGF(self, setup_dict, unit_list, split_summary):
@@ -326,29 +325,57 @@ if __name__ == '__main__':
     """
     This program simulates ballistic transportation along x-axis.
     """
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(levelname)s %(message)s',
-                        handlers=[logging.FileHandler('RGF_solver.log', 'w', 'utf-8')])
-    logging.info('Start RGF solver.\n')
+    logger = logging.getLogger('Solver_log')
+    logger.setLevel(logging.INFO)
+    fh = logging.FileHandler('RGF_solver.log',mode='w')
+    # create console handler with a higher log level
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.ERROR)
+    # create formatter and add it to the handlers
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    ch.setFormatter(formatter)
+    # add the handlers to the logger
+    logger.addHandler(fh)
+    logger.addHandler(ch)
     ############################################################
     # Environment setup
     # 1. build up "output" folder.
     # 2. get user's inputs. Input type using sys.argv.
     ############################################################
+    logger.info('========Start Solver========')
     RGF_parser = RGF_solver()
     setup_dict, job_dict, sweep_dict = RGF_parser.load_inputs()
+    logger.info('========Import complete========')
     ############################################################
     # Run simulation
+    # 0. Create POR
     # 1. Create splits of a single job
     # 2. Generate unit cell
     # 3. Calculate band diagram
     # 4. Calculate RGF
     ############################################################
-    for job_name, job in job_dict.items():
-        ## make directory
-        RGF_parser.job_dir = RGF_parser.output_dir+job_name
-        RGF_parser.job_name = job_name
-        if not os.path.exists(RGF_parser.job_dir): os.mkdir(RGF_parser.job_dir)
+    if setup_dict['POR enable']:
+        '''
+        Calculate POR
+        '''
+        for job_name, job in job_dict.items():
+            ## make directory
+            RGF_parser.job_dir = RGF_parser.output_dir+job_name
+            RGF_parser.job_name = job_name
+            if not os.path.exists(RGF_parser.job_dir): os.mkdir(RGF_parser.job_dir)
+            '''
+            Generate unit cell
+            '''
+            unit_list = RGF_parser.gen_unitCell(setup_dict, job)
+            if setup_dict['POR Band structure']:
+                '''
+                Calculate band structure
+                '''
+                RGF_parser.cal_bandStructure(setup_dict, unit_list)
+    else:
+        logger.warning('Skip structure check')
+    if setup_dict['Split enable']:
         '''
         Create splits
         '''
@@ -359,7 +386,7 @@ if __name__ == '__main__':
             '''
             split_summary = {}
             for s_idx, split in enumerate(split_table):
-                logging.info("Calculating split: "+str(s_idx))
+                logger.info("Calculating split: "+str(s_idx))
                 split_summary[s_idx] = []
                 ## resolve calculation condition
                 # get kx list
@@ -384,7 +411,7 @@ if __name__ == '__main__':
                 Calculate time-dependent strucutre
                 '''
                 
-                logging.info('Split_'+str(s_idx)+' complete!!\n')
+                logger.info('Split_'+str(s_idx)+' complete!!\n')
             else:
                 '''
                 Summary table
@@ -432,7 +459,7 @@ if __name__ == '__main__':
                 Calculate time-dependent strucutre
                 '''
                 
-                logging.info('Split_'+key+' complete!!\n')
+                logger.info('Split_'+key+' complete!!\n')
             else:
                 '''
                 Summary table
@@ -441,5 +468,5 @@ if __name__ == '__main__':
                 pass
 
     else:
-        logging.info('Total time: '+str(round(RGF_parser.t_total,3))+' (sec)')
-        logging.info('Program finished successfully')
+        logger.info('Total time: '+str(round(RGF_parser.t_total,3))+' (sec)')
+        logger.info('Program finished successfully')
