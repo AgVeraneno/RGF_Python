@@ -576,6 +576,14 @@ class ZGNR():
               [z_mat             , self.__Mu_on_chainP__]]
         self.uPb = np.block(uPb)
         self.uPf = np.transpose(np.conj(self.uPb))
+        uH0 = [[self.__Mu0_on_chain__, self.__C1c1__],
+             [z_mat            , self.__Mu0_on_chain__]]
+        uH0 = np.block(uH0)
+        self.uH0 = uH0 + np.transpose(np.conj(uH0))
+        uPb0 = [[self.__Mu0_on_chainP__, self.__C1c1P__    ],
+              [z_mat             , self.__Mu0_on_chainP__]]
+        self.uPb0 = np.block(uPb0)
+        self.uPf0 = np.transpose(np.conj(self.uPb0))
     def __component__(self):
         """
         1)

@@ -193,6 +193,10 @@ class RGF_solver():
             IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_H.csv', region.H)
             IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_P+.csv', region.Pf)
             IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_P-.csv', region.Pb)
+            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_uH.csv', region.uH)
+            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_uP+.csv', region.uPf)
+            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_uP-.csv', region.uPb)
+            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_Yop.csv', region.__Yop__)
         t_unitcell = round(time.time() - t_unitcell,3)
         logger.info('Generate unit cell:'+str(t_unitcell)+'(sec)')
         self.t_total += t_unitcell
@@ -443,7 +447,7 @@ if __name__ == '__main__':
                     '''
                     Calculate magnetic moment
                     '''
-                    RGF_parser.cal_magneticMoment(setup_dict, unit_list)
+                    RGF_parser.cal_bandStructure(setup_dict, unit_list)
                 if setup_dict['RGF']:
                     '''
                     Calculate RGF
