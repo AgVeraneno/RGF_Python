@@ -550,6 +550,9 @@ class ZGNR():
             self.uH = self.uH[:self.m_size,:self.m_size]
             self.uPf = self.uPf[:self.m_size,:self.m_size]
             self.uPb = self.uPb[:self.m_size,:self.m_size]
+            self.uH0 = self.uH0[:self.m_size,:self.m_size]
+            self.uPf0 = self.uPf0[:self.m_size,:self.m_size]
+            self.uPb0 = self.uPb0[:self.m_size,:self.m_size]
         self.H += gap
         self.H += volt
         self.uH += gap

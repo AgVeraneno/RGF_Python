@@ -207,10 +207,24 @@ class RGF_solver():
             ## initialize ##
             band_parser = cal_band.CPU(setup_dict, unit)
             sweep_mesh = range(0,int(setup_dict['mesh']),1)
-            ## calculate band structure ##
+            ## calculate band structure
             with Pool(processes=self.workers) as mp:
                 eig = mp.map(band_parser.calState,sweep_mesh)
-            ## sort eigenvalues
+            ## calculate magnetic momentum
+            uTB = [['kx*a','Band','muTB(Re)','muTB(Im)']]
+            if unit.region['E_idx'] == []: unit.region['E_idx'] = range(0,len(eig[0][1]),1)
+            if unit.region['S_idx'] == []: unit.region['S_idx'] = sweep_mesh
+            for E_idx in unit.region['E_idx']:
+                for S_idx in unit.region['S_idx']:
+                    uTB.append([])
+                    kx = eig[S_idx][0]*band_parser.a
+                    vec = eig[S_idx][2][:,E_idx]
+                    uTB[-1].append(kx)
+                    uTB[-1].append(E_idx)
+                    uTB_val = band_parser.calMagneticMoment(kx, vec, vec)
+                    uTB[-1].append(np.real(uTB_val))
+                    uTB[-1].append(np.imag(uTB_val))
+            ## generate result table eigenvalues
             band_table = [['kx*a']]
             weight_table = [['kx*a','Band']]
             for i in range(len(eig[0][1])):
@@ -246,11 +260,10 @@ class RGF_solver():
                 if not os.path.exists(folder): os.mkdir(folder)
                 IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_band.csv', band_table)
                 IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_weight.csv', weight_table)
+                IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_uTB.csv', uTB)
         t_band = round(time.time() - t_band,3)
         logger.info('  Calculate band structure:'+str(t_band)+'(sec)')
         self.t_total += t_band
-    def cal_magneticMoment(self, setup_dict, unit_list):
-        pass
     def cal_RGF_transmission(self, setup_dict, unit_list, split_summary):
         t_RGF = time.time()
         if setup_dict['RGF']:

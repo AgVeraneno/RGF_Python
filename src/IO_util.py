@@ -226,8 +226,39 @@ def importFromExcel(filename=None):
                 this_region['B']['z'] = [float(row[14].value)]
                 if row[1].value not in structure:
                     structure[row[1].value] = {}
-                    this_region['E_idx'] = row[2].value
-                    this_region['S_idx'] = row[3].value
+                    ## resolve data point
+                    if isinstance(row[2].value, str):
+                        E_tmp = data_util.str2float1D(row[2].value,totem=',',dtype='int')
+                    else:
+                        E_tmp = [row[2].value]
+                    E_idx = []
+                    for e in E_tmp:
+                        if isinstance(e, str):
+                            e0, ee = data_util.str2float1D(e,totem=':',dtype='int')
+                            e_range = np.arange(e0,ee+1,1)
+                            E_idx.extend(e_range)
+                        else:
+                            E_idx.append(e)
+                    this_region['E_idx'] = E_idx
+                    if isinstance(row[3].value, str):
+                        S_tmp = data_util.str2float1D(row[3].value,totem=',',dtype='int')
+                    else:
+                        S_tmp = [row[3].value]
+                    S_idx = []
+                    for s in S_tmp:
+                        if isinstance(s, str):
+                            s0, ss = data_util.str2float1D(s,totem=':',dtype='int')
+                            s_range = np.arange(s0,ss+1,1)
+                            S_idx.extend(s_range)
+                        else:
+                            S_idx.append(s)
+                    this_region['S_idx'] = S_idx
+                elif E_idx != [] and S_idx != []:
+                    this_region['E_idx'] = E_idx
+                    this_region['S_idx'] = S_idx
+                else:
+                    E_idx = []
+                    S_idx = []
                 structure[row[1].value][row[4].value] = this_region
                 if row[1].value not in sweep['POR']: sweep['POR'].append(row[1].value)
             elif row[0].value == '>':

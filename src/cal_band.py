@@ -20,18 +20,23 @@ class CPU():
                np.exp(-1j*kx*self.ax)*Pb
         val, vec = np.linalg.eig(Heig)
         return kx, val, vec
-    def calMagneticMomentum(self, kx, vec1, vec2):
+    def calMagneticMoment(self, kx, vec1, vec2):
         uH = self.unit.uH
-        uPf = self.unit.uPF
+        uPf = self.unit.uPf
         uPb = self.unit.uPb
         uHeig = uH+\
                 np.exp(1j*kx*self.ax)*uPf+\
                 np.exp(-1j*kx*self.ax)*uPb
+        euH = np.vdot(vec1,np.dot(uHeig,vec2))
+        uH0 = self.unit.uH0
+        uPf0 = self.unit.uPf0
+        uPb0 = self.unit.uPb0
         uHeig0 = uH0+\
                  np.exp(1j*kx*self.ax)*uPf0+\
                  np.exp(-1j*kx*self.ax)*uPb0
-        uTB = np.vdot(vec1,np.dot(uHeig,vec2))-np.dot(np.vdot(vec1,np.dot(uHeig0,vec2)),self.unit.__Yop__)
-        return kx, val, vec
+        euH0 = np.vdot(vec1,np.dot(uHeig0,vec2))
+        eY = np.vdot(vec1,np.dot(self.unit.__Yop__,vec2))
+        return euH - np.dot(euH0, eY)
     def getCBidx(self, gap, eig_val):
         #return int(np.size(self.unit.H,0)/2)
         return int(self.CB_idx)
