@@ -210,50 +210,39 @@ class RGF_solver():
             ## calculate band structure
             with Pool(processes=self.workers) as mp:
                 eig = mp.map(band_parser.calState,sweep_mesh)
-            ## calculate magnetic momentum
-            uTB = [['kx*a','Band','muTB(Re)','muTB(Im)']]
-            if unit.region['E_idx'] == []: unit.region['E_idx'] = range(0,len(eig[0][1]),1)
-            if unit.region['S_idx'] == []: unit.region['S_idx'] = sweep_mesh
-            for E_idx in unit.region['E_idx']:
-                for S_idx in unit.region['S_idx']:
-                    uTB.append([])
-                    kx = eig[S_idx][0]*band_parser.a
-                    vec = eig[S_idx][2][:,E_idx]
-                    uTB[-1].append(kx)
-                    uTB[-1].append(E_idx)
-                    uTB_val = band_parser.calMagneticMoment(kx, vec, vec)
-                    uTB[-1].append(np.real(uTB_val))
-                    uTB[-1].append(np.imag(uTB_val))
             ## generate result table eigenvalues
+            if unit.region['E_idx'][0] == None: unit.region['E_idx'] = range(0,len(eig[0][1]),1)
+            if unit.region['S_idx'][0] == None: unit.region['S_idx'] = sweep_mesh
             band_table = [['kx*a']]
             weight_table = [['kx*a','Band']]
+            uTB = [['kx*a','Band','muTB(Re)','muTB(Im)','muTB(abs)']]
             for i in range(len(eig[0][1])):
                 band_table[0].append('Band'+str(i)+' (eV)')
                 weight_table[0].append('Site'+str(i+1))
+            ## sort band and eigenstate
             for e_idx, e in enumerate(eig):
                 kx = e[0]*band_parser.a
                 val = e[1]
                 vec = e[2]
-                if e_idx == 0:
-                    sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec)
-                    band_table.append([kx])
-                    band_table[-1].extend(np.real(sorted_val))
-                    if e_idx in self.kx_list:
-                        for CB in self.CB_list:
-                            weight_table.append([kx])
-                            weight_table[-1].append(CB)
-                            weight_table[-1].extend(abs(sorted_vec[:,CB])**2)
-                    pre_vec = copy.deepcopy(sorted_vec)
-                else:
-                    sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec)
-                    band_table.append([kx])
-                    band_table[-1].extend(np.real(sorted_val))
-                    if e_idx in self.kx_list:
-                        for CB in self.CB_list:
-                            weight_table.append([kx])
-                            weight_table[-1].append(CB)
-                            weight_table[-1].extend(abs(sorted_vec[:,CB])**2)
-                    pre_vec = copy.deepcopy(sorted_vec)
+                sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec)
+                band_table.append([kx])
+                band_table[-1].extend(np.real(sorted_val))
+                for E_idx in unit.region['E_idx']:
+                    if e_idx in unit.region['S_idx']:
+                        ## eigenstate weight table
+                        weight_table.append([kx])
+                        weight_table[-1].append(e_idx)
+                        weight_table[-1].extend(abs(sorted_vec[:,E_idx])**2)
+                        ## magnetic moment
+                        uTB.append([])
+                        vec = sorted_vec[:,E_idx]
+                        uTB[-1].append(kx)
+                        uTB[-1].append(E_idx)
+                        uTB_val = band_parser.calMagneticMoment(kx/band_parser.a, vec, vec)
+                        uTB[-1].append(np.real(uTB_val))
+                        uTB[-1].append(np.imag(uTB_val))
+                        uTB[-1].append(np.abs(uTB_val))
+                pre_vec = copy.deepcopy(sorted_vec)
             else:
                 ## print out report
                 folder = self.output_dir+self.job_dir+'/band/'

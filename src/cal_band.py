@@ -36,7 +36,7 @@ class CPU():
                  np.exp(-1j*kx*self.ax)*uPb0
         euH0 = np.vdot(vec1,np.dot(uHeig0,vec2))
         eY = np.vdot(vec1,np.dot(self.unit.__Yop__,vec2))
-        return euH - np.dot(euH0, eY)
+        return euH - euH0*eY
     def getCBidx(self, gap, eig_val):
         #return int(np.size(self.unit.H,0)/2)
         return int(self.CB_idx)
