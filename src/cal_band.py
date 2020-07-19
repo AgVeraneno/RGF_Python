@@ -16,8 +16,8 @@ class CPU():
         Pf = self.unit.Pf
         Pb = self.unit.Pb
         Heig = H+\
-               np.exp(1j*kx*self.ax)*Pf+\
-               np.exp(-1j*kx*self.ax)*Pb
+               np.exp(-1j*kx*self.ax)*Pf+\
+               np.exp(1j*kx*self.ax)*Pb
         val, vec = np.linalg.eig(Heig)
         return kx, val, vec
     def calMagneticMoment(self, kx, vec1, vec2):
@@ -25,15 +25,15 @@ class CPU():
         uPf = self.unit.uPf
         uPb = self.unit.uPb
         uHeig = uH+\
-                np.exp(1j*kx*self.ax)*uPf+\
-                np.exp(-1j*kx*self.ax)*uPb
+                np.exp(-1j*kx*self.ax)*uPf+\
+                np.exp(1j*kx*self.ax)*uPb
         euH = np.vdot(vec1,np.dot(uHeig,vec2))
         uH0 = self.unit.uH0
         uPf0 = self.unit.uPf0
         uPb0 = self.unit.uPb0
         uHeig0 = uH0+\
-                 np.exp(1j*kx*self.ax)*uPf0+\
-                 np.exp(-1j*kx*self.ax)*uPb0
+                 np.exp(-1j*kx*self.ax)*uPf0+\
+                 np.exp(1j*kx*self.ax)*uPb0
         euH0 = np.vdot(vec1,np.dot(uHeig0,vec2))
         eY = np.vdot(vec1,np.dot(self.unit.__Yop__,vec2))
         return euH - euH0*eY

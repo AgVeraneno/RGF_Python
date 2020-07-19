@@ -221,7 +221,7 @@ class RGF_solver():
                 weight_table[0].append('Site'+str(i+1))
             ## sort band and eigenstate
             for e_idx, e in enumerate(eig):
-                kx = e[0]*band_parser.a
+                kx = e[0]*band_parser.ax
                 val = e[1]
                 vec = e[2]
                 sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec)
@@ -231,14 +231,14 @@ class RGF_solver():
                     if e_idx in unit.region['S_idx']:
                         ## eigenstate weight table
                         weight_table.append([kx])
-                        weight_table[-1].append(e_idx)
+                        weight_table[-1].append(E_idx)
                         weight_table[-1].extend(abs(sorted_vec[:,E_idx])**2)
                         ## magnetic moment
                         uTB.append([])
                         vec = sorted_vec[:,E_idx]
                         uTB[-1].append(kx)
                         uTB[-1].append(E_idx)
-                        uTB_val = band_parser.calMagneticMoment(kx/band_parser.a, vec, vec)
+                        uTB_val = band_parser.calMagneticMoment(kx/band_parser.ax, vec, vec)
                         uTB[-1].append(np.real(uTB_val))
                         uTB[-1].append(np.imag(uTB_val))
                         uTB[-1].append(np.abs(uTB_val))
