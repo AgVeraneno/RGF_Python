@@ -218,9 +218,12 @@ class RGF_solver():
             band_table = [['kx*a']]
             weight_table = [['kx*a','Band']]
             uTB = [['kx*a','Band','muTB(Re)','muTB(Im)','muTB(abs)']]
+            I_loop = [['kx*a','Band']]
             for i in range(len(eig[0][1])):
                 band_table[0].append('Band'+str(i)+' (eV)')
                 weight_table[0].append('Site'+str(i+1))
+            for i in range(int(len(eig[0][1])/2)):
+                I_loop[0].append('Site'+str(i+1))
             ## sort band and eigenstate
             for e_idx, e in enumerate(eig):
                 kx = e[0]*band_parser.ax
@@ -235,16 +238,20 @@ class RGF_solver():
                         weight_table.append([kx])
                         weight_table[-1].append(E_idx)
                         weight_table[-1].extend(abs(sorted_vec[:,E_idx])**2)
+                        #weight_table[-1].extend(np.imag(sorted_vec[:,E_idx]))
                         ## magnetic moment
                         uTB.append([])
-                        vec = sorted_vec[:,E_idx]
                         uTB[-1].append(kx)
                         uTB[-1].append(E_idx)
-                        uTB_val = band_parser.calMagneticMoment(kx/band_parser.ax, vec, vec)
+                        uTB_val = band_parser.calMagneticMoment(kx/band_parser.ax, sorted_vec[:,E_idx], sorted_vec[:,E_idx])
                         uTB[-1].append(np.real(uTB_val))
                         uTB[-1].append(np.imag(uTB_val))
                         uTB[-1].append(np.abs(uTB_val))
                         ## moment current
+                        I_loop.append([])
+                        I_loop[-1].append(kx)
+                        I_loop[-1].append(E_idx)
+                        I_loop[-1].extend(band_parser.calMagneticMomentCurrent(sorted_vec[:,E_idx]))
                         
                 pre_vec = copy.deepcopy(sorted_vec)
             else:
@@ -254,6 +261,7 @@ class RGF_solver():
                 IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_band.csv', band_table)
                 IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_weight.csv', weight_table)
                 IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_uTB.csv', uTB)
+                IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_Iloop.csv', I_loop)
         t_band = round(time.time() - t_band,3)
         logger.info('  Calculate band structure:'+str(t_band)+'(sec)')
         self.t_total += t_band

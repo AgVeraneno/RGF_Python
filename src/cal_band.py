@@ -4,11 +4,10 @@ import numpy as np
 class CPU():
     def __init__(self, setup, unit):
         self.unit = unit
-        if setup['Direction'] == 'AC':
-            self.ax = setup['Material'].ax
-        elif setup['Direction'] == 'ZZ':
-            self.ax = setup['Material'].ax_zz
-        self.a = setup['Material'].a
+        if setup['Direction'] == 'AC': self.ax = setup['Material'].ax
+        elif setup['Direction'] == 'ZZ': self.ax = setup['Material'].ax_zz
+        self.mat = setup['Material']
+        self.direction = setup['Direction']
         self.mesh = int(setup['mesh'])
         self.lattice = setup['Lattice']
     def setKx(self, l_idx):
@@ -40,6 +39,25 @@ class CPU():
         euH0 = np.vdot(vec1,np.dot(uHeig0,vec2))
         eY = np.vdot(vec1,np.dot(self.unit.Y,vec2))
         return euH-euH0*eY
+    def calMagneticMomentCurrent(self, vec):
+        if self.direction == 'ZZ':
+            ## calculate link current
+            I_link = []
+            for i in range(0,len(vec),2):
+                I = -1j/self.mat.h_bar*(np.dot(vec[i],np.conj(vec[i+1]))*self.mat.r0*self.mat.q - \
+                                        np.dot(np.conj(vec[i]),vec[i+1])*self.mat.r0*self.mat.q)
+                I_link.append(I)
+            else:
+                I_trans = [i/sum(I_link) for i in I_link]
+                I_loop = []
+                for j in range(len(I_trans)):
+                    if j == 0: I = I_link[j]-I_trans[j]
+                    else: I = I_link[j]-I_trans[j] + I_loop[j-1]
+                    I_loop.append(np.real(I))
+                else:
+                    return I_loop
+        elif self.direction == 'AC':
+            pass
     def getCBidx(self, gap, eig_val):
         #return int(np.size(self.unit.H,0)/2)
         return int(self.CB_idx)
