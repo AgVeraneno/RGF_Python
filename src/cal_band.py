@@ -4,7 +4,10 @@ import numpy as np
 class CPU():
     def __init__(self, setup, unit):
         self.unit = unit
-        self.ax = setup['Material'].ax
+        if setup['Direction'] == 'AC':
+            self.ax = setup['Material'].ax
+        elif setup['Direction'] == 'ZZ':
+            self.ax = setup['Material'].ax_zz
         self.a = setup['Material'].a
         self.mesh = int(setup['mesh'])
         self.lattice = setup['Lattice']
@@ -35,8 +38,8 @@ class CPU():
                  np.exp(-1j*kx*self.ax)*uPf0+\
                  np.exp(1j*kx*self.ax)*uPb0
         euH0 = np.vdot(vec1,np.dot(uHeig0,vec2))
-        eY = np.vdot(vec1,np.dot(self.unit.__Yop__,vec2))
-        return euH - euH0*eY
+        eY = np.vdot(vec1,np.dot(self.unit.Y,vec2))
+        return euH-euH0*eY
     def getCBidx(self, gap, eig_val):
         #return int(np.size(self.unit.H,0)/2)
         return int(self.CB_idx)

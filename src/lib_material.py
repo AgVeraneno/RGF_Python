@@ -31,6 +31,7 @@ class Material():
             self.a = 2.46e-10                     # m. same atom's nearest neighbor distance (A-A site)
             self.acc = self.a/3**0.5              # m. carbon to carbon distance (A-B site)
             self.ax = 3*self.acc                  # m. unit cell width for AGNR
+            self.ax_zz = self.a
             self.K_norm = 4/3*np.pi/self.acc      # m-1. normalized K vector
             self.vF = 8e5                         # m/s. Fermi velocity for graphene
             ### hopping energy

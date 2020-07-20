@@ -557,6 +557,7 @@ class ZGNR():
         self.H += volt
         self.uH += gap
         self.uH += volt
+        self.V = np.real(volt)
     def __off_diagonal__(self):
         W = sum(self.W)
         z_mat = np.zeros((W,W), dtype=np.complex128)
@@ -564,10 +565,10 @@ class ZGNR():
              [z_mat            , self.__on_chain__]]
         H = np.block(H)
         self.H = H + np.transpose(np.conj(H))
-        Pb = [[self.__on_chainP__, self.__C1c1P__    ],
+        Pf = [[self.__on_chainP__, self.__C1c1P__    ],
               [z_mat             , self.__on_chainP__]]
-        self.Pb = np.block(Pb)
-        self.Pf = np.transpose(np.conj(self.Pb))
+        self.Pf = np.block(Pf)
+        self.Pb = np.transpose(np.conj(self.Pf))
         '''
         Magnetic Hamiltonian
         '''
@@ -575,18 +576,18 @@ class ZGNR():
              [z_mat            , self.__Mu_on_chain__]]
         uH = np.block(uH)
         self.uH = uH + np.transpose(np.conj(uH))
-        uPb = [[self.__Mu_on_chainP__, self.__C1c1P__    ],
+        uPf = [[self.__Mu_on_chainP__, self.__C1c1P__    ],
               [z_mat             , self.__Mu_on_chainP__]]
-        self.uPb = np.block(uPb)
-        self.uPf = np.transpose(np.conj(self.uPb))
+        self.uPf = np.block(uPf)
+        self.uPb = np.transpose(np.conj(self.uPf))
         uH0 = [[self.__Mu0_on_chain__, self.__C1c1__],
              [z_mat            , self.__Mu0_on_chain__]]
         uH0 = np.block(uH0)
         self.uH0 = uH0 + np.transpose(np.conj(uH0))
-        uPb0 = [[self.__Mu0_on_chainP__, self.__C1c1P__    ],
+        uPf0 = [[self.__Mu0_on_chainP__, self.__C1c1P__    ],
               [z_mat             , self.__Mu0_on_chainP__]]
-        self.uPb0 = np.block(uPb0)
-        self.uPf0 = np.transpose(np.conj(self.uPb0))
+        self.uPf0 = np.block(uPf0)
+        self.uPb0 = np.transpose(np.conj(self.uPf0))
     def __component__(self):
         """
         1)
@@ -643,47 +644,53 @@ class ZGNR():
         self.__Mu0_C1c1__ = np.zeros((W,W),dtype=np.complex128)
         self.__Mu0_C1c1P__ = np.zeros((W,W),dtype=np.complex128)
         mu_const = 1j*self.mat.q/self.mat.h_bar
-        
+        self.Y = np.zeros((W,W),dtype=np.complex128)
+        self.X = np.zeros((W,W),dtype=np.complex128)
         for i in range(W):
             # build position matrix
             if i > 0:
                 self.__Yop__[i,i] = self.__Yop__[i-1,i-1] + self.mat.acc/2*(i%2) + self.mat.acc*((i+1)%2)
+                self.Y[i,i] = self.Y[i-1,i-1] + self.mat.acc/2*(i%2) + self.mat.acc*((i+1)%2)
+                if i%4 == 1 or i%4 == 2:
+                    self.__Xop__[i,i] = self.mat.a*3/2
+                    self.X[i,i] = self.mat.a*3/2
+                else:
+                    self.__Xop__[i,i] = self.mat.a
+                    self.X[i,i] = self.mat.a
                 for j in range(i):
                     self.__Yop__[i,j] = (self.__Yop__[i,i] + self.__Yop__[j,j])/2
                     self.__Yop__[j,i] = (self.__Yop__[i,i] + self.__Yop__[j,j])/2
+                    self.__Xop__[i,j] = (self.__Xop__[i,i] - self.__Xop__[j,j])
+                    self.__Xop__[j,i] = (self.__Xop__[i,i] - self.__Xop__[j,j])
+            else:
+                self.__Xop__[i,i] = self.mat.a
+                self.X[i,i] = self.mat.a
         for i in range(W):
             # build on chain matrix
             if i < W-1:
                 self.__on_chain__[i,i+1] = -self.mat.r0
-                if i%4 == 0: self.__Xop__[i,i+1] = self.mat.a/2
-                elif i%4 == 2: self.__Xop__[i,i+1] = -self.mat.a/2
-                else: self.__Xop__[i,i+1] = 0
-                self.__Mu_on_chain__[i,i+1] = -mu_const*self.mat.r0*self.__Xop__[i,i+1]*self.__Yop__[i,i+1]*\
+                self.__Mu_on_chain__[i,i+1] = mu_const*self.mat.r0*self.__Xop__[i,i+1]*self.__Yop__[i,i+1]*\
                                                 np.exp(mu_const*self.Bz[i]*self.__Xop__[i,i+1]*self.__Yop__[i,i+1])
-                self.__Mu0_on_chain__[i,i+1] = -mu_const*self.mat.r0*self.__Xop__[i,i+1]*\
+                self.__Mu0_on_chain__[i,i+1] = mu_const*self.mat.r0*self.__Xop__[i,i+1]*\
                                                 np.exp(mu_const*self.Bz[i]*self.__Xop__[i,i+1])
             if i < W-1 and i%4 == 0:
                 self.__on_chainP__[i,i+1] = -self.mat.r0
-                if i%4 == 0: self.__XopP__[i,i+1] = self.mat.a/2
-                elif i%4 == 2: self.__XopP__[i,i+1] = -self.mat.a/2
-                else: self.__XopP__[i,i+1] = 0
+                dx = self.mat.a/27
                 if i%2 == 0: self.__YopP__[i,i+1] = self.mat.acc/4 + self.mat.acc*0.75*i
                 elif i%2 == 1: self.__YopP__[i,i+1] = self.mat.acc + self.mat.acc*0.75*(i-1)
-                self.__Mu_on_chainP__[i,i+1] = -mu_const*self.mat.r0*self.__Xop__[i,i+1]*self.__Yop__[i,i+1]*\
-                                                np.exp(mu_const*self.Bz[i]*self.__Xop__[i,i+1]*self.__Yop__[i,i+1])
-                self.__Mu0_on_chainP__[i,i+1] = -mu_const*self.mat.r0*self.__Xop__[i,i+1]*\
-                                                np.exp(mu_const*self.Bz[i]*self.__Xop__[i,i+1])
+                self.__Mu_on_chainP__[i,i+1] = mu_const*self.mat.r0*dx*self.__Yop__[i,i+1]*\
+                                                np.exp(mu_const*self.Bz[i]*dx*self.__Yop__[i,i+1])
+                self.__Mu0_on_chainP__[i,i+1] = mu_const*self.mat.r0*dx*\
+                                                np.exp(mu_const*self.Bz[i]*dx)
             if i < W-1 and i%4 == 2:
                 self.__on_chainP__[i+1,i] = -self.mat.r0
-                if i%4 == 0: self.__XopP__[i+1,i] = self.mat.a/2
-                elif i%4 == 2: self.__XopP__[i+1,i] = -self.mat.a/2
-                else: self.__XopP__[i+1,i] = 0
+                dx = self.mat.a/2
                 if i%2 == 0: self.__YopP__[i+1,i] = self.mat.acc/4 + self.mat.acc*0.75*i
                 elif i%2 == 1: self.__YopP__[i+1,i] = self.mat.acc + self.mat.acc*0.75*(i-1)
-                self.__Mu_on_chainP__[i+1,i] = -mu_const*self.mat.r0*self.__Xop__[i+1,i]*self.__Yop__[i+1,i]*\
-                                                np.exp(mu_const*self.Bz[i]*self.__Xop__[i+1,i]*self.__Yop__[i+1,i])
-                self.__Mu0_on_chainP__[i+1,i] = -mu_const*self.mat.r0*self.__Xop__[i+1,i]*\
-                                                np.exp(mu_const*self.Bz[i]*self.__Xop__[i+1,i])
+                self.__Mu_on_chainP__[i+1,i] = mu_const*self.mat.r0*dx*self.__Yop__[i+1,i]*\
+                                                np.exp(mu_const*self.Bz[i]*dx*self.__Yop__[i+1,i])
+                self.__Mu0_on_chainP__[i+1,i] = mu_const*self.mat.r0*dx*\
+                                                np.exp(mu_const*self.Bz[i]*dx)
             # build inter chain matrix (C1 to c1)
             if i < W-1 and i%4 == 0: self.__C1c1P__[i,i+1] = -self.mat.r3
             if i > 0 and i%4 != 3: self.__C1c1__[i,i-1] = -self.mat.r3 * (1-i%2) - self.mat.r1 * (i%2)
