@@ -216,14 +216,14 @@ class RGF_solver():
             if unit.region['E_idx'][0] == None: unit.region['E_idx'] = range(0,len(eig[0][1]),1)
             if unit.region['S_idx'][0] == None: unit.region['S_idx'] = sweep_mesh
             band_table = [['kx*a']]
-            weight_table = [['kx*a','Band']]
-            uTB = [['kx*a','Band','muTB(Re)','muTB(Im)','muTB(abs)']]
-            I_loop = [['kx*a','Band']]
+            weight_table = [['Band','kx*a']]
+            uTB = [['Band','kx*a','muTB(Re)','muTB(Im)','muTB(abs)']]
+            I_loop = [['Band','kx*a','uB_tot']]
             for i in range(len(eig[0][1])):
                 band_table[0].append('Band'+str(i)+' (eV)')
                 weight_table[0].append('Site'+str(i+1))
             for i in range(int(len(eig[0][1])/2)):
-                I_loop[0].append('Site'+str(i+1))
+                I_loop[0].append('Hex'+str(i+1))
             ## sort band and eigenstate
             for e_idx, e in enumerate(eig):
                 kx = e[0]*band_parser.ax
@@ -235,23 +235,25 @@ class RGF_solver():
                 for E_idx in unit.region['E_idx']:
                     if e_idx in unit.region['S_idx']:
                         ## eigenstate weight table
-                        weight_table.append([kx])
-                        weight_table[-1].append(E_idx)
+                        weight_table.append([E_idx])
+                        weight_table[-1].append(kx)
                         weight_table[-1].extend(abs(sorted_vec[:,E_idx])**2)
-                        #weight_table[-1].extend(np.imag(sorted_vec[:,E_idx]))
+                        #weight_table[-1].extend(np.real(sorted_vec[:,E_idx]))
                         ## magnetic moment
                         uTB.append([])
-                        uTB[-1].append(kx)
                         uTB[-1].append(E_idx)
+                        uTB[-1].append(kx)
                         uTB_val = band_parser.calMagneticMoment(kx/band_parser.ax, sorted_vec[:,E_idx], sorted_vec[:,E_idx])
                         uTB[-1].append(np.real(uTB_val))
                         uTB[-1].append(np.imag(uTB_val))
                         uTB[-1].append(np.abs(uTB_val))
                         ## moment current
                         I_loop.append([])
-                        I_loop[-1].append(kx)
                         I_loop[-1].append(E_idx)
-                        I_loop[-1].extend(band_parser.calMagneticMomentCurrent(sorted_vec[:,E_idx]))
+                        I_loop[-1].append(kx)
+                        I_list = band_parser.calMagneticMomentCurrent(sorted_vec[:,E_idx])
+                        I_loop[-1].append(sum(I_list))
+                        I_loop[-1].extend(I_list)
                         
                 pre_vec = copy.deepcopy(sorted_vec)
             else:

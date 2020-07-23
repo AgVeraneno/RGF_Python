@@ -10,6 +10,7 @@ class Material():
         self.h_bar = 1.05457e-34              # J*s. Planck's const. divided by 2*pi
         self.kB = 1.38e-23                    # J/K. Boltzmann const
         self.E_flux = 1.23984188e-6           # V*m
+        self.uB = self.q*self.h_bar/(2*self.me)
         '''
         Variables initialize
         '''

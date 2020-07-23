@@ -14,9 +14,9 @@ class CPU():
         return 2*np.pi*(l_idx-(self.mesh-1)/2)/(self.ax*(self.mesh-1))
     def calState(self, l_idx, returnKx=False):
         kx = self.setKx(l_idx)
-        H = self.unit.H
-        Pf = self.unit.Pf
-        Pb = self.unit.Pb
+        H = self.unit.H*self.mat.q
+        Pf = self.unit.Pf*self.mat.q
+        Pb = self.unit.Pb*self.mat.q
         Heig = H+\
                np.exp(-1j*kx*self.ax)*Pf+\
                np.exp(1j*kx*self.ax)*Pb
@@ -38,22 +38,30 @@ class CPU():
                  np.exp(1j*kx*self.ax)*uPb0
         euH0 = np.vdot(vec1,np.dot(uHeig0,vec2))
         eY = np.vdot(vec1,np.dot(self.unit.Y,vec2))
-        return euH-euH0*eY
+        return (euH - euH0*eY)/self.mat.uB
     def calMagneticMomentCurrent(self, vec):
+        Area = 1.5*3**0.5*self.mat.acc**2
         if self.direction == 'ZZ':
             ## calculate link current
             I_link = []
             for i in range(0,len(vec),2):
-                I = -1j/self.mat.h_bar*(np.dot(vec[i],np.conj(vec[i+1]))*self.mat.r0*self.mat.q - \
-                                        np.dot(np.conj(vec[i]),vec[i+1])*self.mat.r0*self.mat.q)
-                I_link.append(I)
+                if i%2 == 0:
+                    II = -1j/self.mat.h_bar*(np.dot(vec[i],np.conj(vec[i+1]))*self.mat.r0*self.mat.q - \
+                                            np.dot(np.conj(vec[i]),vec[i+1])*self.mat.r0*self.mat.q)
+                else:
+                    II = -1j/self.mat.h_bar*(np.dot(vec[i+1],np.conj(vec[i]))*self.mat.r0*self.mat.q - \
+                                            np.dot(np.conj(vec[i+1]),vec[i])*self.mat.r0*self.mat.q)
+                I_link.append(II*self.mat.q*Area/self.mat.uB)
             else:
-                I_trans = [i/sum(I_link) for i in I_link]
+                I_link_tot =sum(I_link)
+                I_trans = []
+                for i in range(0,len(vec),2):
+                    I_trans.append(I_link_tot*(abs(vec[i])**2+abs(vec[i+1])**2))
                 I_loop = []
                 for j in range(len(I_trans)):
-                    if j == 0: I = I_link[j]-I_trans[j]
-                    else: I = I_link[j]-I_trans[j] + I_loop[j-1]
-                    I_loop.append(np.real(I))
+                    if j == 0: III = I_link[j]-I_trans[j]
+                    else: III = I_link[j]-I_trans[j] + I_loop[j-1]
+                    I_loop.append(np.real(III))
                 else:
                     return I_loop
         elif self.direction == 'AC':
@@ -66,7 +74,7 @@ class CPU():
             if v >= 0:
                 return v_idx
         '''
-    def sort_eigenstate(self, val, vec, ref_vec=[]):
+    def sort_eigenstate_bak(self, val, vec, ref_vec=[]):
         sorted_val = np.sort(val)
         sorted_vec = copy.deepcopy(vec)
         if not len(ref_vec)==0:     # match with previous data (beta)
@@ -84,6 +92,14 @@ class CPU():
                     if v1 == v2: sorted_vec[:,v2_idx] = copy.deepcopy(vec[:,v1_idx])
             else:
                 return sorted_val, sorted_vec
+    def sort_eigenstate(self, val, vec):
+        sorted_val = np.sort(val)
+        sorted_vec = copy.deepcopy(vec)                 # auto sort from small to large
+        for v1_idx, v1 in enumerate(val):
+            for v2_idx, v2 in enumerate(sorted_val):
+                if v1 == v2: sorted_vec[:,v2_idx] = copy.deepcopy(vec[:,v1_idx])
+        else:
+            return sorted_val, sorted_vec
     def __sort__(self, val, vec, ref_vec=np.zeros(0)):
         """
         What: Sort eigenstate with small to large sequence
