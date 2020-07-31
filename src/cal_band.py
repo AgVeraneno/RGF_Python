@@ -65,7 +65,28 @@ class CPU():
                 else:
                     return I_loop
         elif self.direction == 'AC':
-            pass
+            ## calculate link current
+            I_link = []
+            for i in range(0,len(vec),2):
+                if i%2 == 0:
+                    II = -1j/self.mat.h_bar*(np.dot(vec[i],np.conj(vec[i+1]))*self.mat.r0*self.mat.q - \
+                                            np.dot(np.conj(vec[i]),vec[i+1])*self.mat.r0*self.mat.q)
+                else:
+                    II = -1j/self.mat.h_bar*(np.dot(vec[i+1],np.conj(vec[i]))*self.mat.r0*self.mat.q - \
+                                            np.dot(np.conj(vec[i+1]),vec[i])*self.mat.r0*self.mat.q)
+                I_link.append(II*self.mat.q*Area/self.mat.uB)
+            else:
+                I_link_tot =sum(I_link)
+                I_trans = []
+                for i in range(0,len(vec),2):
+                    I_trans.append(I_link_tot*(abs(vec[i])**2+abs(vec[i+1])**2))
+                I_loop = []
+                for j in range(len(I_trans)):
+                    if j == 0: III = I_link[j]-I_trans[j]
+                    else: III = I_link[j]-I_trans[j] + I_loop[j-1]
+                    I_loop.append(np.real(III))
+                else:
+                    return I_loop
     def getCBidx(self, gap, eig_val):
         #return int(np.size(self.unit.H,0)/2)
         return int(self.CB_idx)

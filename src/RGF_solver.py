@@ -196,7 +196,7 @@ class RGF_solver():
             IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_uH.csv', region.uH)
             IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_uP+.csv', region.uPf)
             IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_uP-.csv', region.uPb)
-            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_Yop.csv', region.Y)
+            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_Yop.csv', region.__Yop__)
             IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_Xop.csv', region.__Xop__)
             IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_V.csv', region.V)
         t_unitcell = round(time.time() - t_unitcell,3)
