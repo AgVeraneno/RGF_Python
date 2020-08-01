@@ -291,7 +291,7 @@ class RGF_solver():
             RGF_tmp = np.zeros((np.size(RGF_output_sort,0)+1,np.size(RGF_output_sort,1)-1), dtype=np.object)
             RGF_tmp[0,:] = RGF_header
             RGF_tmp[1:,:] = RGF_output_sort[:,:-1]
-            split_summary[s_idx].append(RGF_output_sort[:,:-1])
+            split_summary.append(RGF_output_sort[:,:-1])
             ## output to file ##
             IO_util.saveAsCSV(folder+str(s_idx)+'_CB='+str(CB)+'_TR.csv', RGF_tmp)
             '''
@@ -403,7 +403,7 @@ if __name__ == '__main__':
                 Calculate RGF
                 '''
                 split_summary = {0:[]}
-                CB_cache, split_summary = RGF_parser.cal_RGF_transmission(setup_dict, unit_list, E_list, S_list, split_summary)
+                CB_cache, split_summary[0] = RGF_parser.cal_RGF_transmission(setup_dict, unit_list, E_list, S_list, split_summary[0])
     else:
         logger.warning('Skip structure check')
     if setup_dict['Split enable']:
