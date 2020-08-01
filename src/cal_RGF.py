@@ -90,8 +90,8 @@ class CPU():
         for mesh_idx, key in enumerate(mesh_grid):
             unit = self.unit_list[key]
             H = unit.H
-            Pp = unit.Pb
-            Pn = unit.Pf
+            Pp = unit.Pf
+            Pn = unit.Pb
             if self.reflect:
                 '''
                 Reflection
