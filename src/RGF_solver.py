@@ -267,7 +267,7 @@ class RGF_solver():
         t_band = round(time.time() - t_band,3)
         logger.info('  Calculate band structure:'+str(t_band)+'(sec)')
         self.t_total += t_band
-    def cal_RGF_transmission(self, setup_dict, unit_list, E_list, S_list, split_summary):
+    def cal_RGF_transmission(self, setup_dict, unit_list, E_list, S_list, split_summary, s_idx):
         t_RGF = time.time()
         folder = self.job_dir+'/PTR/'
         if not os.path.exists(folder): os.mkdir(folder)
@@ -291,7 +291,7 @@ class RGF_solver():
             RGF_tmp = np.zeros((np.size(RGF_output_sort,0)+1,np.size(RGF_output_sort,1)-1), dtype=np.object)
             RGF_tmp[0,:] = RGF_header
             RGF_tmp[1:,:] = RGF_output_sort[:,:-1]
-            split_summary.append(RGF_output_sort[:,:-1])
+            split_summary[s_idx].append(RGF_output_sort[:,:-1])
             ## output to file ##
             IO_util.saveAsCSV(folder+str(s_idx)+'_CB='+str(CB)+'_TR.csv', RGF_tmp)
             '''
@@ -402,8 +402,8 @@ if __name__ == '__main__':
                 '''
                 Calculate RGF
                 '''
-                split_summary = {0:[]}
-                CB_cache, split_summary[0] = RGF_parser.cal_RGF_transmission(setup_dict, unit_list, E_list, S_list, split_summary[0])
+                split_summary = {'POR':[]}
+                CB_cache, split_summary = RGF_parser.cal_RGF_transmission(setup_dict, unit_list, E_list, S_list, split_summary, 'POR')
     else:
         logger.warning('Skip structure check')
     if setup_dict['Split enable']:
