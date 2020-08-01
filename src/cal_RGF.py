@@ -5,7 +5,7 @@ import data_util, cal_band
 class CPU():
     def __init__(self, setup, unit_list):
         self.setup = setup
-        self.mat = setup['material']
+        self.mat = setup['Material']
         self.unit_list = unit_list
         self.__meshing__(unit_list)
         self.reflect = False

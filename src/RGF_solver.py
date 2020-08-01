@@ -267,46 +267,45 @@ class RGF_solver():
         t_band = round(time.time() - t_band,3)
         logger.info('  Calculate band structure:'+str(t_band)+'(sec)')
         self.t_total += t_band
-    def cal_RGF_transmission(self, setup_dict, unit_list, split_summary):
+    def cal_RGF_transmission(self, setup_dict, unit_list, E_list, S_list, split_summary):
         t_RGF = time.time()
-        if setup_dict['RGF']:
-            folder = self.job_dir+'/PTR/'
-            if not os.path.exists(folder): os.mkdir(folder)
-            RGF_header = ['kx |1/a|','Energy (eV)','Transmission('+setup_dict['spin'][0]+')','Transmission('+setup_dict['spin'][1]+')','Transmission(Total)']
-            RGF_util = cal_RGF.CPU(setup_dict, unit_list)
-            CB_cache = {}
-            for CB in CB_list:
-                RGF_util.CB = CB-1
-                RGF_util.C0 = []
-                RGF_util.CN = []
-                with Pool(processes=self.workers) as mp:
-                    RGF_output = mp.map(RGF_util.calRGF_transmit,self.kx_list)
+        folder = self.job_dir+'/PTR/'
+        if not os.path.exists(folder): os.mkdir(folder)
+        RGF_header = ['kx |1/a|','Energy (eV)','Transmission(K)','Transmission(K)','Transmission(Total)']
+        RGF_util = cal_RGF.CPU(setup_dict, unit_list)
+        CB_cache = {}
+        for CB in E_list:
+            RGF_util.CB = CB-1
+            RGF_util.C0 = []
+            RGF_util.CN = []
+            with Pool(processes=self.workers) as mp:
+                RGF_output = mp.map(RGF_util.calRGF_transmit,S_list)
+            RGF_output = np.real(RGF_output)
+            ## sort kx position low to high
+            RGF_output_sort = RGF_util.sort_E(RGF_output)
+            CB_cache[CB] = copy.deepcopy(RGF_output_sort[:,2:6])
+            RGF_output_sort[:,2] = RGF_output_sort[:,2]/RGF_output_sort[:,-1]
+            RGF_output_sort[:,3] = RGF_output_sort[:,3]/RGF_output_sort[:,-1]
+            RGF_output_sort[:,4] = RGF_output_sort[:,4]/RGF_output_sort[:,-1]
+            ## add header
+            RGF_tmp = np.zeros((np.size(RGF_output_sort,0)+1,np.size(RGF_output_sort,1)-1), dtype=np.object)
+            RGF_tmp[0,:] = RGF_header
+            RGF_tmp[1:,:] = RGF_output_sort[:,:-1]
+            split_summary[s_idx].append(RGF_output_sort[:,:-1])
+            ## output to file ##
+            IO_util.saveAsCSV(folder+str(s_idx)+'_CB='+str(CB)+'_TR.csv', RGF_tmp)
+            '''
+            if setup['isReflect']:
+                RGF_util.reflect = True
+                with Pool(processes=int(setup['parallel_CPU'])) as mp:
+                    RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
                 RGF_output = np.real(RGF_output)
                 ## sort kx position low to high
-                RGF_output_sort = RGF_util.sort_E(RGF_output)
-                CB_cache[CB] = copy.deepcopy(RGF_output_sort[:,2:6])
-                RGF_output_sort[:,2] = RGF_output_sort[:,2]/RGF_output_sort[:,-1]
-                RGF_output_sort[:,3] = RGF_output_sort[:,3]/RGF_output_sort[:,-1]
-                RGF_output_sort[:,4] = RGF_output_sort[:,4]/RGF_output_sort[:,-1]
-                ## add header
-                RGF_tmp = np.zeros((np.size(RGF_output_sort,0)+1,np.size(RGF_output_sort,1)-1), dtype=np.object)
-                RGF_tmp[0,:] = RGF_header
-                RGF_tmp[1:,:] = RGF_output_sort[:,:-1]
-                split_summary[s_idx].append(RGF_output_sort[:,:-1])
+                RGF_output = RGF_util.sort_E(RGF_output)
                 ## output to file ##
-                IO_util.saveAsCSV(folder+str(s_idx)+'_CB='+str(CB)+'_TR.csv', RGF_tmp)
-                '''
-                if setup['isReflect']:
-                    RGF_util.reflect = True
-                    with Pool(processes=int(setup['parallel_CPU'])) as mp:
-                        RGF_output = mp.map(RGF_util.calRGF_transmit,kx_sweep)
-                    RGF_output = np.real(RGF_output)
-                    ## sort kx position low to high
-                    RGF_output = RGF_util.sort_E(RGF_output)
-                    ## output to file ##
-                    IO_util.saveAsCSV(folder+file_name+'_TR_reverse.csv', RGF_output)
-                    RGF_util.reflect = False
-                '''
+                IO_util.saveAsCSV(folder+file_name+'_TR_reverse.csv', RGF_output)
+                RGF_util.reflect = False
+            '''
         t_RGF = round(time.time() - t_RGF,3)
         logger.info('  Calculate RGF (DC):'+str(t_RGF)+'(sec)')
         self.t_total += t_RGF
@@ -388,11 +387,23 @@ if __name__ == '__main__':
             Generate unit cell
             '''
             unit_list = RGF_parser.gen_unitCell(setup_dict, job)
+            for key, unit in unit_list.items():
+                if unit.region['E_idx'][0] == None: unit.region['E_idx'] = range(0,len(eig[0][1]),1)
+                if unit.region['S_idx'][0] == None: unit.region['S_idx'] = range(0,int(setup_dict['mesh']),1)
+                E_list = unit.region['E_idx']
+                S_list = unit.region['S_idx']
+                break
             if setup_dict['POR Band structure']:
                 '''
                 Calculate band structure
                 '''
                 RGF_parser.cal_bandStructure(setup_dict, unit_list)
+            if setup_dict['POR RGF']:
+                '''
+                Calculate RGF
+                '''
+                split_summary = {0:[]}
+                CB_cache, split_summary = RGF_parser.cal_RGF_transmission(setup_dict, unit_list, E_list, S_list, split_summary)
     else:
         logger.warning('Skip structure check')
     if setup_dict['Split enable']:
