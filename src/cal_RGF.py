@@ -27,15 +27,16 @@ class CPU():
         '''
         band_parser = cal_band.CPU(self.setup, unit)
         kx, val, vec = band_parser.calState(kx_idx, True)
-        E = val[self.CB]
-        i_state = vec[:,self.CB]
+        sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec)
+        E = sorted_val[self.CB]
+        i_state = sorted_vec[:,self.CB]
         kx_list.append(kx)
         if o_zone:
             '''
             derive kx of other band with same energy
             '''
             kx2_idx = 0
-            E2 = val[self.CB+1]
+            E2 = sorted_val[self.CB+1]
             E_pre = 0
             kx2 = kx
             kx_pre = None
@@ -46,7 +47,8 @@ class CPU():
                     E_pre = copy.deepcopy(E2)
                     kx_pre = copy.deepcopy(kx2)
                     kx2, val, _ = band_parser.calState(kx2_idx, True)
-                    E2 = val[self.CB+1]
+                    sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec)
+                    E2 = sorted_val[self.CB+1]
                     kx2_idx += 1
                 else:
                     kx_list.append(kx2)
@@ -77,7 +79,7 @@ class CPU():
         kx, E, i_state = self.setBand(input_unit, kx_idx-1)
         kx_list_o, _, _ = self.setBand(output_unit, kx_idx-1, True)
         m_size = np.size(input_unit.H,0)
-        E_matrix = np.eye(m_size, dtype=np.complex128)*np.real(E)
+        E_matrix = np.eye(m_size, dtype=np.complex128)*np.real(E/self.mat.q)
         ## calculate RGF ##
         phase_p = np.exp(1j*kx[0]*self.mat.ax)
         phase_n = np.exp(-1j*kx[0]*self.mat.ax)
@@ -159,7 +161,7 @@ class CPU():
             T3 = self.calTR(i_state, CN, J0)
             t_mesh_stop = time.time() - t_mesh_start
             #print('Mesh point @ kx=',str(kx_idx),' time:',t_mesh_stop, ' (sec)')
-            return kx[0]*self.mat.a, E, Jt1, Jt2, Jt3, Ji
+            return kx[0]*self.mat.a, E/self.mat.q, Jt1, Jt2, Jt3, Ji
     def calTR(self, i_state, o_state, J0):
         Ji = np.vdot(i_state, np.matmul(J0, i_state))
         Jt = np.vdot(o_state, np.matmul(J0, o_state))
