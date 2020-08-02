@@ -39,6 +39,8 @@ class RGF_solver():
         elif '.xlsx' in self.setup_file:
             setup_dict, job_dict, sweep_dict = IO_util.importFromExcel(self.setup_file)
             setup_dict['structure'] = setup_dict['Direction'][0]+setup_dict['Material name'][0]+'NR'
+        ## create global parameters
+        self.mesh = range(0,int(setup_dict['mesh']),1)
         logger.info('Import time: '+str(round(time.time() - t_load,3))+' (sec).')
         return setup_dict, job_dict, sweep_dict
     def create_splits(self, job):
@@ -204,17 +206,21 @@ class RGF_solver():
         self.t_total += t_unitcell
         return unit_list
     def cal_bandStructure(self, setup_dict, unit_list):
+        '''
+        Initialize
+        '''
         t_band = time.time()
+        ref_vec = []
+        ref_val = []
+        '''
+        Job start
+        '''
         for key, unit in unit_list.items():
             ## initialize ##
             band_parser = cal_band.CPU(setup_dict, unit)
-            sweep_mesh = range(0,int(setup_dict['mesh']),1)
             ## calculate band structure
-            with Pool(processes=self.workers) as mp:
-                eig = mp.map(band_parser.calState,sweep_mesh)
+            with Pool(processes=self.workers) as mp: eig = mp.map(band_parser.calState,self.mesh)
             ## generate result table eigenvalues
-            if unit.region['E_idx'][0] == None: unit.region['E_idx'] = range(0,len(eig[0][1]),1)
-            if unit.region['S_idx'][0] == None: unit.region['S_idx'] = sweep_mesh
             band_table = [['kx*a']]
             weight_table = [['Band','kx*a']]
             uTB = [['Band','kx*a','muTB(Re)','muTB(Im)','muTB(abs)']]
@@ -225,9 +231,6 @@ class RGF_solver():
             for i in range(int(len(eig[0][1])/2)):
                 I_loop[0].append('Hex'+str(i+1))
             ## sort band and eigenstate
-            center_idx = int((int(setup_dict['mesh'])+1)/2)
-            ref_vec = []
-            ref_val = []
             for e_idx, e in enumerate(eig):
                 kx = e[0]*band_parser.ax
                 val = e[1]/1.6e-19
@@ -237,7 +240,7 @@ class RGF_solver():
                 if e_idx >= 1 and setup_dict['Direction'] == 'AC':
                     ref_vec = sorted_vec
                     ref_val = sorted_val
-                
+                ## append data to table
                 band_table.append([kx])
                 band_table[-1].extend(np.real(sorted_val))
                 for E_idx in unit.region['E_idx']:
@@ -263,8 +266,6 @@ class RGF_solver():
                             I_list = band_parser.calMagneticMomentCurrent(sorted_vec[:,E_idx])
                             I_loop[-1].append(sum(I_list))
                             I_loop[-1].extend(I_list)
-                        
-                pre_vec = copy.deepcopy(sorted_vec)
             else:
                 ## print out report
                 folder = self.output_dir+self.job_dir+'/band/'
@@ -273,9 +274,13 @@ class RGF_solver():
                 IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_weight.csv', weight_table)
                 IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_uTB.csv', uTB)
                 IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_Iloop.csv', I_loop)
-        t_band = round(time.time() - t_band,3)
-        logger.info('  Calculate band structure:'+str(t_band)+'(sec)')
-        self.t_total += t_band
+        else:
+            '''
+            Job finish
+            '''
+            t_band = round(time.time() - t_band,3)
+            logger.info('  Calculate band structure:'+str(t_band)+'(sec)')
+            self.t_total += t_band
     def cal_RGF_transmission(self, setup_dict, unit_list, E_list, S_list, split_summary, s_idx):
         t_RGF = time.time()
         folder = self.job_dir+'/PTR/'
@@ -410,7 +415,6 @@ if __name__ == '__main__':
                     if unit.region['S_idx'][0] == None: unit.region['S_idx'] = range(0,int(setup_dict['mesh']),1)
                     E_list = unit.region['E_idx']
                     S_list = unit.region['S_idx']
-                    break
                 else:
                     split_summary = {'POR':[]}
                     CB_cache, split_summary = RGF_parser.cal_RGF_transmission(setup_dict, unit_list, E_list, S_list, split_summary, 'POR')

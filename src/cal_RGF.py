@@ -136,7 +136,6 @@ class CPU():
             ## Calculate multiple states
             G_inv = E_matrix - H - Pn*sum(phase_o)
             Gnn = np.linalg.inv(G_inv)
-            CN_next = -np.dot(Gnn, np.dot(Pp-Pn*np.prod(phase_o),CN))
             J0 = 1j*self.mat.ax/self.mat.h_bar*(Pn*phase_p-Pp*phase_n)
             ## calculate T with spin include
             N = len(CN)
@@ -165,11 +164,8 @@ class CPU():
     def calTR(self, i_state, o_state, J0):
         Ji = np.vdot(i_state, np.matmul(J0, i_state))
         Jt = np.vdot(o_state, np.matmul(J0, o_state))
-        if not np.isclose(np.real(Ji),0):
-            T = Jt/Ji
-        else:
-            T = 0
-        return T
+        if not np.isclose(np.real(Ji),0): return Jt/Ji
+        else: return 0
     def sort_E(self, table):
         output = copy.deepcopy(table)
         E_sort = np.argsort(table[:,0], axis=0)

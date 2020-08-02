@@ -275,8 +275,8 @@ class AGNR():
         Auto generate parameters
         '''
         self.mat = setup['Material']            # unit cell material
-        self.mesh = int(setup['mesh'])       # band structure mesh
-        self.region = region                          # current job setting
+        self.mesh = int(setup['mesh'])          # band structure mesh
+        self.region = region                    # current job setting
         self.ax = self.mat.ax                   # unit length
         self.__initialize__(setup, region)
         self.__gen_Hamiltonian__()
@@ -319,6 +319,11 @@ class AGNR():
         for i, w in enumerate(region['Width']):
             for wi in range(2*w):
                 self.Bz.append(region['B']['z'][i])
+        '''
+        job default
+        '''
+        if self.region['E_idx'][0] == None: self.region['E_idx'] = range(0,self.m_size,1)
+        if self.region['S_idx'][0] == None: self.region['S_idx'] = range(0,int(setup['mesh']),1)
     def __gen_Hamiltonian__(self):
         self.__component__()
         self.__off_diagonal__()
@@ -589,6 +594,11 @@ class ZGNR():
         for i, w in enumerate(region['Width']):
             for wi in range(2*w):
                 self.Bz.append(region['B']['z'][i])
+        '''
+        job default
+        '''
+        if self.region['E_idx'][0] == None: self.region['E_idx'] = range(0,self.m_size,1)
+        if self.region['S_idx'][0] == None: self.region['S_idx'] = range(0,int(setup['mesh']),1)
     def __gen_Hamiltonian__(self):
         self.__component__()
         self.__off_diagonal__()
