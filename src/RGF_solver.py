@@ -220,16 +220,24 @@ class RGF_solver():
             uTB = [['Band','kx*a','muTB(Re)','muTB(Im)','muTB(abs)']]
             I_loop = [['Band','kx*a','uB_tot']]
             for i in range(len(eig[0][1])):
-                band_table[0].append('Band'+str(i)+' (eV)')
+                band_table[0].append('Band'+str(i+1)+' (eV)')
                 weight_table[0].append('Site'+str(i+1))
             for i in range(int(len(eig[0][1])/2)):
                 I_loop[0].append('Hex'+str(i+1))
             ## sort band and eigenstate
+            center_idx = int((int(setup_dict['mesh'])+1)/2)
+            ref_vec = []
+            ref_val = []
             for e_idx, e in enumerate(eig):
                 kx = e[0]*band_parser.ax
-                val = e[1]
+                val = e[1]/1.6e-19
                 vec = e[2]
-                sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec)
+                ## sort eigenstate
+                sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec,ref_val,ref_vec)
+                if e_idx >= 1 and setup_dict['Direction'] == 'AC':
+                    ref_vec = sorted_vec
+                    ref_val = sorted_val
+                
                 band_table.append([kx])
                 band_table[-1].extend(np.real(sorted_val))
                 for E_idx in unit.region['E_idx']:
@@ -239,21 +247,22 @@ class RGF_solver():
                         weight_table[-1].append(kx)
                         weight_table[-1].extend(abs(sorted_vec[:,E_idx])**2)
                         #weight_table[-1].extend(np.real(sorted_vec[:,E_idx]))
-                        ## magnetic moment
-                        uTB.append([])
-                        uTB[-1].append(E_idx)
-                        uTB[-1].append(kx)
-                        uTB_val = band_parser.calMagneticMoment(kx/band_parser.ax, sorted_vec[:,E_idx], sorted_vec[:,E_idx])
-                        uTB[-1].append(np.real(uTB_val))
-                        uTB[-1].append(np.imag(uTB_val))
-                        uTB[-1].append(np.abs(uTB_val))
-                        ## moment current
-                        I_loop.append([])
-                        I_loop[-1].append(E_idx)
-                        I_loop[-1].append(kx)
-                        I_list = band_parser.calMagneticMomentCurrent(sorted_vec[:,E_idx])
-                        I_loop[-1].append(sum(I_list))
-                        I_loop[-1].extend(I_list)
+                        if setup_dict['POR Magnetic moment']:
+                            ## magnetic moment
+                            uTB.append([])
+                            uTB[-1].append(E_idx)
+                            uTB[-1].append(kx)
+                            uTB_val = band_parser.calMagneticMoment(kx/band_parser.ax, sorted_vec[:,E_idx], sorted_vec[:,E_idx])
+                            uTB[-1].append(np.real(uTB_val))
+                            uTB[-1].append(np.imag(uTB_val))
+                            uTB[-1].append(np.abs(uTB_val))
+                            ## moment current
+                            I_loop.append([])
+                            I_loop[-1].append(E_idx)
+                            I_loop[-1].append(kx)
+                            I_list = band_parser.calMagneticMomentCurrent(sorted_vec[:,E_idx])
+                            I_loop[-1].append(sum(I_list))
+                            I_loop[-1].extend(I_list)
                         
                 pre_vec = copy.deepcopy(sorted_vec)
             else:
@@ -387,12 +396,6 @@ if __name__ == '__main__':
             Generate unit cell
             '''
             unit_list = RGF_parser.gen_unitCell(setup_dict, job)
-            for key, unit in unit_list.items():
-                if unit.region['E_idx'][0] == None: unit.region['E_idx'] = range(0,len(eig[0][1]),1)
-                if unit.region['S_idx'][0] == None: unit.region['S_idx'] = range(0,int(setup_dict['mesh']),1)
-                E_list = unit.region['E_idx']
-                S_list = unit.region['S_idx']
-                break
             if setup_dict['POR Band structure']:
                 '''
                 Calculate band structure
@@ -402,8 +405,15 @@ if __name__ == '__main__':
                 '''
                 Calculate RGF
                 '''
-                split_summary = {'POR':[]}
-                CB_cache, split_summary = RGF_parser.cal_RGF_transmission(setup_dict, unit_list, E_list, S_list, split_summary, 'POR')
+                for key, unit in unit_list.items():
+                    if unit.region['E_idx'][0] == None: unit.region['E_idx'] = range(0,len(eig[0][1]),1)
+                    if unit.region['S_idx'][0] == None: unit.region['S_idx'] = range(0,int(setup_dict['mesh']),1)
+                    E_list = unit.region['E_idx']
+                    S_list = unit.region['S_idx']
+                    break
+                else:
+                    split_summary = {'POR':[]}
+                    CB_cache, split_summary = RGF_parser.cal_RGF_transmission(setup_dict, unit_list, E_list, S_list, split_summary, 'POR')
     else:
         logger.warning('Skip structure check')
     if setup_dict['Split enable']:

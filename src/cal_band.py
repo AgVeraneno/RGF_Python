@@ -12,6 +12,7 @@ class CPU():
         self.lattice = setup['Lattice']
     def setKx(self, l_idx):
         return 2*np.pi*(l_idx-(self.mesh-1)/2)/(self.ax*(self.mesh-1))
+        #return 2*np.pi*l_idx/(self.ax*(self.mesh-1))
     def calState(self, l_idx, returnKx=False):
         kx = self.setKx(l_idx)
         H = self.unit.H*self.mat.q
@@ -22,6 +23,10 @@ class CPU():
                np.exp(1j*kx*self.ax)*Pb
         val, vec = np.linalg.eig(Heig)
         return kx, val, vec
+    def calWeight(self,vec):
+        weight = copy.deepcopy(vec)
+        for i in range(np.size(vec,0)): weight[:,i] = np.real(abs(vec[:,i])**2)
+        return abs(weight)
     def calMagneticMoment(self, kx, vec1, vec2):
         uH = self.unit.uH
         uPf = self.unit.uPf
@@ -113,14 +118,37 @@ class CPU():
                     if v1 == v2: sorted_vec[:,v2_idx] = copy.deepcopy(vec[:,v1_idx])
             else:
                 return sorted_val, sorted_vec
-    def sort_eigenstate(self, val, vec):
+    def sort_eigenstate(self, val, vec, ref_val=[], ref_vec=[]):
+        '''
+        What: Sort eigenstate with small to large sequence
+        How: 1.Sweep original eigenvalue and match sorted one.
+             2.Copy the original eigenstate to a new array.
+        inputs:
+        val: eigenvalue [n*n]
+        vec: eigenstate [n*n]
+        '''
         sorted_val = np.sort(val)
-        sorted_vec = copy.deepcopy(vec)                 # auto sort from small to large
+        sorted_vec = copy.deepcopy(vec)
+        ## Sort with eigenvalue
         for v1_idx, v1 in enumerate(val):
             for v2_idx, v2 in enumerate(sorted_val):
                 if v1 == v2: sorted_vec[:,v2_idx] = copy.deepcopy(vec[:,v1_idx])
-        else:
-            return sorted_val, sorted_vec
+                else: continue
+        if np.size(ref_val) == 0: return sorted_val, sorted_vec
+        else: ## with reference. Sort with weight
+            sorted_val2 = copy.deepcopy(sorted_val)
+            sorted_vec2 = copy.deepcopy(sorted_vec)
+            ref_weight = self.calWeight(ref_vec)
+            srt_weight = self.calWeight(sorted_vec)
+            sorted_val *= 0
+            sorted_vec *= 0
+            for v1_idx in range(len(val)):
+                dif_weight = [sum(abs(ref_weight[:,v1_idx] - srt_weight[:,v2_idx])) for v2_idx in range(len(val))]
+                idx = dif_weight.index(min(dif_weight))
+                sorted_val[v1_idx] = sorted_val2[idx]
+                sorted_vec[:,v1_idx] = sorted_vec2[:,idx]
+            else:
+                return sorted_val, sorted_vec
     def __sort__(self, val, vec, ref_vec=np.zeros(0)):
         """
         What: Sort eigenstate with small to large sequence
