@@ -26,8 +26,8 @@ class CPU():
         return kx, val, vec
     def calWeight(self,vec):
         weight = copy.deepcopy(vec)
-        for i in range(np.size(vec,0)): weight[:,i] = np.real(abs(vec[:,i])**2)
-        return abs(weight)
+        for i in range(np.size(vec,0)): weight[:,i] = np.real(np.square(np.absolute(vec[:,i])))
+        return weight
     def calMagneticMoment(self, kx, vec1, vec2):
         uH = self.unit.uH
         uPf = self.unit.uPf
@@ -125,7 +125,7 @@ class CPU():
             ref_weight = self.calWeight(ref_vec)
             srt_weight = self.calWeight(vec)
             for v1_idx in range(len(val)):
-                dif_weight = [sum(abs(ref_weight[:,v1_idx] - srt_weight[:,v2_idx])) for v2_idx in range(len(val))]
+                dif_weight = [np.sum(np.absolute(ref_weight[:,v1_idx] - srt_weight[:,v2_idx])) for v2_idx in range(len(val))]
                 idx = dif_weight.index(min(dif_weight))
                 sorted_val[v1_idx] = val[idx]
                 sorted_vec[:,v1_idx] = vec[:,idx]
