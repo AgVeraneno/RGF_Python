@@ -26,7 +26,7 @@ class CPU():
         get incident state and energy
         '''
         band_parser = cal_band.CPU(self.setup, unit)
-        kx, val, vec = band_parser.calState(kx_idx, True)
+        kx, val, vec, _ = band_parser.calState(kx_idx, True)
         sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec)
         E = sorted_val[self.CB]
         i_state = sorted_vec[:,self.CB]
@@ -46,7 +46,7 @@ class CPU():
                 elif not np.isclose(E,E2):
                     E_pre = copy.deepcopy(E2)
                     kx_pre = copy.deepcopy(kx2)
-                    kx2, val, _ = band_parser.calState(kx2_idx, True)
+                    kx2, val, _, _ = band_parser.calState(kx2_idx, True)
                     sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec)
                     E2 = sorted_val[self.CB+1]
                     kx2_idx += 1
@@ -56,7 +56,7 @@ class CPU():
                 ## apply insert method if E2 has crossed E
                 if E_pre < E and E2 > E:
                     kx2_idx = (E2-E)/(E2-E_pre)
-                    kx2, val, _ = band_parser.calState(kx2_idx, True)
+                    kx2, val, _, _ = band_parser.calState(kx2_idx, True)
                     kx_list.append(kx2)
                     break
         return kx_list, E, i_state
@@ -136,7 +136,7 @@ class CPU():
             ## Calculate multiple states
             G_inv = E_matrix - H - Pn*sum(phase_o)
             Gnn = np.linalg.inv(G_inv)
-            J0 = 1j*self.mat.ax/self.mat.h_bar*(Pn*phase_p-Pp*phase_n)
+            J0 = 1j*self.mat.ax*self.mat.q/self.mat.h_bar*(Pn*phase_p-Pp*phase_n)
             ## calculate T with spin include
             N = len(CN)
             CN1 = copy.deepcopy(CN)

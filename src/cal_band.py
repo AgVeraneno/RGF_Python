@@ -23,7 +23,8 @@ class CPU():
                np.exp(-1j*kx*self.ax)*Pf+\
                np.exp(1j*kx*self.ax)*Pb
         val, vec = np.linalg.eig(Heig)
-        return kx, val, vec
+        weight = self.calWeight(vec)
+        return kx, val, vec, weight
     def calWeight(self,vec):
         weight = copy.deepcopy(vec)
         for i in range(np.size(vec,0)): weight[:,i] = np.real(np.square(np.absolute(vec[:,i])))
@@ -101,7 +102,7 @@ class CPU():
             if v >= 0:
                 return v_idx
         '''
-    def sort_eigenstate(self, val, vec, ref_val=[], ref_vec=[]):
+    def sort_eigenstate(self, val, vec, weight=[], ref_val=[], ref_vec=[], ref_weight=[]):
         '''
         What: Sort eigenstate with small to large sequence
         How: 1.Sweep original eigenvalue and match sorted one.
@@ -116,18 +117,19 @@ class CPU():
             ## Sort with eigenvalue
             for v1_idx, v1 in enumerate(val):
                 for v2_idx, v2 in enumerate(sorted_val):
-                    if v1 == v2: sorted_vec[:,v2_idx] = copy.deepcopy(vec[:,v1_idx])
+                    if v1 == v2:
+                        sorted_vec[:,v2_idx] = copy.deepcopy(vec[:,v1_idx])
                     else: continue
             return sorted_val, sorted_vec
         else: ## with reference. Sort with weight
             sorted_val = copy.deepcopy(val)
             sorted_vec = copy.deepcopy(vec)
-            ref_weight = self.calWeight(ref_vec)
-            srt_weight = self.calWeight(vec)
+            sorted_wgt = copy.deepcopy(weight)
             for v1_idx in range(len(val)):
-                dif_weight = [np.sum(np.absolute(ref_weight[:,v1_idx] - srt_weight[:,v2_idx])) for v2_idx in range(len(val))]
+                dif_weight = [np.sum(np.absolute(ref_weight[:,v1_idx] - weight[:,v2_idx])) for v2_idx in range(len(val))]
                 idx = dif_weight.index(min(dif_weight))
                 sorted_val[v1_idx] = val[idx]
                 sorted_vec[:,v1_idx] = vec[:,idx]
+                sorted_wgt[:,v1_idx] = weight[:,idx]
             else:
-                return sorted_val, sorted_vec
+                return sorted_val, sorted_vec, sorted_wgt

@@ -212,6 +212,7 @@ class RGF_solver():
         t_band = time.time()
         ref_vec = []
         ref_val = []
+        ref_weight = []
         '''
         Job start
         '''
@@ -235,11 +236,13 @@ class RGF_solver():
                 kx = e[0]*band_parser.ax
                 val = e[1]/1.6e-19
                 vec = e[2]
+                weight = e[3]
                 ## sort eigenstate
-                sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec,ref_val,ref_vec)
+                sorted_val, sorted_vec, sorted_wgt = band_parser.sort_eigenstate(val,vec,weight,ref_val,ref_vec,ref_weight)
                 if e_idx >= 1 and setup_dict['Direction'] == 'AC':
                     ref_vec = sorted_vec
                     ref_val = sorted_val
+                    ref_weight = sorted_wgt
                 ## append data to table
                 band_table.append([kx])
                 band_table[-1].extend(np.real(sorted_val))
