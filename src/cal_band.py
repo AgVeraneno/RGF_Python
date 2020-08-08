@@ -120,7 +120,9 @@ class CPU():
                     if v1 == v2:
                         sorted_vec[:,v2_idx] = copy.deepcopy(vec[:,v1_idx])
                     else: continue
-            return sorted_val, sorted_vec
+            else:
+                if np.size(weight) > 0: return sorted_val, sorted_vec, weight
+                else: return sorted_val, sorted_vec
         else: ## with reference. Sort with weight
             sorted_val = copy.deepcopy(val)
             sorted_vec = copy.deepcopy(vec)

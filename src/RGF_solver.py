@@ -27,7 +27,7 @@ class RGF_solver():
             else: self.isGPU = False
             # Parallel CPU count
             if '-turbo' in sys.argv: self.workers = int(sys.argv[sys.argv.index('-turbo') +1])
-            else: self.workers = 12
+            else: self.workers = 1
         ## check input file
         if not os.path.exists(self.setup_file):
             logger.error('Invalid input file: %s',self.setup_file)
@@ -168,39 +168,40 @@ class RGF_solver():
                 new_list.append(m)
         else:
             return new_list
-    def gen_unitCell(self, setup_dict, job, option=''):
+    def gen_unitCell(self, setup_dict, job):
         t_unitcell = time.time()
         unit_list = {}
         for r_name, region in job.items():
-            if setup_dict['structure']+option == 'AGNR':
+            if setup_dict['structure']+setup_dict['Option'] == 'AGNR':
                 unit_list[r_name] = unit_cell_graphene.AGNR(setup_dict, region)
-            elif setup_dict['structure']+option == 'ZGNR':
+            elif setup_dict['structure']+setup_dict['Option'] == 'ZGNR':
                 unit_list[r_name] = unit_cell_graphene.ZGNR(setup_dict, region)
-            elif setup_dict['structure']+option == 'ZGNR_magnetic':
-                unit_list[r_name] = unit_cell_graphene.ZGNR_magnet(setup_dict, region)
-            elif setup_dict['structure']+option == 'ATNR':
+            elif setup_dict['structure']+setup_dict['Option'] == 'ATNR':
                 unit_list[r_name] = unit_cell_TMDc.ATNR6(setup_dict, region)
-            elif setup_dict['structure']+option == 'ATNR10':
+            elif setup_dict['structure']+setup_dict['Option'] == 'ATNR10':
                 unit_list[r_name] = unit_cell_TMDc.ATNR10(setup_dict, region)
+            elif setup_dict['Option'] == 'Square':
+                unit_list[r_name] = unit_cell_graphene.Square(setup_dict, region)
             else:
                 logger.critical('Non supported structure:'+setup_dict['structure'])
                 raise ValueError('Non supported structure:',setup_dict['structure'])
         else:
             job_name = region['Job']
         ## print out Hamiltonian in debug mode
-        ## build debug folder
-        folder = self.job_dir+'/debug/'
-        if not os.path.exists(folder): os.mkdir(folder)
-        for r_key, region in unit_list.items():
-            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_H.csv', region.H)
-            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_P+.csv', region.Pf)
-            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_P-.csv', region.Pb)
-            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_uH.csv', region.uH)
-            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_uP+.csv', region.uPf)
-            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_uP-.csv', region.uPb)
-            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_Yop.csv', region.__Yop__)
-            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_Xop.csv', region.__Xop__)
-            IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_V.csv', region.V)
+        if setup_dict['Debug']:
+            ## build debug folder
+            folder = self.job_dir+'/debug/'
+            if not os.path.exists(folder): os.mkdir(folder)
+            for r_key, region in unit_list.items():
+                IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_H.csv', region.H)
+                IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_P+.csv', region.Pf)
+                IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_P-.csv', region.Pb)
+                IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_uH.csv', region.uH)
+                IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_uP+.csv', region.uPf)
+                IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_uP-.csv', region.uPb)
+                IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_Yop.csv', region.__Yop__)
+                IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_Xop.csv', region.__Xop__)
+                IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_V.csv', region.V)
         t_unitcell = round(time.time() - t_unitcell,3)
         logger.info('Generate unit cell:'+str(t_unitcell)+'(sec)')
         self.t_total += t_unitcell
@@ -295,8 +296,15 @@ class RGF_solver():
             RGF_util.CB = CB-1
             RGF_util.C0 = []
             RGF_util.CN = []
-            with Pool(processes=self.workers) as mp:
-                RGF_output = mp.map(RGF_util.calRGF_transmit,S_list)
+            if setup_dict['GPU enable']:
+                RGF_output = []
+                for kx_idx in S_list:
+                    RGF_output.append(RGF_util.calRGF_transmit(kx_idx))
+                else:
+                    RGF_output = np.array(RGF_output)
+            else:
+                with Pool(processes=self.workers) as mp:
+                    RGF_output = mp.map(RGF_util.calRGF_transmit,S_list)
             RGF_output = np.real(RGF_output)
             ## sort kx position low to high
             RGF_output_sort = RGF_util.sort_E(RGF_output)

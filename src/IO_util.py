@@ -188,17 +188,20 @@ def importFromExcel(filename=None):
                 setup['Material name'] = row[1].value
                 setup['Lattice'] = row[2].value
                 setup['Direction'] = row[3].value
-                setup['mesh'] = int(row[4].value)
-                setup['POR enable'] = bool(row[5].value)
-                setup['POR Band structure'] = bool(row[6].value)
-                setup['POR Magnetic moment'] = bool(row[7].value)
-                setup['POR RGF'] = bool(row[8].value)
-                setup['POR TDGF'] = bool(row[9].value)
-                setup['Split enable'] = bool(row[10].value)
-                setup['Split Band structure'] = bool(row[11].value)
-                setup['Split Magnetic moment'] = bool(row[12].value)
-                setup['Split RGF'] = bool(row[13].value)
-                setup['Split TDGF'] = bool(row[14].value)
+                setup['Option'] = row[4].value
+                setup['mesh'] = int(row[5].value)
+                setup['Debug'] = bool(row[6].value)
+                setup['GPU enable'] = bool(row[7].value)
+                setup['POR enable'] = bool(row[8].value)
+                setup['POR Band structure'] = bool(row[9].value)
+                setup['POR Magnetic moment'] = bool(row[10].value)
+                setup['POR RGF'] = bool(row[11].value)
+                setup['POR TDGF'] = bool(row[12].value)
+                setup['Split enable'] = bool(row[13].value)
+                setup['Split Band structure'] = bool(row[14].value)
+                setup['Split Magnetic moment'] = bool(row[15].value)
+                setup['Split RGF'] = bool(row[16].value)
+                setup['Split TDGF'] = bool(row[17].value)
             else:
                 continue
         '''
@@ -234,8 +237,12 @@ def importFromExcel(filename=None):
                     E_idx = []
                     for e in E_tmp:
                         if isinstance(e, str):
-                            e0, ee = data_util.str2float1D(e,totem=':',dtype='int')
-                            e_range = np.arange(e0,ee+1,1)
+                            try:
+                                e0, ee = data_util.str2float1D(e,totem=':',dtype='int')
+                                e_range = np.arange(e0,ee+1,1)
+                            except:
+                                e0, de, ee = data_util.str2float1D(e,totem=':',dtype='int')
+                                e_range = np.arange(e0,ee+de,de)
                             E_idx.extend(e_range)
                         else:
                             E_idx.append(e)
@@ -247,8 +254,12 @@ def importFromExcel(filename=None):
                     S_idx = []
                     for s in S_tmp:
                         if isinstance(s, str):
-                            s0, ss = data_util.str2float1D(s,totem=':',dtype='int')
-                            s_range = np.arange(s0,ss+1,1)
+                            try:
+                                s0, ss = data_util.str2float1D(s,totem=':',dtype='int')
+                                s_range = np.arange(s0,ss+1,1)
+                            except:
+                                s0, ds, ss = data_util.str2float1D(s,totem=':',dtype='int')
+                                s_range = np.arange(s0,ss+ds,ds)
                             S_idx.extend(s_range)
                         else:
                             S_idx.append(s)
