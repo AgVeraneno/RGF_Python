@@ -278,6 +278,7 @@ class RGF_solver():
                 IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_weight.csv', weight_table)
                 IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_uTB.csv', uTB)
                 IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_Iloop.csv', I_loop)
+                break
         else:
             '''
             Job finish

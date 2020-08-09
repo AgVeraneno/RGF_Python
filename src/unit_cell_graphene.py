@@ -167,11 +167,11 @@ class Square():
         for w_idx, W in enumerate(self.W):
             for i in range(W):
                 gap[w_shift+i,w_shift+i] = self.gap[w_idx] * (-1)**(i%2)
-                gap[w_shift+W+i,w_shift+W+i] = self.gap[w_idx] * (-1)**((i+1)%2)
+                gap[w_shift+W_sum+i,w_shift+W_sum+i] = self.gap[w_idx] * (-1)**((i+1)%2)
             else:
                 w_shift += W
         ## Voltage assign
-        volt = np.eye(self.m_size, dtype=np.complex128)*1000
+        volt = np.eye(self.m_size, dtype=np.complex128)*0
         w_shift = 0
         for w_idx, W in enumerate(self.W):
             Vt = self.Vtop[w_idx]
