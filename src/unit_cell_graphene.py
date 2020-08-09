@@ -166,7 +166,7 @@ class Square():
         w_shift = 0
         for w_idx, W in enumerate(self.W):
             for i in range(W):
-                gap[w_shift+i,w_shift+i] = self.gap[w_idx] * (-1)**(i%2)
+                gap[w_shift+i,w_shift+i] = self.gap[w_idx]
             else:
                 w_shift += W
         ## Voltage assign
@@ -190,10 +190,13 @@ class Square():
         self.H += volt
         self.V = np.real(volt)
     def __off_diagonal__(self):
-        H = self.__on_chain__
+        W = sum(self.W)
+        z_mat = np.zeros((W,W), dtype=np.comlex128)
+        H = [[self.__on_chain__, z_mat],
+             [z_mat, self.__on_chain__]]
         self.H = H + np.transpose(np.conj(H))
         self.Pf = self.__on_chainP__
-        self.Pb = np.transpose(np.conj(self.Pf))
+        self.Pb = np.conj(self.Pf)
     def __component__(self):
         """
         1)
@@ -205,41 +208,30 @@ class Square():
         |-----------------|
         2)
         ==============================================
-              B6 0 a5
-                /|
-              /  |
-        A5  O    |
-            |    X b4
-            |     <
-            |      <
-            |       < 
-        B4  O        X a3
-               \       ^
-                \      ^
-              A3  O    ^
-                  |    ^
-                  |    ^
-                  |    X b2
-                  |   >
-                  | >
-              B2  0 a1
-                /
-              /
+        A5  O
+            |
+            |
+        B4  X 
+            |
+            |
+        A3  O
+            |
+            |
+        B2  X
+            |
+            |
         A1  O
-
-           
-           ^    ^ 
-           C1   c1
         ==============================================     
         """
         W = sum(self.W)
         self.__on_chain__ = np.zeros((W,W),dtype=np.complex128)
+        self.__inter_chain__ = np.zeros((W,W),dtype=np.complex128)
         self.__on_chainP__ = np.zeros((W,W),dtype=np.complex128)
         for i in range(W):
             # build on chain matrix
             if i < W-1:
                 self.__on_chain__[i,i+1] = -0.28
-                self.__on_chainP__[i,i+1] = -0.28
+            self.__on_chainP__[i,i] = -0.28
 class AGNR():
     '''
     Unit cell object contain essential information of a unit cell
