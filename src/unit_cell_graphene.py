@@ -120,10 +120,10 @@ class Square():
         self.L = region['Length']
         ## lattice type
         if setup['Lattice'] == 'M':
-            self.m_size = sum(self.W)
+            self.m_size = 2*sum(self.W)
             self.lattice = 'MLG'
         elif setup['Lattice'] == 'B':
-            self.m_size = 2*sum(self.W)
+            self.m_size = 4*sum(self.W)
             self.lattice = 'BLG'
         else:
             raise ValueError('Unresolved lattice:', setup['Lattice'])
@@ -166,7 +166,8 @@ class Square():
         w_shift = 0
         for w_idx, W in enumerate(self.W):
             for i in range(W):
-                gap[w_shift+i,w_shift+i] = self.gap[w_idx]
+                gap[w_shift+i,w_shift+i] = self.gap[w_idx] * (-1)**(i%2)
+                gap[w_shift+W+i,w_shift+W+i] = self.gap[w_idx] * (-1)**((i+1)%2)
             else:
                 w_shift += W
         ## Voltage assign
@@ -179,6 +180,7 @@ class Square():
             else: dV = 0
             for i in range(W):
                 volt[w_shift+i,w_shift+i] = Vb + i*dV + dV*int(i/2)
+                volt[w_shift+W+i,w_shift+W+i] = Vb + i*dV + dV*int(i/2)
             else:
                 w_shift += W
         ## combine with Hamiltonian
@@ -191,12 +193,15 @@ class Square():
         self.V = np.real(volt)
     def __off_diagonal__(self):
         W = sum(self.W)
-        z_mat = np.zeros((W,W), dtype=np.comlex128)
-        H = [[self.__on_chain__, z_mat],
+        z_mat = np.zeros((W,W), dtype=np.complex128)
+        H = [[self.__on_chain__, self.__inter_chain__],
              [z_mat, self.__on_chain__]]
+        H = np.block(H)
         self.H = H + np.transpose(np.conj(H))
-        self.Pf = self.__on_chainP__
-        self.Pb = np.conj(self.Pf)
+        Pf = [[z_mat,self.__on_chainP__],
+              [z_mat,z_mat]]
+        self.Pf = np.block(Pf)
+        self.Pb = np.transpose(np.conj(self.Pf))
     def __component__(self):
         """
         1)
@@ -231,6 +236,7 @@ class Square():
             # build on chain matrix
             if i < W-1:
                 self.__on_chain__[i,i+1] = -0.28
+            self.__inter_chain__[i,i] = -0.28
             self.__on_chainP__[i,i] = -0.28
 class AGNR():
     '''
