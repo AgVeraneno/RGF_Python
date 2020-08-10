@@ -188,7 +188,8 @@ def importFromExcel(filename=None):
                 setup['Material name'] = row[1].value
                 setup['Lattice'] = row[2].value
                 setup['Direction'] = row[3].value
-                setup['Option'] = row[4].value
+                if row[4].value == None: setup['Option'] = ''
+                else: setup['Option'] = row[4].value
                 setup['mesh'] = int(row[5].value)
                 setup['Debug'] = bool(row[6].value)
                 setup['GPU enable'] = bool(row[7].value)

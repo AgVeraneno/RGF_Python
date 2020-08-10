@@ -27,7 +27,7 @@ class RGF_solver():
             else: self.isGPU = False
             # Parallel CPU count
             if '-turbo' in sys.argv: self.workers = int(sys.argv[sys.argv.index('-turbo') +1])
-            else: self.workers = 1
+            else: self.workers = 12
         ## check input file
         if not os.path.exists(self.setup_file):
             logger.error('Invalid input file: %s',self.setup_file)
@@ -222,6 +222,14 @@ class RGF_solver():
             band_parser = cal_band.CPU(setup_dict, unit)
             ## calculate band structure
             with Pool(processes=self.workers) as mp: eig = mp.map(band_parser.calState,self.mesh)
+            ## sort band and eigenstate
+            # 1. Sort header
+            for e_idx, e in enumerate(eig):
+                if e_idx > 1:
+                    srt_val, srt_vec = band_parser.__sort__(e[1],e[2],e[3],'weight', ref_wgt)
+                    eig[e_idx] = (e[0], np.array(srt_val), np.array(srt_vec))
+                    ref_wgt = copy.deepcopy(e[3])
+                else: ref_wgt = copy.deepcopy(e[3])
             ## generate result table eigenvalues
             band_table = [['kx*a']]
             weight_table = [['Band','kx*a']]
@@ -237,22 +245,24 @@ class RGF_solver():
                 kx = e[0]*band_parser.a
                 val = e[1]/1.6e-19
                 vec = e[2]
-                weight = e[3]
+                # weight = e[3]
+                '''
                 ## sort eigenstate
                 sorted_val, sorted_vec, sorted_wgt = band_parser.sort_eigenstate(val,vec,weight,ref_val,ref_vec,ref_weight)
                 if e_idx >= 1 and setup_dict['Direction'] == 'AC':
                     ref_vec = sorted_vec
                     ref_val = sorted_val
                     ref_weight = sorted_wgt
+                '''
                 ## append data to table
                 band_table.append([kx])
-                band_table[-1].extend(np.real(sorted_val))
+                band_table[-1].extend(np.real(val))
                 for E_idx in unit.region['E_idx']:
                     if e_idx in unit.region['S_idx']:
                         ## eigenstate weight table
                         weight_table.append([E_idx])
                         weight_table[-1].append(kx)
-                        weight_table[-1].extend(abs(sorted_vec[:,E_idx])**2)
+                        weight_table[-1].extend(abs(vec[:,E_idx])**2)
                         #weight_table[-1].extend(np.real(sorted_vec[:,E_idx]))
                         if setup_dict['POR Magnetic moment']:
                             ## magnetic moment

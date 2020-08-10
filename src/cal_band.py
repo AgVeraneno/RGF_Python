@@ -6,6 +6,7 @@ class CPU():
         self.unit = unit
         if setup['Direction'] == 'AC': self.ax = setup['Material'].ax
         elif setup['Direction'] == 'ZZ': self.ax = setup['Material'].ax_zz
+        self.a = setup['Material'].a
         self.mat = setup['Material']
         self.direction = setup['Direction']
         self.mesh = int(setup['mesh'])
@@ -14,20 +15,22 @@ class CPU():
     def setKx(self, l_idx):
         return 2*np.pi*(l_idx-(self.mesh-1)/2)/(self.ax*(self.mesh-1))
         #return 2*np.pi*l_idx/(self.ax*(self.mesh-1))
-    def calState(self, l_idx, returnKx=False):
-        kx = self.setKx(l_idx)
+    def calState(self, l_idx):
         H = self.unit.H*self.mat.q
         Pf = self.unit.Pf*self.mat.q
         Pb = self.unit.Pb*self.mat.q
+        # calculate eigenstate in kx = l_idx
+        kx = self.setKx(l_idx)
         Heig = H+\
                np.exp(-1j*kx*self.ax)*Pf+\
                np.exp(1j*kx*self.ax)*Pb
         val, vec = np.linalg.eig(Heig)
+        val, vec = self.__sort__(val, vec, None, 'energy')
         weight = self.calWeight(vec)
         return kx, val, vec, weight
     def calWeight(self,vec):
         weight = copy.deepcopy(vec)
-        for i in range(np.size(vec,0)): weight[:,i] = np.real(np.square(np.absolute(vec[:,i])))
+        for i in range(np.size(vec,0)): weight[:,i] = np.real(np.square(np.abs(vec[:,i])))
         return weight
     def calMagneticMoment(self, kx, vec1, vec2):
         uH = self.unit.uH
@@ -128,10 +131,30 @@ class CPU():
             sorted_vec = copy.deepcopy(vec)
             sorted_wgt = copy.deepcopy(weight)
             for v1_idx in range(len(val)):
-                dif_weight = [np.sum(np.absolute(ref_weight[:,v1_idx] - weight[:,v2_idx])) for v2_idx in range(len(val))]
+                dif_weight = [np.sum(np.abs(np.subtract(ref_weight[:,v1_idx],weight[:,v2_idx]))) for v2_idx in range(len(val))]
                 idx = dif_weight.index(min(dif_weight))
                 sorted_val[v1_idx] = val[idx]
                 sorted_vec[:,v1_idx] = vec[:,idx]
                 sorted_wgt[:,v1_idx] = weight[:,idx]
             else:
                 return sorted_val, sorted_vec, sorted_wgt
+    def __sort__(self, val, vec, wgt, srt_type, ref_wgt=None):
+        if srt_type == 'weight':
+            sorted_val = copy.deepcopy(val)
+            sorted_vec = copy.deepcopy(vec)
+            for w_idx in range(len(val)):
+                dif_weight = [np.sum(np.abs(np.subtract(ref_wgt[:,w_idx],wgt[:,v2_idx]))) for v2_idx in range(len(val))]
+                idx = dif_weight.index(min(dif_weight))
+                sorted_val[w_idx] = val[idx]
+                sorted_vec[:,w_idx] = vec[:,idx]
+            else: return sorted_val, sorted_vec
+        elif srt_type == 'energy':
+            sorted_val = np.sort(val)
+            sorted_vec = copy.deepcopy(vec)
+            ## Sort with eigenvalue
+            for v1_idx, v1 in enumerate(val):
+                for v2_idx, v2 in enumerate(sorted_val):
+                    if v1 == v2:
+                        sorted_vec[:,v2_idx] = copy.deepcopy(vec[:,v1_idx])
+                    else: continue
+            else: return sorted_val, sorted_vec
