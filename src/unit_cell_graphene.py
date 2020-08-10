@@ -198,10 +198,10 @@ class Square():
              [z_mat, self.__on_chain__]]
         H = np.block(H)
         self.H = H + np.transpose(np.conj(H))
-        Pf = [[z_mat,self.__on_chainP__],
-              [z_mat,z_mat]]
-        self.Pf = np.block(Pf)
-        self.Pb = np.transpose(np.conj(self.Pf))
+        Pf = [[z_mat,z_mat],
+              [self.__on_chainP__,z_mat]]
+        self.Pb = np.block(Pf)
+        self.Pf = np.transpose(np.conj(self.Pb))
     def __component__(self):
         """
         1)
