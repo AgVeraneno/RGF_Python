@@ -234,7 +234,7 @@ class RGF_solver():
                 I_loop[0].append('Hex'+str(i+1))
             ## sort band and eigenstate
             for e_idx, e in enumerate(eig):
-                kx = e[0]*band_parser.ax
+                kx = e[0]*band_parser.a
                 val = e[1]/1.6e-19
                 vec = e[2]
                 weight = e[3]
