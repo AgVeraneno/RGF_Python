@@ -25,9 +25,9 @@ class CPU():
                np.exp(-1j*kx*self.ax)*Pf+\
                np.exp(1j*kx*self.ax)*Pb
         val, vec = np.linalg.eig(Heig)
-        val, vec = self.__sort__(val, vec, None, 'energy')
-        weight = self.calWeight(vec)
-        return kx, val, vec, weight
+        val, vec = self.__sort__(val, vec, 'energy')
+        wgt = self.calWeight(vec)
+        return kx, val, vec, wgt
     def calWeight(self,vec):
         weight = copy.deepcopy(vec)
         for i in range(np.size(vec,0)): weight[:,i] = np.real(np.square(np.abs(vec[:,i])))
@@ -138,16 +138,18 @@ class CPU():
                 sorted_wgt[:,v1_idx] = weight[:,idx]
             else:
                 return sorted_val, sorted_vec, sorted_wgt
-    def __sort__(self, val, vec, wgt, srt_type, ref_wgt=None):
+    def __sort__(self, val, vec, srt_type, wgt=None, ref_wgt=None):
         if srt_type == 'weight':
             sorted_val = copy.deepcopy(val)
             sorted_vec = copy.deepcopy(vec)
+            sorted_wgt = copy.deepcopy(wgt)
             for w_idx in range(len(val)):
                 dif_weight = [np.sum(np.abs(np.subtract(ref_wgt[:,w_idx],wgt[:,v2_idx]))) for v2_idx in range(len(val))]
                 idx = dif_weight.index(min(dif_weight))
                 sorted_val[w_idx] = val[idx]
                 sorted_vec[:,w_idx] = vec[:,idx]
-            else: return sorted_val, sorted_vec
+                sorted_wgt[:,w_idx] = wgt[:,idx]
+            else: return sorted_val, sorted_vec, sorted_wgt
         elif srt_type == 'energy':
             sorted_val = np.sort(val)
             sorted_vec = copy.deepcopy(vec)
@@ -158,3 +160,20 @@ class CPU():
                         sorted_vec[:,v2_idx] = copy.deepcopy(vec[:,v1_idx])
                     else: continue
             else: return sorted_val, sorted_vec
+        elif srt_type == 'align':
+            sorted_val = np.sort(val)
+            sort_idx = []
+            ## Sort with eigenvalue
+            for v1_idx, v1 in enumerate(val):
+                for v2_idx, v2 in enumerate(sorted_val):
+                    if v1 == v2:
+                        sort_idx.append(v2_idx)
+                    else: continue
+            else: return sort_idx
+    def refreshBands(self, val, vec, srt_idx):
+        sorted_val = copy.deepcopy(val)
+        sorted_vec = copy.deepcopy(vec)
+        for pre_idx, post_idx in enumerate(srt_idx):
+            sorted_val[post_idx] = val[pre_idx]
+            sorted_vec[:,post_idx] = vec[:,pre_idx]
+        else: return sorted_val, sorted_vec
