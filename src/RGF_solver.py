@@ -27,7 +27,7 @@ class RGF_solver():
             else: self.isGPU = False
             # Parallel CPU count
             if '-turbo' in sys.argv: self.workers = int(sys.argv[sys.argv.index('-turbo') +1])
-            else: self.workers = 12
+            else: self.workers = 4
         ## check input file
         if not os.path.exists(self.setup_file):
             logger.error('Invalid input file: %s',self.setup_file)
@@ -207,7 +207,7 @@ class RGF_solver():
         self.logger.info('=>Generate unit cell:'+str(t_unitcell)+'(sec)')
         self.t_total += t_unitcell
         return unit_list
-    def cal_bandStructure(self, setup_dict, unit_list):
+    def cal_bandStructure(self, setup_dict, unit_list, first_only=False):
         '''
         Initialize
         '''
@@ -227,6 +227,7 @@ class RGF_solver():
             self.logger.info("=>Calculate band structure: "+str(round(time.time()-t,3))+" (sec)")
             ## sort band and eigenstate
             t = time.time()
+            '''
             # 1. Sort eigenstates
             for e_idx, e in enumerate(eig):
                 if e_idx > 1:
@@ -234,12 +235,14 @@ class RGF_solver():
                     eig[e_idx] = (e[0], np.array(srt_val), np.array(srt_vec))
                 else: ref_wgt = copy.deepcopy(e[3])
             # 2. Sort eigenenergy
+
             mid_idx = int((int(setup_dict['mesh'])+int(setup_dict['mesh'])%2)/2)
             srt_idx = band_parser.__sort__(eig[mid_idx][1],None,'align')
             for e_idx, e in enumerate(eig):
                 srt_val, srt_vec = band_parser.refreshBands(e[1], e[2], srt_idx)
                 eig[e_idx] = (e[0], np.array(srt_val), np.array(srt_vec))
             self.logger.info("=>Sort band structure: "+str(round(time.time()-t,3))+" (sec)")
+            '''
             ## generate result table eigenvalues
             folder = self.output_dir+self.job_dir+'/band/'
             if not os.path.exists(folder): os.mkdir(folder)
@@ -294,12 +297,13 @@ class RGF_solver():
                 ## print out report
                 IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_uTB.csv', uTB)
                 IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_Iloop.csv', I_loop)
-        else:
-            '''
-            Job finish
-            '''
-            self.logger.info('==>Band structure function:'+str(round(time.time() - t_band,3))+'(sec)')
-            self.t_total += t_band
+            # check if calculate first region
+            if first_only: break
+        '''
+        Job finish
+        '''
+        self.logger.info('==>Band structure function:'+str(round(time.time() - t_band,3))+'(sec)')
+        self.t_total += t_band
     def cal_RGF_transmission(self, setup_dict, unit_list, E_list, S_list, split_summary, s_idx):
         t_RGF = time.time()
         folder = self.job_dir+'/PTR/'
@@ -432,7 +436,7 @@ if __name__ == '__main__':
                 Calculate band structure
                 '''
                 logger.info('========Band structure start========')
-                RGF_parser.cal_bandStructure(setup_dict, unit_list)
+                RGF_parser.cal_bandStructure(setup_dict, unit_list, True)
                 logger.info('========Band structure complete========')
             if setup_dict['POR RGF']:
                 '''

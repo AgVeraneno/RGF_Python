@@ -27,12 +27,12 @@ class CPU():
         get incident state and energy
         '''
         band_parser = cal_band.CPU(self.setup, unit)
-        kx, val, vec, _ = band_parser.calState(kx_idx, True)
-        sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec)
+        kx, val, vec, _ = band_parser.calState(kx_idx)
+        sorted_val, sorted_vec = band_parser.__sort__(val,vec,'energy')
         E = sorted_val[self.CB]
         i_state = sorted_vec[:,self.CB]
         kx_list.append(kx)
-        if o_zone:
+        if o_zone and False:
             '''
             derive kx of other band with same energy
             '''
@@ -47,7 +47,7 @@ class CPU():
                 elif not np.isclose(E,E2):
                     E_pre = copy.deepcopy(E2)
                     kx_pre = copy.deepcopy(kx2)
-                    kx2, val, _, _ = band_parser.calState(kx2_idx, True)
+                    kx2, val, _, _ = band_parser.calState(kx2_idx)
                     sorted_val, sorted_vec = band_parser.sort_eigenstate(val,vec)
                     E2 = sorted_val[self.CB+1]
                     kx2_idx += 1
@@ -81,16 +81,16 @@ class CPU():
             input_unit = self.unit_list[mesh_grid[0]]
             output_unit = self.unit_list[mesh_grid[-1]]
             kx, E, i_state = self.setBand(input_unit, kx_idx-1)
-            kx_list_o, _, _ = self.setBand(output_unit, kx_idx-1, True)
+            #kx_list_o, _, _ = self.setBand(output_unit, kx_idx-1, True)
             m_size = np.size(input_unit.H,0)
             E_matrix = np.eye(m_size, dtype=np.complex128)*np.real(E/self.mat.q)
             ## calculate RGF ##
             phase_p = np.exp(1j*kx[0]*self.mat.ax)
             phase_n = np.exp(-1j*kx[0]*self.mat.ax)
             P_phase = phase_n-phase_p
-            phase_o = []
-            for kx_o in kx_list_o:
-                phase_o.append(np.exp(1j*kx_o*self.mat.ax))
+            phase_o = [np.exp(1j*kx[0]*self.mat.ax)]
+            #for kx_o in kx_list_o:
+            #    phase_o.append(np.exp(1j*kx_o*self.mat.ax))
             for mesh_idx, key in enumerate(mesh_grid):
                 unit = self.unit_list[key]
                 H = unit.H
@@ -195,7 +195,7 @@ class CPU():
         output_unit = self.unit_list[mesh_grid[-1]]
         kx, E, i_state_cpu = self.setBand(input_unit, kx_idx-1)
         i_state = cp.asarray(i_state_cpu)
-        kx_list_o, _, _ = self.setBand(output_unit, kx_idx-1, True)
+        #kx_list_o, _, _ = self.setBand(output_unit, kx_idx-1, True)
         m_size = np.size(input_unit.H,0)
         E_matrix = cp.eye(m_size, dtype=cp.complex128)*cp.real(E/self.mat.q)
         ## calculate RGF ##

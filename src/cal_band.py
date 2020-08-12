@@ -144,7 +144,7 @@ class CPU():
             sorted_vec = copy.deepcopy(vec)
             sorted_wgt = copy.deepcopy(wgt)
             for w_idx in range(len(val)):
-                dif_weight = [np.sum(np.abs(np.subtract(ref_wgt[:,w_idx],wgt[:,v2_idx]))) for v2_idx in range(len(val))]
+                dif_weight = [np.sum(np.abs(np.subtract(ref_wgt[0,w_idx],wgt[0,v2_idx]))) for v2_idx in range(len(val))]
                 idx = dif_weight.index(min(dif_weight))
                 sorted_val[w_idx] = val[idx]
                 sorted_vec[:,w_idx] = vec[:,idx]
@@ -168,6 +168,7 @@ class CPU():
                 for v2_idx, v2 in enumerate(sorted_val):
                     if v1 == v2:
                         sort_idx.append(v2_idx)
+                        break
                     else: continue
             else: return sort_idx
     def refreshBands(self, val, vec, srt_idx):
