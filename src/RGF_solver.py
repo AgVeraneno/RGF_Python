@@ -207,7 +207,7 @@ class RGF_solver():
         self.logger.info('=>Generate unit cell:'+str(t_unitcell)+'(sec)')
         self.t_total += t_unitcell
         return unit_list
-    def cal_bandStructure(self, setup_dict, unit_list, first_only=False):
+    def cal_bandStructure(self, setup_dict, unit_list):
         '''
         Initialize
         '''
@@ -219,86 +219,68 @@ class RGF_solver():
         Job start
         '''
         for key, unit in unit_list.items():
-            ## initialize ##
-            band_parser = cal_band.CPU(setup_dict, unit)
-            ## calculate band structure
-            t = time.time()
-            with Pool(processes=self.workers) as mp: eig = mp.map(band_parser.calState,self.mesh)
-            self.logger.info("=>Calculate band structure: "+str(round(time.time()-t,3))+" (sec)")
-            ## sort band and eigenstate
-            t = time.time()
-            '''
-            # 1. Sort eigenstates
-            for e_idx, e in enumerate(eig):
-                if e_idx > 1:
-                    srt_val, srt_vec, ref_wgt = band_parser.__sort__(e[1],e[2],'weight',e[3], ref_wgt)
+            if unit.region['enable Band']:
+                ## initialize ##
+                band_parser = cal_band.CPU(setup_dict, unit)
+                ## calculate band structure
+                t = time.time()
+                with Pool(processes=self.workers) as mp: eig = mp.map(band_parser.calState,self.mesh)
+                self.logger.info("=>Calculate band structure: "+str(round(time.time()-t,3))+" (sec)")
+                ## sort band and eigenstate
+                t = time.time()
+                '''
+                # 1. Sort eigenstates
+                for e_idx, e in enumerate(eig):
+                    if e_idx > 1:
+                        srt_val, srt_vec, ref_wgt = band_parser.__sort__(e[1],e[2],'weight',e[3], ref_wgt)
+                        eig[e_idx] = (e[0], np.array(srt_val), np.array(srt_vec))
+                    else: ref_wgt = copy.deepcopy(e[3])
+                # 2. Sort eigenenergy
+    
+                mid_idx = int((int(setup_dict['mesh'])+int(setup_dict['mesh'])%2)/2)
+                srt_idx = band_parser.__sort__(eig[mid_idx][1],None,'align')
+                for e_idx, e in enumerate(eig):
+                    srt_val, srt_vec = band_parser.refreshBands(e[1], e[2], srt_idx)
                     eig[e_idx] = (e[0], np.array(srt_val), np.array(srt_vec))
-                else: ref_wgt = copy.deepcopy(e[3])
-            # 2. Sort eigenenergy
-
-            mid_idx = int((int(setup_dict['mesh'])+int(setup_dict['mesh'])%2)/2)
-            srt_idx = band_parser.__sort__(eig[mid_idx][1],None,'align')
-            for e_idx, e in enumerate(eig):
-                srt_val, srt_vec = band_parser.refreshBands(e[1], e[2], srt_idx)
-                eig[e_idx] = (e[0], np.array(srt_val), np.array(srt_vec))
-            self.logger.info("=>Sort band structure: "+str(round(time.time()-t,3))+" (sec)")
-            '''
-            ## generate result table eigenvalues
-            folder = self.output_dir+self.job_dir+'/band/'
-            if not os.path.exists(folder): os.mkdir(folder)
-            # 1. Generate header
-            band_table = [['kx*a']]
-            weight_table = [['Band','kx*a']]
-            uTB = [['Band','kx*a','muTB(Re)','muTB(Im)','muTB(abs)']]
-            I_loop = [['Band','kx*a','uB_tot']]
-            for i in range(len(eig[0][1])):
-                band_table[0].append('Band'+str(i+1)+' (eV)')
-                weight_table[0].append('Site'+str(i+1))
-            for i in range(int(len(eig[0][1])/2)):
-                I_loop[0].append('Hex'+str(i+1))
-            # 2. Generate result table
-            for e_idx, e in enumerate(eig):
-                kx = e[0]*band_parser.a
-                val = e[1]/1.6e-19
-                vec = e[2]
-                ## append data to table
-                band_table.append([kx])
-                band_table[-1].extend(np.real(val))
-                for E_idx in unit.region['E_idx']:
-                    if e_idx in unit.region['S_idx']:
-                        ## eigenstate weight table
-                        weight_table.append([E_idx])
-                        weight_table[-1].append(kx)
-                        weight_table[-1].extend(abs(vec[:,E_idx])**2)
-            else:
-                ## print out report
-                IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_band.csv', band_table)
-                IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_weight.csv', weight_table)
-            # Magnetic moment
-            if setup_dict['POR Magnetic moment']:
-                for E_idx in unit.region['E_idx']:
-                    if e_idx in unit.region['S_idx']:
-                        ## magnetic moment
-                        uTB.append([])
-                        uTB[-1].append(E_idx)
-                        uTB[-1].append(kx)
-                        uTB_val = band_parser.calMagneticMoment(kx/band_parser.ax, sorted_vec[:,E_idx], sorted_vec[:,E_idx])
-                        uTB[-1].append(np.real(uTB_val))
-                        uTB[-1].append(np.imag(uTB_val))
-                        uTB[-1].append(np.abs(uTB_val))
-                        ## moment current
-                        I_loop.append([])
-                        I_loop[-1].append(E_idx)
-                        I_loop[-1].append(kx)
-                        I_list = band_parser.calMagneticMomentCurrent(sorted_vec[:,E_idx])
-                        I_loop[-1].append(sum(I_list))
-                        I_loop[-1].extend(I_list)
-            else:
-                ## print out report
-                IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_uTB.csv', uTB)
-                IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_Iloop.csv', I_loop)
-            # check if calculate first region
-            if first_only: break
+                self.logger.info("=>Sort band structure: "+str(round(time.time()-t,3))+" (sec)")
+                '''
+                ## generate result table eigenvalues
+                folder = self.output_dir+self.job_dir+'/band/'
+                if not os.path.exists(folder): os.mkdir(folder)
+                # 1. Generate header
+                
+                
+                uTB = [['Band','kx*a','muTB(Re)','muTB(Im)','muTB(abs)']]
+                I_loop = [['Band','kx*a','uB_tot']]
+                for i in range(int(len(eig[0][1])/2)):
+                    I_loop[0].append('Hex'+str(i+1))
+                # 2. Generate result table
+                filepath = folder+self.job_name+'_'+key
+                band_parser.saveBand(eig, unit, filepath)
+                # Magnetic moment
+                if setup_dict['POR Magnetic moment']:
+                    for E_idx in unit.region['E_idx']:
+                        if e_idx in unit.region['S_idx']:
+                            ## magnetic moment
+                            uTB.append([])
+                            uTB[-1].append(E_idx)
+                            uTB[-1].append(kx)
+                            uTB_val = band_parser.calMagneticMoment(kx/band_parser.ax, sorted_vec[:,E_idx], sorted_vec[:,E_idx])
+                            uTB[-1].append(np.real(uTB_val))
+                            uTB[-1].append(np.imag(uTB_val))
+                            uTB[-1].append(np.abs(uTB_val))
+                            ## moment current
+                            I_loop.append([])
+                            I_loop[-1].append(E_idx)
+                            I_loop[-1].append(kx)
+                            I_list = band_parser.calMagneticMomentCurrent(sorted_vec[:,E_idx])
+                            I_loop[-1].append(sum(I_list))
+                            I_loop[-1].extend(I_list)
+                else:
+                    ## print out report
+                    IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_uTB.csv', uTB)
+                    IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_Iloop.csv', I_loop)
+                eig = None
         '''
         Job finish
         '''
@@ -436,7 +418,7 @@ if __name__ == '__main__':
                 Calculate band structure
                 '''
                 logger.info('========Band structure start========')
-                RGF_parser.cal_bandStructure(setup_dict, unit_list, True)
+                RGF_parser.cal_bandStructure(setup_dict, unit_list)
                 logger.info('========Band structure complete========')
             if setup_dict['POR RGF']:
                 '''

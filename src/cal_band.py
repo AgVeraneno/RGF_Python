@@ -1,5 +1,6 @@
 import os, copy
 import numpy as np
+import IO_util
 
 class CPU():
     def __init__(self, setup, unit):
@@ -178,3 +179,28 @@ class CPU():
             sorted_val[post_idx] = val[pre_idx]
             sorted_vec[:,post_idx] = vec[:,pre_idx]
         else: return sorted_val, sorted_vec
+    def saveBand(self, rawdata, unit, folder):
+        band_table = [['kx*a']]
+        weight_table = [['Band','kx*a']]
+        for i in range(len(rawdata[0][1])):
+            band_table[0].append('Band'+str(i+1)+' (eV)')
+            weight_table[0].append('Site'+str(i+1))
+        for e_idx, e in enumerate(rawdata):
+            kx = e[0]*self.a
+            val = e[1]/1.6e-19
+            vec = e[2]
+            ## append data to table
+            band_table.append([kx])
+            band_table[-1].extend(np.real(val))
+            '''
+            for E_idx in unit.region['E_idx']:
+                if e_idx in unit.region['S_idx']:
+                    ## eigenstate weight table
+                    weight_table.append([E_idx])
+                    weight_table[-1].append(kx)
+                    weight_table[-1].extend(abs(vec[:,E_idx])**2)
+            '''
+        else:
+            ## print out report
+            IO_util.saveAsCSV(folder+'_band.csv', band_table)
+            #IO_util.saveAsCSV(folder+'_weight.csv', weight_table)

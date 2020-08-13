@@ -211,9 +211,11 @@ def importFromExcel(filename=None):
         structure = {}
         sweep = {'POR':[]}
         for row in excel_parser.readSheet('structure'):
-            if row[0].value == 'o':
+            if row[0].value == 'o' or row[0].value == 'O':
                 ## create new region
                 this_region = {}
+                if row[0].value == 'O': this_region['enable Band'] = True
+                else: this_region['enable Band'] = False
                 this_region['Job'] = row[1].value
                 this_region['Name'] = row[4].value
                 this_region['Width'] = [int(row[5].value)]
