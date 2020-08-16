@@ -525,14 +525,13 @@ class ZGNR():
     '''
     def __init__(self, setup, region):
         self.SU_size = 1                        # sub unit cell size (number of hopping and spin)
-        self.SU_count = 2                       # atom number for each sub unit cell
+        self.atomPerWidth = 2                   # atom number for each width
         '''
         Auto generate parameters
         '''
         self.mat = setup['Material']            # unit cell material
         self.region = region                          # current job setting
         self.mesh = int(setup['mesh'])       # band structure mesh
-        self.ax = self.mat.ax                   # unit length
         self.__initialize__(setup, region)
         self.__gen_Hamiltonian__()
     def __initialize__(self, setup, region):
@@ -540,26 +539,24 @@ class ZGNR():
         matrix definition
         '''
         ## ribbon size
-        self.W = [w*2 for w in region['Width']]
+        self.__W__ = [self.atomPerWidth*w for w in region['Width']]         # each width contain 2 atoms
+        self.__W__.reverse() 
+        self.__Wtot__ = sum(self.__W__)
         self.L = region['Length']
         ## lattice type
-        if setup['Lattice'] == 'M':
-            self.m_size = sum(self.W)
-            self.lattice = 'MLG'
-        elif setup['Lattice'] == 'B':
-            self.m_size = 2*sum(self.W)
-            self.lattice = 'BLG'
-        else:
-            raise ValueError('Unresolved lattice:', setup['Lattice'])
+        self.__lattice__ = setup['Lattice']
+        if setup['Lattice'] == 'M': self.__m_size__ = self.__Wtot__
+        elif setup['Lattice'] == 'B': self.__m_size__ = 2*self.__Wtot__
+        else: raise ValueError('Unresolved lattice:', setup['Lattice'])
         ## Hamiltonian
-        empty_matrix = np.zeros((self.m_size,self.m_size), dtype=np.complex128)
+        empty_matrix = np.zeros((self.__m_size__,self.__m_size__), dtype=np.complex128)
         self.H = copy.deepcopy(empty_matrix)
         self.Pf = copy.deepcopy(empty_matrix)
         self.Pb = copy.deepcopy(empty_matrix)
         '''
         energy definition
         '''
-        self.gap = region['gap']
+        self.__gap__ = region['gap']
         self.Vtop = []
         self.Vbot = []
         dV = region['Vtop']-region['Vbot']
@@ -577,35 +574,32 @@ class ZGNR():
         '''
         job default
         '''
-        if self.region['E_idx'][0] == None: self.region['E_idx'] = range(0,self.m_size,1)
-        if self.region['S_idx'][0] == None: self.region['S_idx'] = range(0,int(setup['mesh']),1)
+        if self.region['E_idx'][0] == None: self.region['E_idx'] = range(0,self.__m_size__,1)
+        if self.region['S_idx'][0] == None: self.region['S_idx'] = range(0,self.mesh,1)
     def __gen_Hamiltonian__(self):
         self.__component__()
         self.__off_diagonal__()
         self.__on_site_energy__()
     def __on_site_energy__(self):
-        W_sum = sum(self.W)
+        W_sum = sum(self.__W__)
         ## Gap assign
-        gap = np.eye(self.m_size, dtype=np.complex128)*1000
+        gap = np.eye(self.__m_size__, dtype=np.complex128)*1e7
         w_shift = 0
-        if self.lattice == 'MLG':
-            for w_idx, W in enumerate(self.W):
+        if self.__lattice__ == 'M':
+            for w_idx, W in enumerate(self.__W__):
+                for i in range(W): gap[w_shift+i,w_shift+i] = self.__gap__[w_idx] * (-1)**(i%2)
+                else: w_shift += W
+        elif self.__lattice__ == 'B':
+            for w_idx, W in enumerate(self.__W__):
                 for i in range(W):
-                    gap[w_shift+i,w_shift+i] = self.gap[w_idx] * (-1)**(i%2)
-                else:
-                    w_shift += W
-        elif self.lattice == 'BLG':
-            for w_idx, W in enumerate(self.W):
-                for i in range(W):
-                    gap[w_shift+i,w_shift+i] = self.gap[w_idx]
-                    gap[W_sum+w_shift+i,W_sum+w_shift+i] = -self.gap[w_idx]
-                else:
+                    gap[w_shift+i,w_shift+i] = self.__gap__[w_idx]
+                    gap[W_sum+w_shift+i,W_sum+w_shift+i] = self.__gap__[w_idx]
                     w_shift += W
         ## Voltage assign
-        volt = np.eye(self.m_size, dtype=np.complex128)*1000
+        volt = np.eye(self.__m_size__, dtype=np.complex128)*1e7
         w_shift = 0
-        if self.lattice == 'MLG':
-            for w_idx, W in enumerate(self.W):
+        if self.__lattice__ == 'M':
+            for w_idx, W in enumerate(self.__W__):
                 Vt = self.Vtop[w_idx]
                 Vb = self.Vbot[w_idx]
                 if W > 1: dV = (Vt-Vb)/(3*W/2-2)
@@ -614,8 +608,8 @@ class ZGNR():
                     volt[w_shift+i,w_shift+i] = Vb + i*dV + dV*int(i/2)
                 else:
                     w_shift += W
-        elif self.lattice == 'BLG':
-            for w_idx, W in enumerate(self.W):
+        elif self.__lattice__ == 'B':
+            for w_idx, W in enumerate(self.__W__):
                 Vt = self.Vtop[w_idx]
                 Vb = self.Vbot[w_idx]
                 if W > 1: dV = (Vt-Vb)/(W-1)
@@ -626,28 +620,28 @@ class ZGNR():
                 else:
                     w_shift += W
         ## combine with Hamiltonian
-        if self.lattice == 'MLG':
-            self.H = self.H[:self.m_size,:self.m_size]
-            self.Pf = self.Pf[:self.m_size,:self.m_size]
-            self.Pb = self.Pb[:self.m_size,:self.m_size]
-            self.uH = self.uH[:self.m_size,:self.m_size]
-            self.uPf = self.uPf[:self.m_size,:self.m_size]
-            self.uPb = self.uPb[:self.m_size,:self.m_size]
-            self.uH0 = self.uH0[:self.m_size,:self.m_size]
-            self.uPf0 = self.uPf0[:self.m_size,:self.m_size]
-            self.uPb0 = self.uPb0[:self.m_size,:self.m_size]
+        if self.__lattice__ == 'M':
+            self.H = self.H[:self.__m_size__,:self.__m_size__]
+            self.Pf = self.Pf[:self.__m_size__,:self.__m_size__]
+            self.Pb = self.Pb[:self.__m_size__,:self.__m_size__]
+            self.uH = self.uH[:self.__m_size__,:self.__m_size__]
+            self.uPf = self.uPf[:self.__m_size__,:self.__m_size__]
+            self.uPb = self.uPb[:self.__m_size__,:self.__m_size__]
+            self.uH0 = self.uH0[:self.__m_size__,:self.__m_size__]
+            self.uPf0 = self.uPf0[:self.__m_size__,:self.__m_size__]
+            self.uPb0 = self.uPb0[:self.__m_size__,:self.__m_size__]
         self.H += gap
-        self.H += volt
+        #self.H += volt
         self.V = np.real(volt)
     def __off_diagonal__(self):
-        W = sum(self.W)
+        W = sum(self.__W__)
         z_mat = np.zeros((W,W), dtype=np.complex128)
-        H = [[self.__on_chain__, self.__C1c1__],
+        H = [[self.__on_chain__, self.__C1c1__    ],
              [z_mat            , self.__on_chain__]]
         H = np.block(H)
         self.H = H + np.transpose(np.conj(H))
-        Pf = [[self.__on_chainP__, self.__C1c1P__    ],
-              [z_mat             , self.__on_chainP__]]
+        Pf = [[self.__inter_chainP__, z_mat],
+              [z_mat, self.__inter_chainP__]]
         self.Pf = np.block(Pf)
         self.Pb = np.transpose(np.conj(self.Pf))
         '''
@@ -670,25 +664,19 @@ class ZGNR():
         self.uPf0 = np.block(uPf0)
         self.uPb0 = np.transpose(np.conj(self.uPf0))
     def genPositionOperator(self, W):
-        self.__Xop__ = np.zeros((W,W),dtype=np.complex128)
-        self.__Yop__ = np.zeros((W,W),dtype=np.complex128)
-        self.Y = np.zeros((W,W),dtype=np.complex128)
-        self.X = np.zeros((W,W),dtype=np.complex128)
-        Y_norm = W*self.mat.acc*0
+        self.__Xop__ = np.zeros((self.__m_size__,self.__m_size__))
+        self.__Yop__ = np.zeros((self.__m_size__,self.__m_size__))
+        self.Y = np.zeros((self.__m_size__,self.__m_size__))
         for i in range(W):
             # build position matrix
             if i > 0:
-                self.__Yop__[i,i] = self.__Yop__[i-1,i-1] + self.mat.acc/2*(i%2) + self.mat.acc*((i+1)%2)-Y_norm
-                self.Y[i,i] = self.Y[i-1,i-1] + self.mat.acc/2*(i%2) + self.mat.acc*((i+1)%2)-Y_norm
-                if i%4 == 1 or i%4 == 2:
-                    self.__Xop__[i,i] = self.mat.a/2
-                    self.X[i,i] = self.mat.a/2
-                else:
-                    self.__Xop__[i,i] = 0
-                    self.X[i,i] = 0
+                self.__Yop__[i,i] = self.__Yop__[i-1,i-1] + self.mat.acc/2*(i%2) + self.mat.acc*((i+1)%2)
+                self.Y[i,i] = self.__Yop__[i,i]
+                if i%4 == 1 or i%4 == 2: self.__Xop__[i,i] = self.mat.a/2
+                else: self.__Xop__[i,i] = 0
                 for j in range(i):
                     self.__Yop__[i,j] = (self.__Yop__[i,i] + self.__Yop__[j,j])/2
-                    self.__Yop__[j,i] = (self.__Yop__[i,i] + self.__Yop__[j,j])/2
+                    self.__Yop__[j,i] = self.__Yop__[i,j]
                     self.__Xop__[i,j] = (self.__Xop__[i,i] - self.__Xop__[j,j])
                     self.__Xop__[j,i] = (self.__Xop__[j,j] - self.__Xop__[i,i])
     def __component__(self):
@@ -722,19 +710,22 @@ class ZGNR():
               B2  0 a1
                 /
               /
-        A1  O
+        A1  O      
 
            
            ^    ^ 
            C1   c1
         ==============================================     
         """
-        W = sum(self.W)
+        W = sum(self.__W__)
         self.genPositionOperator(W)
         self.__on_chain__ = np.zeros((W,W),dtype=np.complex128)
-        self.__on_chainP__ = np.zeros((W,W),dtype=np.complex128)
+        self.__inter_chainP__ = np.zeros((W,W),dtype=np.complex128)
         self.__C1c1__ = np.zeros((W,W),dtype=np.complex128)
+        self.__C1c2__ = np.zeros((W,W),dtype=np.complex128)
         self.__C1c1P__ = np.zeros((W,W),dtype=np.complex128)
+        self.__C2c1__ = np.zeros((W,W),dtype=np.complex128)
+        self.__C2c2__ = np.zeros((W,W),dtype=np.complex128)
         self.__Mu_on_chain__ = np.zeros((W,W),dtype=np.complex128)
         self.__Mu_on_chainP__ = np.zeros((W,W),dtype=np.complex128)
         self.__Mu_C1c1__ = np.zeros((W,W),dtype=np.complex128)
@@ -752,15 +743,16 @@ class ZGNR():
                                                 np.exp(mu_const*self.Bz[i]*self.__Xop__[i,i+1]*self.__Yop__[i,i+1])
                 self.__Mu0_on_chain__[i,i+1] = mu_const*self.mat.r0*self.mat.q*self.__Xop__[i,i+1]*\
                                                 np.exp(mu_const*self.Bz[i]*self.__Xop__[i,i+1])
+            # build inter chain matrix and hopping matrix
             if i < W-1 and i%4 == 0:
-                self.__on_chainP__[i,i+1] = -self.mat.r0
+                self.__inter_chainP__[i,i+1] = -self.mat.r0
                 dx = self.mat.a/2
                 self.__Mu_on_chainP__[i,i+1] = mu_const*self.mat.r0*self.mat.q*dx*self.__Yop__[i,i+1]*\
                                                 np.exp(mu_const*self.Bz[i]*dx*self.__Yop__[i,i+1])
                 self.__Mu0_on_chainP__[i,i+1] = mu_const*self.mat.r0*self.mat.q*dx*\
                                                 np.exp(mu_const*self.Bz[i]*dx)
             if i < W-1 and i%4 == 2:
-                self.__on_chainP__[i+1,i] = -self.mat.r0
+                self.__inter_chainP__[i+1,i] = -self.mat.r0
                 dx = self.mat.a/2
                 self.__Mu_on_chainP__[i+1,i] = mu_const*self.mat.r0*self.mat.q*dx*self.__Yop__[i+1,i]*\
                                                 np.exp(mu_const*self.Bz[i]*dx*self.__Yop__[i+1,i])

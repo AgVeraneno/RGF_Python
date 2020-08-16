@@ -21,13 +21,13 @@ class RGF_solver():
         if len(sys.argv) >= 1:  # using command input
             # input file
             if '-i' in sys.argv: self.setup_file = sys.argv[sys.argv.index('-i') +1]
-            else: self.setup_file = self.input_dir+'template.xlsx'       # load default setup file
+            else: self.setup_file = self.input_dir+'magnetic_momentum.xlsx'       # load default setup file
             # GPU assisted RGF
             if '-gpu' in sys.argv: self.isGPU = True
             else: self.isGPU = False
             # Parallel CPU count
             if '-turbo' in sys.argv: self.workers = int(sys.argv[sys.argv.index('-turbo') +1])
-            else: self.workers = 4
+            else: self.workers = 12
         ## check input file
         if not os.path.exists(self.setup_file):
             logger.error('Invalid input file: %s',self.setup_file)
@@ -248,38 +248,12 @@ class RGF_solver():
                 folder = self.output_dir+self.job_dir+'/band/'
                 if not os.path.exists(folder): os.mkdir(folder)
                 # 1. Generate header
-                
-                
-                uTB = [['Band','kx*a','muTB(Re)','muTB(Im)','muTB(abs)']]
-                I_loop = [['Band','kx*a','uB_tot']]
-                for i in range(int(len(eig[0][1])/2)):
-                    I_loop[0].append('Hex'+str(i+1))
                 # 2. Generate result table
                 filepath = folder+self.job_name+'_'+key
                 band_parser.saveBand(eig, unit, filepath)
                 # Magnetic moment
                 if setup_dict['POR Magnetic moment']:
-                    for E_idx in unit.region['E_idx']:
-                        if e_idx in unit.region['S_idx']:
-                            ## magnetic moment
-                            uTB.append([])
-                            uTB[-1].append(E_idx)
-                            uTB[-1].append(kx)
-                            uTB_val = band_parser.calMagneticMoment(kx/band_parser.ax, sorted_vec[:,E_idx], sorted_vec[:,E_idx])
-                            uTB[-1].append(np.real(uTB_val))
-                            uTB[-1].append(np.imag(uTB_val))
-                            uTB[-1].append(np.abs(uTB_val))
-                            ## moment current
-                            I_loop.append([])
-                            I_loop[-1].append(E_idx)
-                            I_loop[-1].append(kx)
-                            I_list = band_parser.calMagneticMomentCurrent(sorted_vec[:,E_idx])
-                            I_loop[-1].append(sum(I_list))
-                            I_loop[-1].extend(I_list)
-                else:
-                    ## print out report
-                    IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_uTB.csv', uTB)
-                    IO_util.saveAsCSV(folder+self.job_name+'_'+key+'_Iloop.csv', I_loop)
+                    band_parser.saveMagneticMoment(eig, unit, filepath)
                 eig = None
         '''
         Job finish

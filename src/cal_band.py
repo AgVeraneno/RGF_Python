@@ -33,7 +33,7 @@ class CPU():
         weight = copy.deepcopy(vec)
         for i in range(np.size(vec,0)): weight[:,i] = np.real(np.square(np.abs(vec[:,i])))
         return weight
-    def calMagneticMoment(self, kx, vec1, vec2):
+    def calMagneticMoment(self, kx, vec1, vec2, debug=False):
         uH = self.unit.uH
         uPf = self.unit.uPf
         uPb = self.unit.uPb
@@ -49,19 +49,21 @@ class CPU():
                  np.exp(1j*kx*self.ax)*uPb0
         euH0 = np.vdot(vec1,np.dot(uHeig0,vec2))
         eY = np.vdot(vec1,np.dot(self.unit.Y,vec2))
-        return (euH - euH0*eY)/self.mat.uB
+        if debug: return (euH)/self.mat.uB, euH0*eY/self.mat.uB, (euH- euH0*eY)/self.mat.uB
+        else: return (euH- euH0*eY)/self.mat.uB
+        
     def calMagneticMomentCurrent(self, vec):
         Area = 1.5*3**0.5*self.mat.acc**2
         if self.direction == 'ZZ':
             ## calculate link current
             I_link = []
             for i in range(0,len(vec),2):
-                if i%2 == 0:
+                if (i/2)%2 == 0:
                     II = -1j/self.mat.h_bar*(np.dot(vec[i],np.conj(vec[i+1]))*self.mat.r0*self.mat.q - \
-                                            np.dot(np.conj(vec[i]),vec[i+1])*self.mat.r0*self.mat.q)
+                                                np.dot(np.conj(vec[i]),vec[i+1])*self.mat.r0*self.mat.q)
                 else:
                     II = -1j/self.mat.h_bar*(np.dot(vec[i+1],np.conj(vec[i]))*self.mat.r0*self.mat.q - \
-                                            np.dot(np.conj(vec[i+1]),vec[i])*self.mat.r0*self.mat.q)
+                                                np.dot(np.conj(vec[i+1]),vec[i])*self.mat.r0*self.mat.q)
                 I_link.append(II*self.mat.q*Area/self.mat.uB)
             else:
                 I_link_tot =sum(I_link)
@@ -76,28 +78,7 @@ class CPU():
                 else:
                     return I_loop
         elif self.direction == 'AC':
-            ## calculate link current
-            I_link = []
-            for i in range(0,len(vec),2):
-                if i%2 == 0:
-                    II = -1j/self.mat.h_bar*(np.dot(vec[i],np.conj(vec[i+1]))*self.mat.r0*self.mat.q - \
-                                            np.dot(np.conj(vec[i]),vec[i+1])*self.mat.r0*self.mat.q)
-                else:
-                    II = -1j/self.mat.h_bar*(np.dot(vec[i+1],np.conj(vec[i]))*self.mat.r0*self.mat.q - \
-                                            np.dot(np.conj(vec[i+1]),vec[i])*self.mat.r0*self.mat.q)
-                I_link.append(II*self.mat.q*Area/self.mat.uB)
-            else:
-                I_link_tot =sum(I_link)
-                I_trans = []
-                for i in range(0,len(vec),2):
-                    I_trans.append(I_link_tot*(abs(vec[i])**2+abs(vec[i+1])**2))
-                I_loop = []
-                for j in range(len(I_trans)):
-                    if j == 0: III = I_link[j]-I_trans[j]
-                    else: III = I_link[j]-I_trans[j] + I_loop[j-1]
-                    I_loop.append(np.real(III))
-                else:
-                    return I_loop
+            pass
     def getCBidx(self, gap, eig_val):
         #return int(np.size(self.unit.H,0)/2)
         return int(self.CB_idx)
@@ -192,15 +173,42 @@ class CPU():
             ## append data to table
             band_table.append([kx])
             band_table[-1].extend(np.real(val))
-            '''
             for E_idx in unit.region['E_idx']:
                 if e_idx in unit.region['S_idx']:
                     ## eigenstate weight table
                     weight_table.append([E_idx])
                     weight_table[-1].append(kx)
-                    weight_table[-1].extend(abs(vec[:,E_idx])**2)
-            '''
+                    weight_table[-1].extend(abs(vec[:,E_idx-1])**2)
         else:
             ## print out report
             IO_util.saveAsCSV(folder+'_band.csv', band_table)
-            #IO_util.saveAsCSV(folder+'_weight.csv', weight_table)
+            IO_util.saveAsCSV(folder+'_weight.csv', weight_table)
+    def saveMagneticMoment(self, rawdata, unit, folder):
+        uTB = [['Band','kx*a','muTB']]
+        I_loop = [['Band','kx*a','uB_tot']]
+        for i in range(int(len(rawdata[0][1])/2)):
+            I_loop[0].append('Hex'+str(i+1))
+        for e_idx, e in enumerate(rawdata):
+            for E_idx in unit.region['E_idx']:
+                if e_idx in unit.region['S_idx']:
+                    kx = e[0]
+                    vec = e[2]
+                    ## magnetic moment
+                    uTB.append([])
+                    uTB[-1].append(E_idx)
+                    uTB[-1].append(kx*self.a)
+                    uA,uB, uTB_val = self.calMagneticMoment(kx, vec[:,E_idx-1], vec[:,E_idx-1], True)
+                    uTB[-1].append(np.real(uTB_val))
+                    uTB[-1].append(np.real(uA))
+                    uTB[-1].append(np.real(uB))
+                    ## moment current
+                    I_loop.append([])
+                    I_loop[-1].append(E_idx)
+                    I_loop[-1].append(kx*self.a)
+                    I_list = self.calMagneticMomentCurrent(vec[:,E_idx-1])
+                    I_loop[-1].append(sum(I_list))
+                    I_loop[-1].extend(I_list)
+        else:
+            ## print out report
+            IO_util.saveAsCSV(folder+'_uTB.csv', uTB)
+            IO_util.saveAsCSV(folder+'_Iloop.csv', I_loop)
