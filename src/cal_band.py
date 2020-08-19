@@ -49,11 +49,13 @@ class CPU():
                  np.exp(1j*kx*self.ax)*uPb0
         euH0 = np.vdot(vec1,np.dot(uHeig0,vec2))
         eY = np.vdot(vec1,np.dot(self.unit.Y,vec2))
-        if debug: return (euH)/self.mat.uB, euH0*eY/self.mat.uB, (euH- euH0*eY)/self.mat.uB
-        else: return (euH- euH0*eY)/self.mat.uB
+        uB_star = self.mat.uB/(self.mat.eff_me_ratio*self.unit.delta*self.mat.q)
+        if debug: return (euH)/self.mat.uB, euH0*eY/self.mat.uB, (euH- euH0*eY)/uB_star
+        else: return (euH- euH0*eY)/uB_star
         
     def calMagneticMomentCurrent(self, vec):
         Area = 1.5*3**0.5*self.mat.acc**2
+        uB_star = self.mat.uB/(self.mat.eff_me_ratio*self.unit.delta*self.mat.q)
         if self.direction == 'ZZ':
             ## calculate link current
             I_link = []
@@ -64,7 +66,7 @@ class CPU():
                 else:
                     II = -1j/self.mat.h_bar*(np.dot(vec[i+1],np.conj(vec[i]))*self.mat.r0*self.mat.q - \
                                                 np.dot(np.conj(vec[i+1]),vec[i])*self.mat.r0*self.mat.q)
-                I_link.append(II*self.mat.q*Area/self.mat.uB)
+                I_link.append(II*self.mat.q*Area/uB_star)
             else:
                 I_link_tot =sum(I_link)
                 I_trans = []

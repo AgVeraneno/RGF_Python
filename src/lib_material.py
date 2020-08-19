@@ -39,6 +39,8 @@ class Material():
             self.r0 = 2.8                         # J. A1-B1 hopping energy
             self.r1 = 0.39                        # J. A2-B1 hopping energy
             self.r3 = 0.315                       # J. A1-B2 hopping energy
+            ### effective mass ratio
+            self.eff_me_ratio = 4*self.h_bar**2/(3*self.a**2*self.r0**2*self.me*self.q**2)
         elif mat_name == 'WSe2_6':
             '''
             WSe2 6x6 const.

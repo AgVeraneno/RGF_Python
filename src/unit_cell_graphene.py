@@ -595,6 +595,9 @@ class ZGNR():
                     gap[w_shift+i,w_shift+i] = self.__gap__[w_idx]
                     gap[W_sum+w_shift+i,W_sum+w_shift+i] = self.__gap__[w_idx]
                     w_shift += W
+        ###
+        self.delta = self.__gap__[0]
+        ###
         ## Voltage assign
         volt = np.eye(self.__m_size__, dtype=np.complex128)*1e7
         w_shift = 0
