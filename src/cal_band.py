@@ -2,7 +2,7 @@ import os, copy
 import numpy as np
 import IO_util
 
-class CPU():
+class BandStructure():
     def __init__(self, setup, unit):
         self.unit = unit
         if setup['Direction'] == 'AC': self.ax = setup['Material'].ax
@@ -29,6 +29,19 @@ class CPU():
         val, vec = self.__sort__(val, vec, 'energy')
         wgt = self.calWeight(vec)
         return kx, val, vec, wgt
+    def calStateMM(self, l_idx):
+        H = self.unit.H*self.mat.q
+        Pf = self.unit.Pf*self.mat.q
+        Pb = self.unit.Pb*self.mat.q
+        # calculate eigenstate in kx = l_idx
+        kx = self.setKx(l_idx)
+        Heig = H+\
+               np.exp(-1j*kx*self.ax)*Pf+\
+               np.exp(1j*kx*self.ax)*Pb
+        val, vec = np.linalg.eig(Heig)
+        val, vec = self.__sort__(val, vec, 'energy')
+        uB = self.calMagneticMoment(kx, vec, vec)
+        return kx, uB
     def calWeight(self,vec):
         weight = copy.deepcopy(vec)
         for i in range(np.size(vec,0)): weight[:,i] = np.real(np.square(np.abs(vec[:,i])))
@@ -40,15 +53,15 @@ class CPU():
         uHeig = uH+\
                 np.exp(-1j*kx*self.ax)*uPf+\
                 np.exp(1j*kx*self.ax)*uPb
-        euH = np.vdot(vec1,np.dot(uHeig,vec2))
+        euH = np.dot(np.conj(vec1),np.dot(uHeig,vec2))
         uH0 = self.unit.uH0
         uPf0 = self.unit.uPf0
         uPb0 = self.unit.uPb0
         uHeig0 = uH0+\
                  np.exp(-1j*kx*self.ax)*uPf0+\
                  np.exp(1j*kx*self.ax)*uPb0
-        euH0 = np.vdot(vec1,np.dot(uHeig0,vec2))
-        eY = np.vdot(vec1,np.dot(self.unit.Y,vec2))
+        euH0 = np.dot(np.conj(vec1),np.dot(uHeig0,vec2))
+        eY = np.dot(np.conj(vec1),np.dot(self.unit.Y,vec2))
         uB_star = self.mat.uB/(self.mat.eff_me_ratio*self.unit.delta*self.mat.q)
         if debug: return (euH)/self.mat.uB, euH0*eY/self.mat.uB, (euH- euH0*eY)/uB_star
         else: return (euH- euH0*eY)/uB_star

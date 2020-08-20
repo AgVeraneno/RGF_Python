@@ -219,42 +219,58 @@ class RGF_solver():
         Job start
         '''
         for key, unit in unit_list.items():
+            ## initialize ##
+            band_parser = cal_band.BandStructure(setup_dict, unit)
+            t = time.time()
             if unit.region['enable Band']:
-                ## initialize ##
-                band_parser = cal_band.CPU(setup_dict, unit)
-                ## calculate band structure
-                t = time.time()
-                with Pool(processes=self.workers) as mp: eig = mp.map(band_parser.calState,self.mesh)
-                self.logger.info("=>Calculate band structure: "+str(round(time.time()-t,3))+" (sec)")
-                ## sort band and eigenstate
-                t = time.time()
-                '''
-                # 1. Sort eigenstates
-                for e_idx, e in enumerate(eig):
-                    if e_idx > 1:
-                        srt_val, srt_vec, ref_wgt = band_parser.__sort__(e[1],e[2],'weight',e[3], ref_wgt)
-                        eig[e_idx] = (e[0], np.array(srt_val), np.array(srt_vec))
-                    else: ref_wgt = copy.deepcopy(e[3])
-                # 2. Sort eigenenergy
-    
-                mid_idx = int((int(setup_dict['mesh'])+int(setup_dict['mesh'])%2)/2)
-                srt_idx = band_parser.__sort__(eig[mid_idx][1],None,'align')
-                for e_idx, e in enumerate(eig):
-                    srt_val, srt_vec = band_parser.refreshBands(e[1], e[2], srt_idx)
-                    eig[e_idx] = (e[0], np.array(srt_val), np.array(srt_vec))
-                self.logger.info("=>Sort band structure: "+str(round(time.time()-t,3))+" (sec)")
-                '''
                 ## generate result table eigenvalues
                 folder = self.output_dir+self.job_dir+'/band/'
                 if not os.path.exists(folder): os.mkdir(folder)
                 # 1. Generate header
                 # 2. Generate result table
                 filepath = folder+self.job_name+'_'+key
-                band_parser.saveBand(eig, unit, filepath)
-                # Magnetic moment
+                if setup_dict['POR Band structure']:
+                    ## calculate band structure
+                    with Pool(processes=self.workers) as mp: eig = mp.map(band_parser.calState,self.mesh)
+                    self.logger.info("=>Calculate band structure: "+str(round(time.time()-t,3))+" (sec)")
+                    ## sort band and eigenstate
+                    t = time.time()
+                    '''
+                    # 1. Sort eigenstates
+                    for e_idx, e in enumerate(eig):
+                        if e_idx > 1:
+                            srt_val, srt_vec, ref_wgt = band_parser.__sort__(e[1],e[2],'weight',e[3], ref_wgt)
+                            eig[e_idx] = (e[0], np.array(srt_val), np.array(srt_vec))
+                        else: ref_wgt = copy.deepcopy(e[3])
+                    # 2. Sort eigenenergy
+        
+                    mid_idx = int((int(setup_dict['mesh'])+int(setup_dict['mesh'])%2)/2)
+                    srt_idx = band_parser.__sort__(eig[mid_idx][1],None,'align')
+                    for e_idx, e in enumerate(eig):
+                        srt_val, srt_vec = band_parser.refreshBands(e[1], e[2], srt_idx)
+                        eig[e_idx] = (e[0], np.array(srt_val), np.array(srt_vec))
+                    self.logger.info("=>Sort band structure: "+str(round(time.time()-t,3))+" (sec)")
+                    '''
+
+                    band_parser.saveBand(eig, unit, filepath)
+                    # Magnetic moment
+                    if setup_dict['POR Magnetic moment']:
+                        band_parser.saveMagneticMoment(eig, unit, filepath)
+                    eig = None
                 if setup_dict['POR Magnetic moment']:
-                    band_parser.saveMagneticMoment(eig, unit, filepath)
-                eig = None
+                    with Pool(processes=self.workers) as mp: uB = mp.map(band_parser.calStateMM,self.mesh)
+                    self.logger.info("=>Calculate magnetic momentum: "+str(round(time.time()-t,3))+" (sec)")
+                    uTB = [['Band','kx*a','muTB']]
+                    for u in uB:
+                        for E_idx in unit.region['E_idx']:
+                            if e_idx in unit.region['S_idx']:
+                                kx = u[0]
+                                ## magnetic moment
+                                uTB.append([])
+                                uTB[-1].append(E_idx)
+                                uTB[-1].append(kx*self.a)
+                                uTB[-1].append(np.real(u[1]))
+                    else: IO_util.saveAsCSV(filepath+'_uTB.csv', uTB)
         '''
         Job finish
         '''
@@ -387,13 +403,12 @@ if __name__ == '__main__':
             Generate unit cell
             '''
             unit_list = RGF_parser.gen_unitCell(setup_dict, job)
-            if setup_dict['POR Band structure']:
-                '''
-                Calculate band structure
-                '''
-                logger.info('========Band structure start========')
-                RGF_parser.cal_bandStructure(setup_dict, unit_list)
-                logger.info('========Band structure complete========')
+            '''
+            Calculate band structure
+            '''
+            logger.info('========Band structure start========')
+            RGF_parser.cal_bandStructure(setup_dict, unit_list)
+            logger.info('========Band structure complete========')
             if setup_dict['POR RGF']:
                 '''
                 Calculate RGF
