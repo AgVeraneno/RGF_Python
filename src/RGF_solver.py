@@ -268,7 +268,7 @@ class RGF_solver():
                             uTB.append([])
                             uTB[-1].append(E_idx)
                             uTB[-1].append(kx*band_parser.a)
-                            uTB[-1].append(np.real(u[1]))
+                            uTB[-1].extend(np.real(u[1]))
                     else: IO_util.saveAsCSV(filepath+'_uTB.csv', uTB)
         '''
         Job finish
