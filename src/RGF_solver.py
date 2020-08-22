@@ -261,15 +261,14 @@ class RGF_solver():
                     with Pool(processes=self.workers) as mp: uB = mp.map(band_parser.calStateMM,self.mesh)
                     self.logger.info("=>Calculate magnetic momentum: "+str(round(time.time()-t,3))+" (sec)")
                     uTB = [['Band','kx*a','muTB']]
-                    for u in uB:
-                        for E_idx in unit.region['E_idx']:
-                            if e_idx in unit.region['S_idx']:
-                                kx = u[0]
-                                ## magnetic moment
-                                uTB.append([])
-                                uTB[-1].append(E_idx)
-                                uTB[-1].append(kx*self.a)
-                                uTB[-1].append(np.real(u[1]))
+                    for E_idx in unit.region['E_idx']:
+                        for u in uB:
+                            kx = u[0]
+                            ## magnetic moment
+                            uTB.append([])
+                            uTB[-1].append(E_idx)
+                            uTB[-1].append(kx*band_parser.a)
+                            uTB[-1].append(np.real(u[1]))
                     else: IO_util.saveAsCSV(filepath+'_uTB.csv', uTB)
         '''
         Job finish

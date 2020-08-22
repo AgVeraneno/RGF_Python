@@ -40,7 +40,10 @@ class BandStructure():
                np.exp(1j*kx*self.ax)*Pb
         val, vec = np.linalg.eig(Heig)
         val, vec = self.__sort__(val, vec, 'energy')
-        uB = self.calMagneticMoment(kx, vec, vec)
+        uB = []
+        if l_idx in self.unit.region['S_idx']:
+            for E_idx in self.unit.region['E_idx']:
+                uB.append(self.calMagneticMoment(kx, vec[:,E_idx-1], vec[:,E_idx-1]))
         return kx, uB
     def calWeight(self,vec):
         weight = copy.deepcopy(vec)
