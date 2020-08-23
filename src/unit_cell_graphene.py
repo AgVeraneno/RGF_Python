@@ -266,14 +266,15 @@ class AGNR():
         '''
         ## ribbon size
         self.W = [w*2 for w in region['Width']]
-        self.__Wtot__ = sum(self.W)
         self.L = region['Length']
         ## lattice type
         if setup['Lattice'] == 'M':
             self.m_size = 2*sum(self.W)
+            self.__m_size__ = self.m_size
             self.lattice = 'MLG'
         elif setup['Lattice'] == 'B':
             self.m_size = 4*sum(self.W)
+            self.__m_size__ = self.m_size
             self.lattice = 'BLG'
         else:
             raise ValueError('Unresolved lattice:', setup['Lattice'])

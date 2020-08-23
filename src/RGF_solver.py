@@ -36,6 +36,10 @@ class RGF_solver():
         if not os.path.exists(self.setup_file):
             logger.error('Invalid input file: %s',self.setup_file)
             raise ValueError('Invalid input file: %s',self.setup_file)
+    def __jobPath__(self, task_name):
+        folder = self.job_dir+'/'+task_name+'/'
+        if not os.path.exists(folder): os.mkdir(folder)
+        return folder
     def load_inputs(self, logger):
         self.logger = logger
         t_load = time.time()
@@ -198,15 +202,14 @@ class RGF_solver():
             new_list = []
             for band in band_list:
                 if isinstance(band, str):
-                    if 'V' in band: new_list.append(int(unit.__Wtot__/2-int(band[1:])+1))
-                    elif 'C' in band: new_list.append(int(unit.__Wtot__/2+int(band[1:])))
+                    if 'V' in band: new_list.append(int(unit.__m_size__/2-int(band[1:])+1))
+                    elif 'C' in band: new_list.append(int(unit.__m_size__/2+int(band[1:])))
                 else: new_list.append(band)
             else: unit.region['E_idx'] = new_list
         ## print out Hamiltonian in debug mode
         if setup_dict['Debug']:
             ## build debug folder
-            folder = self.job_dir+'/debug/'
-            if not os.path.exists(folder): os.mkdir(folder)
+            folder = self.__jobPath__('debug')
             for r_key, region in unit_list.items():
                 IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_H.csv', region.H)
                 IO_util.saveAsCSV(folder+job_name+'_'+r_key+'_P+.csv', region.Pf)
@@ -228,8 +231,7 @@ class RGF_solver():
             t = time.time()
             if unit.region['enable Band']:
                 ## generate result table eigenvalues
-                folder = self.job_dir+'/band/'
-                if not os.path.exists(folder): os.mkdir(folder)
+                folder = self.__jobPath__('band')
                 filepath = folder+self.job_name+'_'+key
                 '''
                 Band structure function
@@ -262,8 +264,7 @@ class RGF_solver():
             t = time.time()
             if unit.region['enable Band']:
                 ## generate result table eigenvalues
-                folder = self.job_dir+'/band/'
-                if not os.path.exists(folder): os.mkdir(folder)
+                folder = self.__jobPath__('band')
                 filepath = folder+self.job_name+'_'+key
                 ## calculate uB
                 with Pool(processes=self.workers) as mp: uB = mp.map(band_parser.calStateMM,self.mesh)
@@ -279,8 +280,7 @@ class RGF_solver():
                 else: IO_util.saveAsCSV(filepath+'_uTB.csv', uTB)
     def cal_RGF_transmission(self, setup_dict, unit_list, E_list, S_list, split_summary, s_idx):
         t_RGF = time.time()
-        folder = self.job_dir+'/PTR/'
-        if not os.path.exists(folder): os.mkdir(folder)
+        folder = self.__jobPath__('RGF')
         RGF_header = ['kx |1/a|','Energy (eV)','Transmission(K)','Transmission(K)','Transmission(Total)']
         RGF_util = cal_RGF.CPU(setup_dict, unit_list)
         CB_cache = {}
@@ -333,7 +333,7 @@ class RGF_solver():
             pass
     def gen_summary(self, setup_dict, CB_cache, split_summary):
         if setup_dict['RGF']:
-            folder = self.job_dir+'/PTR/'
+            folder = self.__jobPath__('RGF')
             ## generate header
             RGF_header = ['Split', 'CB', 'kx (1/a)','Energy (eV)']
             RGF_header.append('Local transmission('+setup_dict['spin'][0]+')')
@@ -534,5 +534,5 @@ if __name__ == '__main__':
                 pass
 
     else:
-        logger.info('Total time: '+str(round(RGF_parser.t_total,3))+' (sec)')
+        logger.info('Total time: '+str(round(t_total,3))+' (sec)')
         logger.info('Program finished successfully')

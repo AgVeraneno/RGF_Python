@@ -15,7 +15,6 @@ class BandStructure():
         self.rawdata = None
     def setKx(self, l_idx):
         return 2*np.pi*(l_idx-(self.mesh-1)/2)/(self.ax*(self.mesh-1))
-        #return 2*np.pi*l_idx/(self.ax*(self.mesh-1))
     def calState(self, l_idx):
         H = self.unit.H*self.mat.q
         Pf = self.unit.Pf*self.mat.q
