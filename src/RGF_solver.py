@@ -191,8 +191,17 @@ class RGF_solver():
             else:
                 logger.critical('Non supported structure:'+setup_dict['structure'])
                 raise ValueError('Non supported structure:',setup_dict['structure'])
-        else:
-            job_name = region['Job']
+        else: job_name = region['Job']
+        ## check keyword band number
+        for key, unit in unit_list.items():
+            band_list = unit.region['E_idx']
+            new_list = []
+            for band in band_list:
+                if isinstance(band, str):
+                    if 'V' in band: new_list.append(int(unit.__Wtot__/2-int(band[1:])+1))
+                    elif 'C' in band: new_list.append(int(unit.__Wtot__/2+int(band[1:])))
+                else: new_list.append(band)
+            else: unit.region['E_idx'] = new_list
         ## print out Hamiltonian in debug mode
         if setup_dict['Debug']:
             ## build debug folder
@@ -286,6 +295,7 @@ class RGF_solver():
                         uTB.append([])
                         uTB[-1].append(E_idx)
                         uTB[-1].append(u[0]*band_parser.a)
+                        uTB[-1].extend(u[1])
                         uTB[-1].extend(u[1])
                 else: IO_util.saveAsCSV(filepath+'_uTB.csv', uTB)
     def cal_RGF_transmission(self, setup_dict, unit_list, E_list, S_list, split_summary, s_idx):

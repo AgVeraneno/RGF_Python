@@ -233,40 +233,28 @@ def importFromExcel(filename=None):
                 if row[1].value not in structure:
                     structure[row[1].value] = {}
                     ## resolve data point
-                    if isinstance(row[2].value, str):
-                        E_tmp = data_util.str2float1D(row[2].value,totem=',',dtype='int')
-                    else:
-                        E_tmp = [row[2].value]
+                    # resolve Band index
+                    if isinstance(row[2].value, str): E_tmp = data_util.str2float1D(row[2].value,totem=',',dtype='int')
+                    else: E_tmp = [row[2].value]
                     E_idx = []
                     for e in E_tmp:
                         if isinstance(e, str):
                             try:
-                                e0, ee = data_util.str2float1D(e,totem=':',dtype='int')
-                                e_range = np.arange(e0,ee+1,1)
-                            except:
                                 e0, de, ee = data_util.str2float1D(e,totem=':',dtype='int')
-                                e_range = np.arange(e0,ee+de,de)
-                            E_idx.extend(e_range)
-                        else:
-                            E_idx.append(e)
-                    this_region['E_idx'] = E_idx
-                    if isinstance(row[3].value, str):
-                        S_tmp = data_util.str2float1D(row[3].value,totem=',',dtype='int')
-                    else:
-                        S_tmp = [row[3].value]
+                                E_idx.extend(np.arange(e0,ee+de,de))
+                            except: E_idx.append(e)
+                        else: E_idx.append(e)
+                    else: this_region['E_idx'] = E_idx
+                    # resolve kx index
+                    if isinstance(row[3].value, str): S_tmp = data_util.str2float1D(row[3].value,totem=',',dtype='int')
+                    else: S_tmp = [row[3].value]
                     S_idx = []
                     for s in S_tmp:
                         if isinstance(s, str):
-                            try:
-                                s0, ss = data_util.str2float1D(s,totem=':',dtype='int')
-                                s_range = np.arange(s0,ss+1,1)
-                            except:
-                                s0, ds, ss = data_util.str2float1D(s,totem=':',dtype='int')
-                                s_range = np.arange(s0,ss+ds,ds)
-                            S_idx.extend(s_range)
-                        else:
-                            S_idx.append(s)
-                    this_region['S_idx'] = S_idx
+                            s0, ds, ss = data_util.str2float1D(s,totem=':',dtype='int')
+                            S_idx.extend(np.arange(s0,ss+ds,ds))
+                        else: S_idx.append(s)
+                    else: this_region['S_idx'] = S_idx
                 elif E_idx != [] and S_idx != []:
                     this_region['E_idx'] = E_idx
                     this_region['S_idx'] = S_idx
