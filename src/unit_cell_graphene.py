@@ -266,6 +266,7 @@ class AGNR():
         '''
         ## ribbon size
         self.W = [w*2 for w in region['Width']]
+        self.__Wtot__ = sum(self.W)
         self.L = region['Length']
         ## lattice type
         if setup['Lattice'] == 'M':

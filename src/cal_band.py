@@ -35,6 +35,7 @@ class BandStructure():
         if l_idx in self.unit.region['S_idx']:
             for E_idx in self.unit.region['E_idx']:
                 uB.append(self.calMagneticMoment(kx, vec[:,E_idx-1], vec[:,E_idx-1]))
+                uB.append(sum(self.calMagneticMomentCurrent(vec[:,E_idx-1])))
         return kx, uB
     def calWeight(self,vec):
         weight = copy.deepcopy(vec)

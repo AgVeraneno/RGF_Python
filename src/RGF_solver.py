@@ -31,7 +31,7 @@ class RGF_solver():
         else:
             self.setup_file = self.input_dir+'magnetic_momentum.xlsx'
             self.isGPU = False
-            self.workers = 1
+            self.workers = 8
         ## check input file
         if not os.path.exists(self.setup_file):
             logger.error('Invalid input file: %s',self.setup_file)
@@ -221,14 +221,7 @@ class RGF_solver():
         self.logger.info('=>Generate unit cell:'+str(t_unitcell)+'(sec)')
         self.t_total += t_unitcell
         return unit_list
-    def cal_bandStructure(self, setup_dict, unit_list):
-        '''
-        Initialize
-        '''
-        t_band = time.time()
-        '''
-        Job start
-        '''
+    def calBandStructure(self, setup_dict, unit_list):
         for key, unit in unit_list.items():
             ## initialize ##
             band_parser = cal_band.BandStructure(setup_dict, unit)
@@ -242,40 +235,27 @@ class RGF_solver():
                 Band structure function
                 Calculate eigenstate only
                 '''
-                if setup_dict['POR Band structure']:
-                    ## calculate band structure
-                    with Pool(processes=self.workers) as mp: eig = mp.map(band_parser.calState,self.mesh)
-                    self.logger.info("=>Calculate band structure: "+str(round(time.time()-t,3))+" (sec)")
-                    ## sort band and eigenstate
-                    t = time.time()
-                    # 1. Sort eigenstates
-                    for e_idx, e in enumerate(eig):
-                        if e_idx > 1:
-                            srt_val, srt_vec, ref_wgt = band_parser.__sort__(e[1],e[2],'weight',e[3], ref_wgt)
-                            eig[e_idx] = (e[0], np.array(srt_val), np.array(srt_vec))
-                        else: ref_wgt = copy.deepcopy(e[3])
-                    # 2. Sort eigenenergy
-                    mid_idx = int((int(setup_dict['mesh'])+int(setup_dict['mesh'])%2)/2)
-                    srt_idx = band_parser.__sort__(eig[mid_idx][1],None,'align')
-                    for e_idx, e in enumerate(eig):
-                        srt_val, srt_vec = band_parser.refreshBands(e[1], e[2], srt_idx)
+                ## calculate band structure
+                with Pool(processes=self.workers) as mp: eig = mp.map(band_parser.calState,self.mesh)
+                self.logger.info("=>Calculate band structure: "+str(round(time.time()-t,3))+" (sec)")
+                ## sort band and eigenstate
+                t = time.time()
+                # 1. Sort eigenstates
+                for e_idx, e in enumerate(eig):
+                    if e_idx > 1:
+                        srt_val, srt_vec, ref_wgt = band_parser.__sort__(e[1],e[2],'weight',e[3], ref_wgt)
                         eig[e_idx] = (e[0], np.array(srt_val), np.array(srt_vec))
-                    self.logger.info("=>Sort band structure: "+str(round(time.time()-t,3))+" (sec)")
-                    band_parser.saveBand(eig, unit, filepath)
-                    eig = None
-        '''
-        Job finish
-        '''
-        self.logger.info('==>Band structure function:'+str(round(time.time() - t_band,3))+'(sec)')
-        self.t_total += t_band
+                    else: ref_wgt = copy.deepcopy(e[3])
+                # 2. Sort eigenenergy
+                mid_idx = int((int(setup_dict['mesh'])+int(setup_dict['mesh'])%2)/2)
+                srt_idx = band_parser.__sort__(eig[mid_idx][1],None,'align')
+                for e_idx, e in enumerate(eig):
+                    srt_val, srt_vec = band_parser.refreshBands(e[1], e[2], srt_idx)
+                    eig[e_idx] = (e[0], np.array(srt_val), np.array(srt_vec))
+                self.logger.info("=>Sort band structure: "+str(round(time.time()-t,3))+" (sec)")
+                band_parser.saveBand(eig, unit, filepath)
+                eig = None
     def calMagneticMoment(self, setup_dict, unit_list):
-        '''
-        Initialize
-        '''
-        t_band = time.time()
-        '''
-        Job start
-        '''
         for key, unit in unit_list.items():
             ## initialize ##
             band_parser = cal_band.BandStructure(setup_dict, unit)
@@ -295,7 +275,6 @@ class RGF_solver():
                         uTB.append([])
                         uTB[-1].append(E_idx)
                         uTB[-1].append(u[0]*band_parser.a)
-                        uTB[-1].extend(u[1])
                         uTB[-1].extend(u[1])
                 else: IO_util.saveAsCSV(filepath+'_uTB.csv', uTB)
     def cal_RGF_transmission(self, setup_dict, unit_list, E_list, S_list, split_summary, s_idx):
@@ -379,6 +358,7 @@ class RGF_solver():
                 IO_util.saveAsCSV(folder+'Split_summary.csv', RGF_tmp)
         
 if __name__ == '__main__':
+    t_total = 0
     """
     This program simulates ballistic transportation along x-axis.
     """
@@ -428,18 +408,27 @@ if __name__ == '__main__':
             '''
             Calculate band structure
             '''
-            logger.info('========Band structure start========')
-            RGF_parser.cal_bandStructure(setup_dict, unit_list)
-            logger.info('========Band structure complete========')
+            if setup_dict['POR Band structure']:
+                logger.info('========Band structure start========')
+                t = time.time()
+                RGF_parser.calBandStructure(setup_dict, unit_list)
+                logger.info('==>Band structure function:'+str(round(time.time() - t,3))+'(sec)')
+                t_total += t
+                logger.info('========Band structure complete========')
             '''
             Calculate magnetic moment
             '''
             if setup_dict['POR Magnetic moment']:
+                logger.info('========Magnetic moment start========')
+                t = time.time()
                 RGF_parser.calMagneticMoment(setup_dict, unit_list)
+                logger.info('==>Magnetic moment function:'+str(round(time.time() - t,3))+'(sec)')
+                t_total += t
+                logger.info('========Magnetic moment complete========')
+            '''
+            Calculate RGF
+            '''
             if setup_dict['POR RGF']:
-                '''
-                Calculate RGF
-                '''
                 logger.info('========RGF DC start========')
                 for key, unit in unit_list.items():
                     if unit.region['E_idx'][0] == None: unit.region['E_idx'] = range(0,len(eig[0][1]),1)

@@ -24,14 +24,13 @@ class excel():
             return self
         ## open excel file with valid file path
         if os.path.isfile(self.file_path):
-            print('Open: ', self.file_path)
             self.workbook = load_workbook(self.file_path,data_only=True)
             self.sheet_list = self.workbook.sheetnames
             return self
         else:
             raise ValueError("Invalid file: "+self.file_path)
     def __exit__(self, type, value, traceback):
-        print('Close: '+self.file_path)
+        pass
     def newWorkbook(self, sheet_name=''):
         self.workbook = Workbook()
         self.worksheet = self.workbook.active
