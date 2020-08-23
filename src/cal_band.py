@@ -30,16 +30,7 @@ class BandStructure():
         wgt = self.calWeight(vec)
         return kx, val, vec, wgt
     def calStateMM(self, l_idx):
-        H = self.unit.H*self.mat.q
-        Pf = self.unit.Pf*self.mat.q
-        Pb = self.unit.Pb*self.mat.q
-        # calculate eigenstate in kx = l_idx
-        kx = self.setKx(l_idx)
-        Heig = H+\
-               np.exp(-1j*kx*self.ax)*Pf+\
-               np.exp(1j*kx*self.ax)*Pb
-        val, vec = np.linalg.eig(Heig)
-        val, vec = self.__sort__(val, vec, 'energy')
+        kx, _, vec, _ = self.calState(l_idx)
         uB = []
         if l_idx in self.unit.region['S_idx']:
             for E_idx in self.unit.region['E_idx']:
@@ -49,7 +40,7 @@ class BandStructure():
         weight = copy.deepcopy(vec)
         for i in range(np.size(vec,0)): weight[:,i] = np.real(np.square(np.abs(vec[:,i])))
         return weight
-    def calMagneticMoment(self, kx, vec1, vec2, debug=False):
+    def calMagneticMoment(self, kx, vec1, vec2):
         uH = self.unit.uH
         uPf = self.unit.uPf
         uPb = self.unit.uPb
@@ -66,11 +57,9 @@ class BandStructure():
         euH0 = np.dot(np.conj(vec1),np.dot(uHeig0,vec2))
         eY = np.dot(np.conj(vec1),np.dot(self.unit.Y,vec2))
         uB_star = self.mat.uB/(self.mat.eff_me_ratio*self.unit.delta*self.mat.q)
-        if debug: return (euH)/self.mat.uB, euH0*eY/self.mat.uB, (euH- euH0*eY)/uB_star
-        else: return (euH- euH0*eY)/uB_star
-        
+        return np.real((euH- euH0*eY)/uB_star)
     def calMagneticMomentCurrent(self, vec):
-        Area = 1.5*3**0.5*self.mat.acc**2
+        Area = 1.5*3**0.5*self.mat.acc**2       # area of hexagon
         uB_star = self.mat.uB/(self.mat.eff_me_ratio*self.unit.delta*self.mat.q)
         if self.direction == 'ZZ':
             ## calculate link current
